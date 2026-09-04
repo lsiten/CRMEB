@@ -1,0 +1,6 @@
+.title { display: block; font-size: 38px; font-weight: 600; margin: 8px 0 24px; }
+.empty { min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; color: #888; }
+.empty button { border: 1px solid #e93323; color: #e93323; background: #fff; }
+.row { display: flex; justify-content: space-between; padding: 20px 0; border-bottom: 1px solid #f2f2f2; font-size: 26px; }
+.checkout { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; font-size: 30px; }
+.checkout button { margin: 0; background: #e93323; color: #fff; }

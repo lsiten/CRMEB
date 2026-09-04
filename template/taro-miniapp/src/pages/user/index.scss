@@ -1,0 +1,10 @@
+.profile { display: flex; align-items: center; gap: 18px; padding: 30px 24px; }
+.avatar { width: 84px; height: 84px; border-radius: 50%; background: #ffe9e5; display: flex; align-items: center; justify-content: center; font-size: 42px; }
+.profile view:nth-child(2) { flex: 1; }
+.welcome, .hint { display: block; }
+.welcome { font-size: 30px; font-weight: 600; }
+.hint { color: #999; font-size: 24px; margin-top: 8px; }
+.profile button { margin: 0; background: #e93323; color: #fff; font-size: 24px; }
+.menu { padding: 0 24px; }
+.menuItem { display: flex; justify-content: space-between; padding: 28px 0; border-bottom: 1px solid #f2f2f2; font-size: 28px; }
+.menuItem:last-child { border-bottom: 0; }
