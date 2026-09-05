@@ -41,6 +41,19 @@ export async function getProducts(): Promise<readonly Product[]> {
 
 export type ProductQuery = Readonly<{ keyword?: string; category?: string; ids?: readonly number[]; limit?: number }>;
 
+type ProductPayload = Readonly<{ data?: unknown; list?: unknown }>;
+
+function parseProducts(payload: ProductPayload, limit: number): readonly Product[] {
+  const data = payload.data;
+  const candidates = Array.isArray(data) ? data : data && typeof data === 'object' && 'list' in data && Array.isArray(data.list)
+    ? data.list : Array.isArray(payload.list) ? payload.list : [];
+  return candidates.filter((item): item is Product => {
+    if (typeof item !== 'object' || item === null) return false;
+    const record = item as Record<string, unknown>;
+    return typeof record['id'] === 'number' && typeof record['name'] === 'string' && typeof record['price'] === 'number' && typeof record['image'] === 'string';
+  }).slice(0, limit);
+}
+
 export async function queryProducts(query: ProductQuery): Promise<readonly Product[]> {
   const limit = Math.min(Math.max(query.limit ?? 50, 1), 50);
   const params = new URLSearchParams();
@@ -48,8 +61,8 @@ export async function queryProducts(query: ProductQuery): Promise<readonly Produ
   if (query.category && query.category !== '全部') params.set('category', query.category);
   if (query.ids?.length) params.set('ids', query.ids.join(','));
   params.set('limit', String(limit));
-  const payload = await request<Readonly<{ data?: readonly Product[] }>>(`/products?${params.toString()}`, { method: 'GET' });
-  return Array.isArray(payload.data) ? payload.data.slice(0, limit) : [];
+  const payload = await request<ProductPayload>(`/products?${params.toString()}`, { method: 'GET' });
+  return parseProducts(payload, limit);
 }
 
 export async function getProduct(id: number): Promise<Product> {
