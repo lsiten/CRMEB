@@ -1,10 +1,10 @@
 .banner { height: 300px; border-radius: 16px; overflow: hidden; margin-bottom: 20px; }
-.bannerItem { height: 100%; display: flex; align-items: center; justify-content: center; color: #e93323; font-size: 40px; background: #fff0ed; }
+.bannerItem { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--color-brand); font-size: var(--text-xl); background: var(--color-brand-soft); }
 .shortcuts { display: flex; justify-content: space-between; }
 .shortcuts button { margin: 0; padding: 0 12px; background: transparent; color: #444; font-size: 26px; }
 .sectionTitle { display: block; font-size: 34px; font-weight: 600; margin-bottom: 18px; }
 .diy-item { width: 100%; }
-.diy-placeholder { margin: 16px; padding: 24px; color: #999; background: #f7f7f7; text-align: center; }
+.diy-placeholder { margin: var(--space-2); padding: var(--space-3); color: var(--color-text-muted); background: var(--color-page); text-align: center; }
 .diy-text { padding: 24px; }
 .diy-picture { display: block; width: 100%; height: 240px; }
 .error { display: flex; align-items: center; justify-content: space-between; }

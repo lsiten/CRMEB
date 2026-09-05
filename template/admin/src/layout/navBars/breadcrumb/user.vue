@@ -46,7 +46,7 @@
       </span>
       <el-dropdown-menu slot="dropdown">
         <el-dropdown-item command="user">{{ $t('message.user.dropdown6') }}</el-dropdown-item>
-        <el-dropdown-item v-if="tenantList.length > 1" command="tenant">切换租户</el-dropdown-item>
+        <el-dropdown-item v-if="canSwitchTenant" command="tenant">切换租户</el-dropdown-item>
         <el-dropdown-item divided command="logOut">{{ $t('message.user.dropdown5') }}</el-dropdown-item>
       </el-dropdown-menu>
     </el-dropdown>
@@ -54,15 +54,60 @@
       <i class="el-icon-setting" :title="$t('message.user.title3')"></i>
     </div>
     <!-- <Search ref="searchRef" /> -->
+
+    <el-dialog
+      title="切换租户"
+      :visible.sync="tenantDialogVisible"
+      width="420px"
+      custom-class="tenant-switch-dialog"
+      append-to-body
+    >
+      <el-form label-width="80px">
+        <el-form-item label="当前租户">
+          <el-select
+            v-model="selectedTenantId"
+            filterable
+            :loading="tenantListLoading"
+            placeholder="请选择租户"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="tenant in tenantList"
+              :key="tenant.id"
+              :label="tenant.name || tenant.code || tenant.id"
+              :value="tenant.id"
+            />
+            <el-option
+              v-if="!tenantListLoading && !tenantList.length"
+              disabled
+              label="暂无可用租户"
+              value="__empty__"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <span slot="footer">
+        <el-button @click="tenantDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="tenantSwitching"
+          :disabled="tenantListLoading || !tenantList.length || !selectedTenantId"
+          @click="switchTenant"
+        >
+          切换
+        </el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import screenfull from 'screenfull';
-import { AccountLogout } from '@/api/account';
+import { AccountLogout, menusApi } from '@/api/account';
+import { tenantListApi, switchTenantApi } from '@/api/tenant';
 import { removeCookies } from '@/libs/util';
 import { Session, Local } from '@/utils/storage.js';
-import { switchTenantApi } from '@/api/tenant';
+import { formatFlatteningRoutes } from '@/libs/system';
 import UserNews from '@/layout/navBars/breadcrumb/userNews.vue';
 import Search from '@/layout/navBars/breadcrumb/search.vue';
 export default {
@@ -75,15 +120,31 @@ export default {
       disabledI18n: 'zh-cn',
       disabledSize: '',
       isDot: false,
+      tenantDialogVisible: false,
+      tenantSwitching: false,
+      tenantListLoading: false,
+      selectedTenantId: '',
     };
   },
   computed: {
     // 获取用户信息
     getUserInfos() {
-      return this.$store.state.userInfo.userInfo;
+      return this.$store.state.userInfo.userInfo || {};
     },
     tenantList() {
       return this.$store.state.tenant.list || [];
+    },
+    isSuperAdmin() {
+      const userInfo = this.$store.state.userInfo.userInfo || {};
+      const uniqueAuth = this.$store.state.userInfo.uniqueAuth;
+      return (
+        userInfo.is_super_admin === true ||
+        userInfo.is_super_admin === 1 ||
+        (Array.isArray(uniqueAuth) && uniqueAuth.includes('super_admin'))
+      );
+    },
+    canSwitchTenant() {
+      return this.isSuperAdmin && this.tenantList.length > 1;
     },
     // 设置弹性盒子布局 flex
     layoutUserFlexNum() {
@@ -94,11 +155,23 @@ export default {
       return num;
     },
   },
+  watch: {
+    getUserInfos: {
+      deep: true,
+      handler() {
+        this.loadTenantList();
+      },
+    },
+    '$store.state.userInfo.uniqueAuth'() {
+      this.loadTenantList();
+    },
+  },
   mounted() {
     if (Local.get('themeConfigPrev')) {
       this.initI18n();
       this.initComponentSize();
     }
+    this.loadTenantList();
   },
   methods: {
     closePopover() {
@@ -201,19 +274,8 @@ export default {
     // `dropdown 下拉菜单` 当前项点击
     onDropdownCommand(path) {
       if (path === 'tenant') {
-        this.$prompt('请输入租户 ID', '切换租户', {
-          confirmButtonText: '切换',
-          cancelButtonText: '取消',
-          inputValue: this.$store.state.tenant.current && this.$store.state.tenant.current.id,
-        })
-          .then(({ value }) => switchTenantApi({ tenant_id: value }))
-          .then((res) => {
-            const data = res.data || res;
-            const current = data.current_tenant || data.tenant || data;
-            this.$store.commit('tenant/setContext', { current, list: this.tenantList });
-            window.location.reload();
-          })
-          .catch(() => {});
+        this.selectedTenantId = this.$store.state.tenant.current && this.$store.state.tenant.current.id;
+        this.tenantDialogVisible = true;
         return;
       }
       if (path === 'logOut') {
@@ -269,11 +331,90 @@ export default {
         this.$router.push(path);
       }
     },
+    loadTenantList() {
+      if (!this.isSuperAdmin || this.tenantListLoading) return;
+      this.tenantListLoading = true;
+      tenantListApi()
+        .then((res) => {
+          const data = res.data || res || {};
+          const list = Array.isArray(data) ? data : data.list || data.tenants || data.tenant_list || [];
+          if (!Array.isArray(list) || !list.length) return;
+          const current =
+            data.current_tenant ||
+            data.current ||
+            this.$store.state.tenant.current ||
+            list.find((item) => String(item.id) === String(this.$store.state.userInfo.userInfo?.tenant_id)) ||
+            list[0];
+          this.$store.commit('tenant/setContext', { current, list });
+        })
+        .catch(() => {
+          this.$message.error('租户列表加载失败，请刷新重试');
+        })
+        .finally(() => {
+          this.tenantListLoading = false;
+        });
+    },
+    switchTenant() {
+      if (!this.selectedTenantId || this.tenantSwitching || this.tenantListLoading) return;
+      this.tenantSwitching = true;
+      switchTenantApi({ tenant_id: this.selectedTenantId })
+        .then((res) => {
+          const data = res.data || res;
+          const current =
+            data.current_tenant ||
+            data.tenant ||
+            this.tenantList.find((item) => String(item.id) === String(this.selectedTenantId));
+          const list = Array.isArray(data.tenants || data.tenant_list)
+            ? data.tenants || data.tenant_list
+            : this.tenantList;
+          this.$store.commit('tenant/setContext', { current, list });
+          if (data.user_info) this.$store.commit('userInfo/userInfo', data.user_info);
+          const uniqueAuth = data.unique_auth || (data.user_info && data.user_info.unique_auth);
+          if (Array.isArray(uniqueAuth)) {
+            this.$store.commit('userInfo/uniqueAuth', uniqueAuth);
+            this.$store.commit('userInfo/access', uniqueAuth);
+            Local.set('PERMISSIONS', data.site_func || uniqueAuth);
+          }
+          const menus = Array.isArray(data.menus) ? data.menus : Array.isArray(data.menu) ? data.menu : null;
+          if (menus) {
+            this.applyMenus(menus);
+          } else {
+            return menusApi().then((menuRes) => {
+              const menuData = menuRes.data || menuRes;
+              const menuList = Array.isArray(menuData) ? menuData : menuData.menus || menuData.list;
+              if (Array.isArray(menuList)) this.applyMenus(menuList);
+            });
+          }
+        })
+        .then(() => {
+          this.tenantDialogVisible = false;
+          this.$message.success('租户切换成功');
+          window.location.reload();
+        })
+        .catch((error) => {
+          this.$message.error((error && error.msg) || '租户切换失败');
+        })
+        .finally(() => {
+          this.tenantSwitching = false;
+        });
+    },
+    applyMenus(menus) {
+      this.$store.commit('menus/getmenusNav', menus);
+      this.$store.dispatch('routesList/setRoutesList', menus);
+      this.$store.commit('menus/setOneLvRoute', formatFlatteningRoutes(menus));
+      this.bus.$emit('routesListChange');
+    },
   },
 };
 </script>
 
 <style scoped lang="scss">
+::v-deep .tenant-switch-dialog {
+  @media (max-width: 480px) {
+    width: calc(100vw - 32px) !important;
+  }
+}
+
 .layout-navbars-breadcrumb-user {
   display: flex;
   align-items: center;
