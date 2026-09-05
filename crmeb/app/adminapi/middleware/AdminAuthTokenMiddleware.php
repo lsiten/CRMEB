@@ -47,9 +47,11 @@ class AdminAuthTokenMiddleware implements MiddlewareInterface
         /** @var AdminAuthServices $service */
         $service = app()->make(AdminAuthServices::class);
         $adminInfo = $service->parseToken($token);
-        $tenantId = isset($adminInfo['tenant_id']) ? (int)$adminInfo['tenant_id'] : (int)($adminInfo['tenant_id'] ?? 0);
+        $tenantId = (int)($adminInfo['tenant_id'] ?? 0);
         // level=0 is the platform administrator and may explicitly cross tenant boundaries.
-        TenantContext::set($tenantId ?: null, (int)($adminInfo['level'] ?? 1) === 0);
+        // Keep tenant_id=0 as an explicit tenant so TenantScope still adds tenant_id=0
+        // for non-platform administrators instead of silently disabling the scope.
+        TenantContext::set($tenantId, (int)($adminInfo['level'] ?? 1) === 0);
         $request->macro('isAdminLogin', function () use (&$adminInfo) {
             return !is_null($adminInfo);
         });

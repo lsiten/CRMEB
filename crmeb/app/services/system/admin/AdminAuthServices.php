@@ -86,13 +86,23 @@ class AdminAuthServices extends BaseServices
             $this->authFailAfter($id, $type);
             throw new AuthException($msg, [], 401);
         }
+        // 租户标识属于签发时的安全边界：不能接受令牌携带的租户覆盖管理员实际租户。
+        // 旧令牌可能没有 tenant_id，缺省时沿用管理员记录中的租户以保持兼容。
+        $adminTenantId = (int)($adminInfo->tenant_id ?? 0);
+        if ($tenantId !== null && (int)$tenantId !== $adminTenantId) {
+            if (!request()->isCli()) {
+                $cacheService->delete($md5Token);
+            }
+            $this->authFailAfter($id, $type);
+            throw new AuthException($msg, [], 401);
+        }
         if ($pwd !== '' && $pwd !== md5($adminInfo->pwd)) {
             throw new AuthException($msg, [], 401);
         }
 
         $adminInfo->type = $type;
         $result = $adminInfo->hidden(['pwd', 'is_del', 'status'])->toArray();
-        $result['tenant_id'] = $tenantId !== null ? (int)$tenantId : (int)($result['tenant_id'] ?? 0);
+        $result['tenant_id'] = $adminTenantId;
         return $result;
     }
 

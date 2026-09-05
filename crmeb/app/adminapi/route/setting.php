@@ -15,6 +15,9 @@ use think\facade\Route;
  */
 Route::group('setting', function () {
 
+    // 租户管理（列表接口由 Tenant 控制器统一提供）。
+    Route::get('tenant', 'v1.setting.Tenant/adminList')->option(['real_name' => '租户管理']);
+
     /** 管理员 */
     Route::group(function () {
         //管理员资源路由
