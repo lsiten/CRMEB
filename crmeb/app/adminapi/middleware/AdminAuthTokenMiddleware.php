@@ -17,6 +17,7 @@ use app\services\system\admin\AdminAuthServices;
 use crmeb\interfaces\MiddlewareInterface;
 use think\facade\Config;
 use crmeb\services\CacheService;
+use crmeb\services\TenantContext;
 
 /**
  * 后台登陆验证中间件
@@ -38,6 +39,7 @@ class AdminAuthTokenMiddleware implements MiddlewareInterface
      */
     public function handle(Request $request, \Closure $next)
     {
+        TenantContext::clear();
         $token = trim(ltrim($request->header(Config::get('cookie.token_name', 'Authori-zation')), 'Bearer'));
         if (!$token) {
             $token = trim(ltrim($request->get('token')));
@@ -45,6 +47,9 @@ class AdminAuthTokenMiddleware implements MiddlewareInterface
         /** @var AdminAuthServices $service */
         $service = app()->make(AdminAuthServices::class);
         $adminInfo = $service->parseToken($token);
+        $tenantId = isset($adminInfo['tenant_id']) ? (int)$adminInfo['tenant_id'] : (int)($adminInfo['tenant_id'] ?? 0);
+        // level=0 is the platform administrator and may explicitly cross tenant boundaries.
+        TenantContext::set($tenantId ?: null, (int)($adminInfo['level'] ?? 1) === 0);
         $request->macro('isAdminLogin', function () use (&$adminInfo) {
             return !is_null($adminInfo);
         });
@@ -55,6 +60,8 @@ class AdminAuthTokenMiddleware implements MiddlewareInterface
         $request->macro('adminInfo', function () use (&$adminInfo) {
             return $adminInfo;
         });
+        $request->macro('tenantId', static fn () => TenantContext::id());
+        $request->macro('isCrossTenant', static fn () => TenantContext::isCrossTenant());
 
         return $next($request);
     }

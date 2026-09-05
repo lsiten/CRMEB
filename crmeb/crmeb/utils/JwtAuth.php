@@ -66,7 +66,7 @@ class JwtAuth
         $this->token = $jwt;
         list($headb64, $bodyb64, $cryptob64) = explode('.', $this->token);
         $payload = JWT::jsonDecode(JWT::urlsafeB64Decode($bodyb64));
-        return [$payload->jti->id, $payload->jti->type, $payload->pwd ?? ''];
+        return [$payload->jti->id, $payload->jti->type, $payload->pwd ?? '', $payload->tenant_id ?? null];
     }
 
     /**

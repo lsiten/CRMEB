@@ -14,7 +14,7 @@ namespace app\model\user;
 use app\model\agent\AgentLevel;
 use app\model\order\StoreOrder;
 use app\model\system\SystemUserLevel;
-use crmeb\basic\BaseModel;
+use crmeb\basic\TenantScope;
 use crmeb\traits\ModelTrait;
 use think\Model;
 
@@ -22,7 +22,7 @@ use think\Model;
  * Class User
  * @package app\model\user
  */
-class User extends BaseModel
+class User extends TenantScope
 {
     use ModelTrait;
 
