@@ -8,6 +8,8 @@ use crmeb\traits\ModelTrait;
 class Tenant extends BaseModel
 {
     use ModelTrait;
+    protected $tenantScoped = false;
+    protected $globalScope = [];
     protected $pk = 'id';
     protected $name = 'tenant';
     protected $insert = ['add_time'];

@@ -38,6 +38,29 @@
     <div class="layout-navbars-breadcrumb-user-icon mr10" v-db-click @click="openMobelPage">
       <i title="商城页面" class="el-icon-mobile-phone"></i>
     </div>
+    <el-dropdown
+      v-if="canSwitchTenant"
+      class="tenant-switch"
+      :show-timeout="70"
+      @command="onTenantCommand"
+    >
+      <span class="tenant-switch-link">
+        <i class="el-icon-office-building"></i>
+        <span class="tenant-switch-name">{{ currentTenantLabel }}</span>
+        <i class="el-icon-arrow-down el-icon--right"></i>
+      </span>
+      <el-dropdown-menu slot="dropdown">
+        <el-dropdown-item
+          v-for="tenant in tenantList"
+          :key="tenant.id"
+          :command="tenant.id"
+          :class="{ 'tenant-switch-current': String(tenant.id) === String(currentTenantId) }"
+        >
+          {{ tenant.name || tenant.code || tenant.id }}
+          <i v-if="String(tenant.id) === String(currentTenantId)" class="el-icon-check"></i>
+        </el-dropdown-item>
+      </el-dropdown-menu>
+    </el-dropdown>
     <el-dropdown :show-timeout="70" @command="onDropdownCommand">
       <span class="layout-navbars-breadcrumb-user-link">
         <img :src="getUserInfos.head_pic" class="layout-navbars-breadcrumb-user-link-photo mr5" />
@@ -46,9 +69,6 @@
       </span>
       <el-dropdown-menu slot="dropdown">
         <el-dropdown-item command="user">{{ $t('message.user.dropdown6') }}</el-dropdown-item>
-        <el-dropdown-item v-if="canSwitchTenant" command="tenant">
-          {{ tenantList.length > 1 ? '切换租户' : `当前租户：${currentTenantLabel}` }}
-        </el-dropdown-item>
         <el-dropdown-item divided command="logOut">{{ $t('message.user.dropdown5') }}</el-dropdown-item>
       </el-dropdown-menu>
     </el-dropdown>
@@ -154,6 +174,10 @@ export default {
     currentTenantLabel() {
       const current = this.$store.state.tenant.current || this.tenantList[0] || {};
       return current.name || current.tenant_name || current.code || current.id || '未选择';
+    },
+    currentTenantId() {
+      const current = this.$store.state.tenant.current || this.tenantList[0] || {};
+      return current.id || '';
     },
     // 设置弹性盒子布局 flex
     layoutUserFlexNum() {
@@ -282,11 +306,6 @@ export default {
     },
     // `dropdown 下拉菜单` 当前项点击
     onDropdownCommand(path) {
-      if (path === 'tenant') {
-        this.selectedTenantId = this.$store.state.tenant.current && this.$store.state.tenant.current.id;
-        this.tenantDialogVisible = true;
-        return;
-      }
       if (path === 'logOut') {
         setTimeout(() => {
           this.$msgbox({
@@ -339,6 +358,11 @@ export default {
       } else {
         this.$router.push(path);
       }
+    },
+    onTenantCommand(tenantId) {
+      if (!tenantId || String(tenantId) === String(this.currentTenantId)) return;
+      this.selectedTenantId = tenantId;
+      this.switchTenant();
     },
     loadTenantList() {
       if (!this.isSuperAdmin || this.tenantListLoading) return;
@@ -433,6 +457,36 @@ export default {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  .tenant-switch {
+    height: 50px;
+    color: var(--prev-bg-topBarColor);
+    cursor: pointer;
+    &-link {
+      display: flex;
+      align-items: center;
+      height: 50px;
+      max-width: 180px;
+      padding: 0 10px;
+      white-space: nowrap;
+      &:hover {
+        background: var(--prev-color-hover);
+      }
+    }
+    &-name {
+      max-width: 120px;
+      margin-left: 5px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    &-current {
+      color: var(--prev-color-primary);
+      font-weight: 600;
+      .el-icon-check {
+        float: right;
+        margin: 3px 0 0 12px;
+      }
+    }
+  }
   .el-icon-bell {
     color: var(--prev-bg-topBarColor);
   }

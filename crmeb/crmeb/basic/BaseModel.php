@@ -11,6 +11,7 @@
 
 namespace crmeb\basic;
 
+use crmeb\services\TenantContext;
 use crmeb\traits\ModelTrait;
 use think\db\Query;
 use think\Model;
@@ -23,5 +24,20 @@ use think\Model;
  */
 class BaseModel extends Model
 {
+    protected $tenantScoped = true;
 
+    protected $globalScope = ['tenant'];
+
+    public static function onBeforeWrite($model): void
+    {
+        if ($model->tenantScoped && TenantContext::id() !== null) {
+            $model->setAttr('tenant_id', TenantContext::id());
+        }
+    }
+
+    public function scopeTenant(Query $query, $tenantId = null): Query
+    {
+        if (!$this->tenantScoped) return $query;
+        return $query->where($this->getTable() . '.tenant_id', $tenantId ?? TenantContext::id());
+    }
 }
