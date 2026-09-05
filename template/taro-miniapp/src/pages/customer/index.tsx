@@ -1,0 +1,10 @@
+import { Button, Input, Text, View } from '@tarojs/components';
+import Taro, { useRouter } from '@tarojs/taro';
+import { useEffect, useState } from 'react';
+import { ApiError } from '../../services/api';
+import { getChatMessages, sendChatMessage, type ChatMessage } from '../../services/content';
+import './index.scss';
+
+const CustomerPage = () => { const { params } = useRouter(); const toUid = Number(params["to_uid"]) || 0; const [rows, setRows] = useState<readonly ChatMessage[]>([]); const [text, setText] = useState(''); const [connected, setConnected] = useState(false); const [loading, setLoading] = useState(true); const load = () => { void getChatMessages({ toUid }).then((items) => { setRows(items); setConnected(true); }).catch((error: unknown) => { setConnected(false); if (error instanceof ApiError) void Taro.showToast({ title: '客服连接失败，可稍后重试', icon: 'none' }); }).finally(() => setLoading(false)); }; useEffect(load, []); const send = async (): Promise<void> => { if (!text.trim()) return; try { await sendChatMessage(text, toUid); setRows([...rows, { id: Date.now(), text: text.trim(), type: 'text', mine: true }]); setText(''); } catch { void Taro.showToast({ title: '消息发送失败', icon: 'none' }); } }; return <View className='page customer'><View className='status'>{connected ? '客服在线' : '客服暂不可用'}{!connected && <Button size='mini' onClick={load}>重试</Button>}</View><View className='chat'>{loading && <Text>正在连接客服…</Text>}{rows.map((row) => <View className={`bubble ${row.mine ? 'mine' : ''}`} key={row.id}>{row.type === 'image' && row.image ? <ImageFallback src={row.image} /> : <Text>{row.text}</Text>}</View>)}</View><View className='composer'><Input value={text} onInput={(event) => setText(event.detail.value)} onConfirm={() => void send()} placeholder='请输入内容' confirmType='send' /><Button size='mini' onClick={() => void send()}>发送</Button></View></View>; };
+const ImageFallback = ({ src }: Readonly<{ src: string }>) => <Text className='imageFallback'>[图片] {src}</Text>;
+export default CustomerPage;
