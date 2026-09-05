@@ -46,7 +46,7 @@ type ProductPayload = Readonly<{ data?: unknown; list?: unknown }>;
 function parseProducts(payload: ProductPayload, limit: number): readonly Product[] {
   const data = payload.data;
   const candidates = Array.isArray(data) ? data : data && typeof data === 'object' && 'list' in data && Array.isArray(data.list)
-    ? data.list : Array.isArray(payload.list) ? payload.list : [];
+    ? data.list : data && typeof data === 'object' ? [data] : Array.isArray(payload.list) ? payload.list : [];
   return candidates.filter((item): item is Product => {
     if (typeof item !== 'object' || item === null) return false;
     const record = item as Record<string, unknown>;
