@@ -46,7 +46,9 @@
       </span>
       <el-dropdown-menu slot="dropdown">
         <el-dropdown-item command="user">{{ $t('message.user.dropdown6') }}</el-dropdown-item>
-        <el-dropdown-item v-if="canSwitchTenant" command="tenant">切换租户</el-dropdown-item>
+        <el-dropdown-item v-if="canSwitchTenant" command="tenant">
+          {{ tenantList.length > 1 ? '切换租户' : `当前租户：${currentTenantLabel}` }}
+        </el-dropdown-item>
         <el-dropdown-item divided command="logOut">{{ $t('message.user.dropdown5') }}</el-dropdown-item>
       </el-dropdown-menu>
     </el-dropdown>
@@ -91,7 +93,7 @@
         <el-button
           type="primary"
           :loading="tenantSwitching"
-          :disabled="tenantListLoading || !tenantList.length || !selectedTenantId"
+          :disabled="tenantListLoading || !isSuperAdmin || tenantList.length < 2 || !selectedTenantId"
           @click="switchTenant"
         >
           切换
@@ -105,7 +107,7 @@
 import screenfull from 'screenfull';
 import { AccountLogout, menusApi } from '@/api/account';
 import { tenantListApi, switchTenantApi } from '@/api/tenant';
-import { removeCookies } from '@/libs/util';
+import { removeCookies, setCookies } from '@/libs/util';
 import { Session, Local } from '@/utils/storage.js';
 import { formatFlatteningRoutes } from '@/libs/system';
 import UserNews from '@/layout/navBars/breadcrumb/userNews.vue';
@@ -138,13 +140,20 @@ export default {
       const userInfo = this.$store.state.userInfo.userInfo || {};
       const uniqueAuth = this.$store.state.userInfo.uniqueAuth;
       return (
+        userInfo.level === 0 ||
         userInfo.is_super_admin === true ||
         userInfo.is_super_admin === 1 ||
         (Array.isArray(uniqueAuth) && uniqueAuth.includes('super_admin'))
       );
     },
     canSwitchTenant() {
-      return this.isSuperAdmin && this.tenantList.length > 1;
+      return this.isSuperAdmin
+        ? this.tenantList.length > 0 || !!this.$store.state.tenant.current
+        : !!this.$store.state.tenant.current;
+    },
+    currentTenantLabel() {
+      const current = this.$store.state.tenant.current || this.tenantList[0] || {};
+      return current.name || current.tenant_name || current.code || current.id || '未选择';
     },
     // 设置弹性盒子布局 flex
     layoutUserFlexNum() {
@@ -360,6 +369,11 @@ export default {
       switchTenantApi({ tenant_id: this.selectedTenantId })
         .then((res) => {
           const data = res.data || res;
+          if (data.token) {
+            const expires = this.getExpiresTime(data.expires_time);
+            setCookies('token', data.token, expires);
+            setCookies('expires_time', data.expires_time, expires);
+          }
           const current =
             data.current_tenant ||
             data.tenant ||

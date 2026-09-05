@@ -182,12 +182,15 @@ export default {
             current: data.current_tenant || data.tenant || null,
             list: data.tenants || data.tenant_list || [],
           });
-          if (!data.tenants && !data.tenant_list) {
+          const userInfo = data.user_info || {};
+          const isPlatformAdmin =
+            userInfo.level === 0 || userInfo.is_super_admin === true || userInfo.is_super_admin === 1;
+          if (isPlatformAdmin && !data.tenants && !data.tenant_list) {
             tenantListApi()
               .then((tenantRes) => {
                 const tenantData = tenantRes.data || tenantRes;
                 const list = Array.isArray(tenantData) ? tenantData : tenantData.list || [];
-                const current = tenantData.current_tenant || tenantData.current || list[0] || null;
+                const current = tenantData.current_tenant || tenantData.current || null;
                 this.$store.commit('tenant/setContext', { current, list });
               })
               .catch(() => {});

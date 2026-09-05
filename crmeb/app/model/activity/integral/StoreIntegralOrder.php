@@ -12,7 +12,7 @@
 namespace app\model\activity\integral;
 
 use app\model\user\User;
-use crmeb\basic\BaseModel;
+use crmeb\basic\TenantScope;
 use crmeb\traits\ModelTrait;
 use think\Model;
 
@@ -21,7 +21,7 @@ use think\Model;
  * Class StoreOrder
  * @package app\model\order
  */
-class StoreIntegralOrder extends BaseModel
+class StoreIntegralOrder extends TenantScope
 {
     use ModelTrait;
 

@@ -67,7 +67,8 @@ class SystemAdminServices extends BaseServices
      */
     public function verifyLogin(string $account, string $password)
     {
-        $adminInfo = $this->dao->accountByAdmin($account);
+        // Authentication must resolve the account before a tenant context exists.
+        $adminInfo = SystemAdmin::where(['account' => $account, 'is_del' => 0])->find();
         if (!$adminInfo || !password_verify($password, $adminInfo->pwd)) return false;
         if (!$adminInfo->status) {
             throw new AdminException('您已被禁止登录');
@@ -91,7 +92,7 @@ class SystemAdminServices extends BaseServices
      */
     public function verifyFileLogin(string $account, string $password)
     {
-        $adminInfo = $this->dao->accountByAdmin($account);
+        $adminInfo = SystemAdmin::where(['account' => $account, 'is_del' => 0])->find();
         if (!$adminInfo) {
             throw new AdminException('管理员不存在');
         }
@@ -153,6 +154,7 @@ class SystemAdminServices extends BaseServices
                 'account' => $adminInfo->getData('account'),
                 'head_pic' => get_file_link($adminInfo->getData('head_pic')),
                 'level' => $adminInfo->getData('level'),
+                'tenant_id' => (int)($adminInfo->getData('tenant_id') ?? 0),
                 'real_name' => $adminInfo->getData('real_name'),
             ],
             'logo' => sys_config('site_logo'),

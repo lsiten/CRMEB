@@ -22,7 +22,7 @@ abstract class TenantScope extends BaseModel
     public static function onBeforeWrite($model): void
     {
         $data = $model->getData();
-        if (empty($data['tenant_id']) && TenantContext::id() !== null) {
+        if (TenantContext::id() !== null) {
             $model->setAttr('tenant_id', TenantContext::id());
         }
     }
