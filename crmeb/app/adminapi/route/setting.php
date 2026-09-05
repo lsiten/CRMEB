@@ -15,8 +15,12 @@ use think\facade\Route;
  */
 Route::group('setting', function () {
 
-    // 租户管理（列表接口由 Tenant 控制器统一提供）。
+    // 租户管理。
     Route::get('tenant', 'v1.setting.Tenant/adminList')->option(['real_name' => '租户管理']);
+    Route::post('tenant', 'v1.setting.Tenant/create')->option(['real_name' => '创建租户']);
+    Route::put('tenant/:id', 'v1.setting.Tenant/update')->option(['real_name' => '修改租户']);
+    Route::delete('tenant/:id', 'v1.setting.Tenant/delete')->option(['real_name' => '删除租户']);
+    Route::put('tenant/status/:id/:status', 'v1.setting.Tenant/setStatus')->option(['real_name' => '修改租户状态']);
 
     /** 管理员 */
     Route::group(function () {
