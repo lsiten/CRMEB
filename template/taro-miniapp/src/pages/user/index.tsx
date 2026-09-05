@@ -24,6 +24,7 @@ const UserPage = () => {
   };
   const openMenu = (item: typeof menuItems[number]): void => {
     if (item === '收货地址') { void Taro.navigateTo({ url: '/pages/address/index' }); return; }
+    if (item === '积分中心') { void Taro.navigateTo({ url: '/pages/integral/index' }); return; }
     void Taro.showToast({ title: `${item}功能即将上线`, icon: 'none' });
   };
   const bindPhone = async (event: { detail?: { code?: string; encryptedData?: string; iv?: string } }): Promise<void> => {

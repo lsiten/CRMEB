@@ -1,14 +1,6 @@
 import Taro from '@tarojs/taro';
 
-export type Product = Readonly<{
-  id: number;
-  name: string;
-  price: number;
-  image: string;
-  description?: string;
-  stock?: number;
-  specs?: readonly string[];
-}>;
+export type Product = Readonly<{ id: number; name: string; price: number; image: string; description?: string; stock?: number; specs?: readonly string[]; category?: string; status?: number }>;
 export type ApiErrorCode = 'UNAUTHORIZED' | 'TIMEOUT' | 'NETWORK' | 'BUSINESS' | 'HTTP';
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
@@ -49,6 +41,42 @@ export async function request<T>(path: string, options: Omit<Taro.request.Option
 }
 
 export async function getProducts(): Promise<readonly Product[]> {
-  const payload = await request<Readonly<{ data?: readonly Product[] }>>('/products', { method: 'GET' });
-  return Array.isArray(payload.data) ? payload.data : [];
+  return queryProducts({});
+}
+
+export type ProductQuery = Readonly<{ keyword?: string; category?: string; ids?: readonly number[]; limit?: number }>;
+
+type ProductPayload = Readonly<{ data?: unknown; list?: unknown }>;
+
+function parseProducts(payload: ProductPayload, limit: number): readonly Product[] {
+  const data = payload.data;
+  const candidates = Array.isArray(data) ? data : data && typeof data === 'object' && 'list' in data && Array.isArray(data.list)
+    ? data.list : data && typeof data === 'object' ? [data] : Array.isArray(payload.list) ? payload.list : [];
+  return candidates.filter((item): item is Product => {
+    if (typeof item !== 'object' || item === null) return false;
+    const record = item as Record<string, unknown>;
+    const id = typeof record['id'] === 'number' ? record['id'] : Number(record['id']);
+    const name = typeof record['name'] === 'string' ? record['name'] : record['store_name'];
+    const image = typeof record['image'] === 'string' ? record['image'] : record['image_input'];
+    const price = typeof record['price'] === 'number' ? record['price'] : Number(record['price']);
+    if (!Number.isSafeInteger(id) || id <= 0 || typeof name !== 'string' || !name.trim() || typeof image !== 'string' || !image || !Number.isFinite(price)) return false;
+    return { id, name, price, image } satisfies Product;
+  }).filter((item): item is Product => item !== false).slice(0, limit);
+}
+
+export async function queryProducts(query: ProductQuery): Promise<readonly Product[]> {
+  const limit = Math.min(Math.max(query.limit ?? 50, 1), 50);
+  const params = [`limit=${limit}`];
+  if (query.keyword) params.push(`keyword=${encodeURIComponent(query.keyword)}`);
+  if (query.category && query.category !== '全部') params.push(`category=${encodeURIComponent(query.category)}`);
+  if (query.ids?.length) params.push(`ids=${encodeURIComponent(query.ids.join(','))}`);
+  const payload = await request<ProductPayload>(`/products?${params.join('&')}`, { method: 'GET' });
+  return parseProducts(payload, limit);
+}
+
+export async function getProduct(id: number): Promise<Product> {
+  const payload = await request<ProductPayload>(`/product/detail/${encodeURIComponent(String(id))}`, { method: 'GET' });
+  const product = parseProducts(payload, 1)[0];
+  if (!product) throw new ApiError('BUSINESS', '商品不存在');
+  return product;
 }

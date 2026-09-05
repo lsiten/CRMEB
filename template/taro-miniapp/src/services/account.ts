@@ -18,12 +18,17 @@ type ApiEnvelope<T> = Readonly<{ data?: T; token?: string; userInfo?: UserProfil
 
 export async function loginByWechat(): Promise<UserProfile | null> {
   const login = await Taro.login();
-  const payload = await request<ApiEnvelope<Readonly<{ token?: string; userInfo?: UserProfile }>>>('/v1/wechat/mp_auth', {
-    method: 'POST', data: { code: login.code, login_type: 'routine' },
+  const authType = await request<ApiEnvelope<Readonly<{ key?: string; bindPhone?: boolean }>>>('/v2/routine/auth_type', {
+    method: 'GET', data: { code: login.code },
+  });
+  const key = authType.data?.key;
+  if (!key) throw new ApiError('BUSINESS', '授权信息无效');
+  const payload = await request<ApiEnvelope<Readonly<{ token?: string }>>>('/v2/routine/auth_login', {
+    method: 'GET', data: { key },
   });
   const token = payload.data?.token ?? payload.token;
   if (token) setToken(token);
-  return payload.data?.userInfo ?? payload.userInfo ?? null;
+  return getUserProfile();
 }
 
 export async function getUserProfile(): Promise<UserProfile | null> {
