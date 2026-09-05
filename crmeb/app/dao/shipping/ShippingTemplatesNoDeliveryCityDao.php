@@ -63,7 +63,7 @@ class ShippingTemplatesNoDeliveryCityDao extends BaseDao
         /** @var SystemCity $city */
         $city = app()->make($this->setJoinModel());
         $name = $city->getName();
-        return parent::getModel()->join($name . ' ' . $this->joinAlis, $this->alias . '.' . $key . ' = ' . $this->joinAlis . '.city_id', $join)->alias($this->alias);
+        return parent::getModel()->withoutGlobalScope(['tenant'])->join($name . ' ' . $this->joinAlis, $this->alias . '.' . $key . ' = ' . $this->joinAlis . '.city_id', $join)->alias($this->alias)->where($this->alias . '.tenant_id', \crmeb\services\TenantContext::id());
     }
 
     /**

@@ -20,9 +20,11 @@ export type TelemetryEvent = Readonly<{
 }>;
 
 const apiBaseUrl = (process.env['TARO_API_BASE_URL'] ?? '').replace(/\/$/, '');
-const endpoint = (process.env['TARO_TELEMETRY_URL'] ?? (apiBaseUrl ? `${apiBaseUrl}/monitoring/events` : '')).replace(/\/$/, '');
+const configuredEndpoint = process.env['TARO_TELEMETRY_URL'];
+const endpoint = (configuredEndpoint ?? (apiBaseUrl ? `${apiBaseUrl}/monitoring/events` : '')).replace(/\/$/, '');
 const tokenKey = 'crmeb_token';
 const queue: TelemetryEvent[] = [];
+const MAX_QUEUE_SIZE = 200;
 let flushScheduled = false;
 let flushInFlight = false;
 
@@ -40,14 +42,18 @@ function flush(): void {
   flushInFlight = true;
   const events = queue.slice();
   const token = Taro.getStorageSync<string>(tokenKey);
-  const header = token ? { 'Authori-zation': `Bearer ${token}` } : undefined;
+  const sameApiOrigin = Boolean(apiBaseUrl && endpoint.startsWith(`${apiBaseUrl}/`));
+  const header = token && sameApiOrigin ? { 'Authori-zation': `Bearer ${token}` } : undefined;
   Taro.request({
     url: endpoint,
     method: 'POST',
     data: { events },
     ...(header ? { header } : {}),
     timeout: 3000,
-  }).then(() => {
+  }).then((response: { statusCode?: number }) => {
+    if (typeof response.statusCode === 'number' && (response.statusCode < 200 || response.statusCode >= 300)) {
+      throw new Error(`HTTP ${response.statusCode}`);
+    }
     queue.splice(0, events.length);
   }).catch((error: unknown) => {
     if (error instanceof Error) console.warn('遥测上报失败', error.message);
@@ -60,6 +66,7 @@ function flush(): void {
 
 export function track(name: TelemetryName, fields: Omit<TelemetryEvent, 'name' | 'timestamp'> = {}): void {
   queue.push({ name, timestamp: new Date().toISOString(), ...fields });
+  if (queue.length > MAX_QUEUE_SIZE) queue.splice(0, queue.length - MAX_QUEUE_SIZE);
   scheduleFlush();
 }
 

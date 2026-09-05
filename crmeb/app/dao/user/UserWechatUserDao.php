@@ -67,7 +67,7 @@ class UserWechatUserDao extends BaseDao
         /** @var WechatUser $wechcatUser */
         $wechcatUser = app()->make($this->joinModel());
         $table = $wechcatUser->getName();
-        return parent::getModel()->alias($alias)->join($table . ' ' . $join_alias, $alias . '.uid = ' . $join_alias . '.uid', $join);
+        return parent::getModel()->withoutGlobalScope(['tenant'])->alias($alias)->join($table . ' ' . $join_alias, $alias . '.uid = ' . $join_alias . '.uid', $join)->where($alias . '.tenant_id', \crmeb\services\TenantContext::id());
     }
 
     public function getList(array $where, $field = '*', int $page, int $limit)

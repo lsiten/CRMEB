@@ -36,13 +36,13 @@ abstract class TenantScope extends BaseModel
     {
         $tenantId = TenantContext::id();
         if ($tenantId !== null && !TenantContext::isCrossTenant()) {
-            $model->where($model->getName() . '.tenant_id', $tenantId);
+            $model->where($model->getTable() . '.tenant_id', $tenantId);
         }
         return $model;
     }
 
     public function scopeTenant(Query $query, $tenantId = null): Query
     {
-        return $query->where($this->getName() . '.tenant_id', $tenantId ?? TenantContext::id());
+        return $query->where($this->getTable() . '.tenant_id', $tenantId ?? TenantContext::id());
     }
 }
