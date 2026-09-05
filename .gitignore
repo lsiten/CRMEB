@@ -48,6 +48,9 @@ crmeb/vhost.conf
 crmeb/php-ini-overrides.ini
 crmeb/php-fpm.conf
 
+# 本机运行记录（不纳入 Git）
+.local/
+
 # 代码助手规则文件
 .codebuddy/rules/dockerfile-buid.mdc
 .codebuddy/rules/docker-compose-buid.mdc
