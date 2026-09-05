@@ -73,7 +73,7 @@ class Tenant extends BaseController
         if (!$data['name'] || !$data['code']) return app('json')->fail('租户名称和编码不能为空');
         if (TenantModel::where('code', $data['code'])->find()) return app('json')->fail('租户编码已存在');
         $tenant = TenantModel::create($data);
-        return app('json')->success(['id' => $tenant->id], '租户创建成功');
+        return app('json')->success('租户创建成功', ['id' => $tenant->id]);
     }
 
     /** 修改租户（仅平台管理员）。 */
