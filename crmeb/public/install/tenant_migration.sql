@@ -9,41 +9,56 @@ CREATE TABLE IF NOT EXISTS `eb_tenant` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='租户主表';
 INSERT IGNORE INTO `eb_tenant` (`id`, `name`, `code`, `status`, `add_time`)
 VALUES (1, '默认租户', 'default', 1, UNIX_TIMESTAMP());
-ALTER TABLE `eb_system_admin` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
-ALTER TABLE `eb_user` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `uid`;
-ALTER TABLE `eb_store_product` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
-ALTER TABLE `eb_store_order` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
-CREATE INDEX `tenant_id` ON `eb_system_admin` (`tenant_id`);
-CREATE INDEX `tenant_id` ON `eb_user` (`tenant_id`);
-CREATE INDEX `tenant_id` ON `eb_store_product` (`tenant_id`);
-CREATE INDEX `tenant_id` ON `eb_store_order` (`tenant_id`);
-ALTER TABLE `eb_system_timer` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
-CREATE INDEX `tenant_id` ON `eb_system_timer` (`tenant_id`);
-ALTER TABLE `eb_store_product_relation` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
-CREATE INDEX `tenant_id` ON `eb_store_product_relation` (`tenant_id`);
-ALTER TABLE `eb_store_product_attr_value` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
-CREATE INDEX `tenant_id` ON `eb_store_product_attr_value` (`tenant_id`);
-ALTER TABLE `eb_theme_download` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
-CREATE INDEX `tenant_id` ON `eb_theme_download` (`tenant_id`);
-ALTER TABLE `eb_store_integral` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
-ALTER TABLE `eb_store_integral_order` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
-ALTER TABLE `eb_store_integral_order_status` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
-CREATE INDEX `tenant_id` ON `eb_store_integral` (`tenant_id`);
-CREATE INDEX `tenant_id` ON `eb_store_integral_order` (`tenant_id`);
-CREATE INDEX `tenant_id` ON `eb_store_integral_order_status` (`tenant_id`);
+-- 为所有业务表补充租户字段和索引。脚本可重复执行，租户主表本身不参与隔离。
+DELIMITER //
+CREATE PROCEDURE `crmeb_upgrade_tenant_columns`()
+BEGIN
+  DECLARE finished INT DEFAULT 0;
+  DECLARE table_name_value VARCHAR(128);
+  DECLARE has_column INT DEFAULT 0;
+  DECLARE has_index INT DEFAULT 0;
+  DECLARE table_cursor CURSOR FOR
+    SELECT TABLE_NAME FROM information_schema.TABLES
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'
+      AND TABLE_NAME LIKE 'eb_%' AND TABLE_NAME <> 'eb_tenant';
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
 
- -- 将升级前未归属的数据纳入默认租户，避免出现 tenant_id=0 的孤儿数据。
-UPDATE `eb_system_admin` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
-UPDATE `eb_user` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
-UPDATE `eb_store_product` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
-UPDATE `eb_store_order` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
-UPDATE `eb_system_timer` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
-UPDATE `eb_store_product_relation` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
-UPDATE `eb_store_product_attr_value` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
-UPDATE `eb_theme_download` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
-UPDATE `eb_store_integral` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
-UPDATE `eb_store_integral_order` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
-UPDATE `eb_store_integral_order_status` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
+  OPEN table_cursor;
+  tenant_table_loop: LOOP
+    FETCH table_cursor INTO table_name_value;
+    IF finished = 1 THEN LEAVE tenant_table_loop; END IF;
+
+    SELECT COUNT(*) INTO has_column FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = table_name_value AND COLUMN_NAME = 'tenant_id';
+    IF has_column = 0 THEN
+      SET @tenant_sql = CONCAT('ALTER TABLE `', table_name_value,
+        '` ADD COLUMN `tenant_id` INT UNSIGNED NOT NULL DEFAULT 1 COMMENT ''租户ID''');
+      PREPARE tenant_stmt FROM @tenant_sql;
+      EXECUTE tenant_stmt;
+      DEALLOCATE PREPARE tenant_stmt;
+    END IF;
+
+    SELECT COUNT(*) INTO has_index FROM information_schema.STATISTICS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = table_name_value AND COLUMN_NAME = 'tenant_id';
+    IF has_index = 0 THEN
+      SET @tenant_sql = CONCAT('ALTER TABLE `', table_name_value,
+        '` ADD INDEX `idx_tenant_id` (`tenant_id`)');
+      PREPARE tenant_stmt FROM @tenant_sql;
+      EXECUTE tenant_stmt;
+      DEALLOCATE PREPARE tenant_stmt;
+    END IF;
+
+    SET @tenant_sql = CONCAT('UPDATE `', table_name_value,
+      '` SET `tenant_id` = 1 WHERE `tenant_id` IS NULL OR `tenant_id` = 0');
+    PREPARE tenant_stmt FROM @tenant_sql;
+    EXECUTE tenant_stmt;
+    DEALLOCATE PREPARE tenant_stmt;
+  END LOOP;
+  CLOSE table_cursor;
+END//
+DELIMITER ;
+CALL `crmeb_upgrade_tenant_columns`();
+DROP PROCEDURE `crmeb_upgrade_tenant_columns`;
 
 -- 后台动态菜单：幂等写入“租户管理”，挂载到“维护”(id=25)菜单下。
 INSERT INTO `eb_system_menus`

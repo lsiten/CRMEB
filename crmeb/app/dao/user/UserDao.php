@@ -159,7 +159,7 @@ class UserDao extends BaseDao
      */
     public function getAgentRankList(array $time, string $field = '*', int $page, int $limit)
     {
-        return $this->getModel()->alias('t0')
+        return $this->getModel()->withoutGlobalScope(['tenant'])->alias('t0')->where('t0.tenant_id', \crmeb\services\TenantContext::id())
             ->field($field)
             ->join('user t1', 't0.uid = t1.spread_uid', 'LEFT')
             ->where('t1.spread_uid', '<>', 0)

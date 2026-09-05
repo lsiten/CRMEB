@@ -51,7 +51,7 @@ class StoreOrderStoreOrderStatusDao extends BaseDao
     protected function getModel()
     {
         $name = app()->make($this->setJoinModel())->getName();
-        return parent::getModel()->join($name . ' ' . $this->joinAlis, $this->joinAlis . '.oid = ' . $this->alias . '.id')->alias($this->alias);
+        return parent::getModel()->withoutGlobalScope(['tenant'])->join($name . ' ' . $this->joinAlis, $this->joinAlis . '.oid = ' . $this->alias . '.id')->alias($this->alias)->where($this->alias . '.tenant_id', \crmeb\services\TenantContext::id());
     }
 
     /**

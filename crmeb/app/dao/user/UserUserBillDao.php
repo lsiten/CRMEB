@@ -52,7 +52,7 @@ class UserUserBillDao extends BaseDao
         /** @var $userBiil $userBiil */
         $userBiil = app()->make($this->joinModel());
         $table = $userBiil->getName();
-        return parent::getModel()->join($table . ' ' . $join_alias, $alias . '.uid = ' . $join_alias . '.uid', $join)->alias($alias);
+        return parent::getModel()->withoutGlobalScope(['tenant'])->join($table . ' ' . $join_alias, $alias . '.uid = ' . $join_alias . '.uid', $join)->alias($alias)->where($alias . '.tenant_id', \crmeb\services\TenantContext::id());
     }
 
     /**
