@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, Button } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { queryPayment, requestPayment } from '../../services/api';
+import { track } from '../../services/telemetry';
 import { getClipboardFallback, getPaymentPresentation, resolvePaymentStatus, type ServerPaymentStatus } from '../../services/platform';
 import './index.scss';
 
@@ -42,6 +43,7 @@ export default function PayPage() {
       if (paymentParams) await Taro.requestPayment(paymentParams);
       await refreshStatus();
     } catch {
+      track('payment_failed', { properties: { method: 'wechat', phase: 'requestPayment', platform: process.env['TARO_ENV'] ?? 'unknown' } });
       setStatus('failed');
     } finally {
       setLoading(false);

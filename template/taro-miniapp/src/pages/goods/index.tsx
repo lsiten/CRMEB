@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, Image, Button, Input } from '@tarojs/components';
+import { View, Text, Button, Input } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { queryProducts } from '../../services/api';
 import type { Product } from '../../services/api';
 import { addToCart } from '../../services/cart';
-import { Tabs } from '../../components';
+import { OptimizedImage, Tabs } from '../../components';
 import './index.scss';
 
 const GoodsPage = () => {
@@ -43,7 +43,7 @@ const GoodsPage = () => {
     {!loading && !failed && visible.length === 0 && <View className='card empty'><Text>没有找到相关商品</Text></View>}
     <View className='grid'>
       {!loading && !failed && visible.map((product) => <View className='product card' key={product.id} onClick={() => void Taro.navigateTo({ url: `/pages/detail/index?id=${product.id}` })}>
-        <Image mode='aspectFill' src={product.image} />
+        <OptimizedImage mode='aspectFill' src={product.image} />
         <Text>{product.name}</Text>
         <Text className='primary'>¥{product.price.toFixed(2)}</Text>
         <Button onClick={(event) => { event.stopPropagation(); addToCart(product); void Taro.showToast({ title: '已加入购物车', icon: 'success' }); }}>加入购物车</Button>
