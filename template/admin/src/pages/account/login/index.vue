@@ -164,6 +164,7 @@ export default {
     closeModel(params) {
       this.isShow = false;
       this.loading = true;
+      let sessionAuthenticated = false;
       AccountLogin({
         account: this.formInline.username,
         pwd: this.formInline.password,
@@ -172,17 +173,25 @@ export default {
         captchaVerification: params ? params.captchaVerification : '',
       })
         .then(async (res) => {
-          const data = res.data;
+          // The request helper normally returns the API envelope, but some
+          // deployments return the payload directly. Normalize both shapes
+          // before initializing the authenticated session.
+          const data = res && res.data && res.data.token ? res.data : res;
+          if (!data || !data.token) {
+            return Promise.reject(res || { msg: '登录失败' });
+          }
+          const menus = Array.isArray(data.menus) ? data.menus : [];
+          const userInfo = data.user_info || {};
           const expires = this.getExpiresTime(data.expires_time);
-          setCookies('uuid', data.user_info.id, expires);
+          setCookies('uuid', userInfo.id, expires);
           setCookies('token', data.token, expires);
           setCookies('expires_time', data.expires_time, expires);
+          sessionAuthenticated = true;
           Local.set('PERMISSIONS', data.site_func);
           this.$store.commit('tenant/setContext', {
             current: data.current_tenant || data.tenant || null,
             list: data.tenants || data.tenant_list || [],
           });
-          const userInfo = data.user_info || {};
           const isPlatformAdmin =
             userInfo.level === 0 || userInfo.is_super_admin === true || userInfo.is_super_admin === 1;
           if (isPlatformAdmin && !data.tenants && !data.tenant_list) {
@@ -196,17 +205,17 @@ export default {
               .catch(() => {});
           }
           this.$store.commit('userInfo/uniqueAuth', data.unique_auth);
-          this.$store.commit('userInfo/userInfo', data.user_info);
+          this.$store.commit('userInfo/userInfo', userInfo);
           this.$store.commit('menus/setopenMenus', []);
-          this.$store.commit('menus/getmenusNav', data.menus);
-          this.$store.dispatch('routesList/setRoutesList', data.menus);
+          this.$store.commit('menus/getmenusNav', menus);
+          this.$store.dispatch('routesList/setRoutesList', menus);
           const arr = formatFlatteningRoutes(this.$router.options.routes);
           this.formatTwoStageRoutes(arr);
           this.$store.commit('menus/setOneLvMenus', arr);
-          const routes = formatFlatteningRoutes(data.menus);
+          const routes = formatFlatteningRoutes(menus);
           this.$store.commit('menus/setOneLvRoute', routes);
-          this.$store.commit('userInfo/name', data.user_info.account);
-          this.$store.commit('userInfo/avatar', data.user_info.head_pic);
+          this.$store.commit('userInfo/name', userInfo.account);
+          this.$store.commit('userInfo/avatar', userInfo.head_pic);
           this.$store.commit('userInfo/access', data.unique_auth);
           this.$store.commit('userInfo/logo', data.logo);
           this.$store.commit('userInfo/logoSmall', data.logo_square);
@@ -238,10 +247,18 @@ export default {
           } catch (e) {}
           PrevLoading.start();
           this.$router.push({
-            path: data.menus.length ? findFirstNonNullChildren(data.menus).path : this.$routeProStr + '/',
+            path: menus.length && findFirstNonNullChildren(menus) ? findFirstNonNullChildren(menus).path : this.$routeProStr + '/',
           });
         })
         .catch((res) => {
+          // A token may already be persisted when a non-critical post-login
+          // initialization step fails. Do not misreport that as bad
+          // credentials or show the login-failed toast after navigation.
+          if (sessionAuthenticated) {
+            // eslint-disable-next-line no-console
+            console.error('登录后的初始化失败', res);
+            return;
+          }
           const data = res || {};
           this.$message.error(data.msg || '登录失败');
           if (res && res.data) this.login_captcha = res.data.login_captcha;

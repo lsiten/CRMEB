@@ -49,7 +49,7 @@ class StoreProductAttrDao extends BaseDao
      */
     public function saveAll(array $data)
     {
-        return $this->getModel()->saveAll($data);
+        return parent::saveAll($data);
     }
 
     /**

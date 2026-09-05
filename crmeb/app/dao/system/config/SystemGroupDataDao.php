@@ -13,6 +13,7 @@ namespace app\dao\system\config;
 
 use app\dao\BaseDao;
 use app\model\system\config\SystemGroupData;
+use crmeb\services\TenantContext;
 
 /**
  * 组合数据
@@ -73,7 +74,11 @@ class SystemGroupDataDao extends BaseDao
      */
     public function idByGroupList(array $ids, string $field)
     {
-        return $this->getModel()->whereIn('id', $ids)->field($field)->select()->toArray();
+        $query = $this->getModel()->whereIn('id', $ids);
+        if (TenantContext::id() !== null && !TenantContext::isCrossTenant()) {
+            $query->where('tenant_id', TenantContext::id());
+        }
+        return $query->field($field)->select()->toArray();
     }
 
     /**
@@ -83,7 +88,11 @@ class SystemGroupDataDao extends BaseDao
      */
     public function delGroupDate(int $gid)
     {
-        return $this->getModel()->where('gid', $gid)->delete();
+        $query = $this->getModel()->where('gid', $gid);
+        if (TenantContext::id() !== null && !TenantContext::isCrossTenant()) {
+            $query->where('tenant_id', TenantContext::id());
+        }
+        return $query->delete();
     }
 
     /**
@@ -94,6 +103,6 @@ class SystemGroupDataDao extends BaseDao
      */
     public function saveAll(array $data)
     {
-        return $this->getModel()->saveAll($data);
+        return parent::saveAll($data);
     }
 }

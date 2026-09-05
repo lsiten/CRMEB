@@ -20,6 +20,7 @@ use app\services\system\log\SystemFileServices;
 use app\services\user\UserExtractServices;
 use crmeb\exceptions\AdminException;
 use app\dao\system\admin\SystemAdminDao;
+use app\model\system\admin\SystemAdmin;
 use app\services\system\SystemMenusServices;
 use app\services\other\CacheServices;
 use crmeb\services\CacheService;

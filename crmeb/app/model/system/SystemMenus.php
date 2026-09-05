@@ -24,6 +24,12 @@ class SystemMenus extends BaseModel
 {
     use ModelTrait;
 
+    // Menu definitions are platform metadata. Tenant-specific access is
+    // resolved through the administrator/role, not by duplicating the menu
+    // catalogue for every tenant.
+    protected $tenantScoped = false;
+    protected $globalScope = [];
+
     /**
      * 数据表主键
      * @var string

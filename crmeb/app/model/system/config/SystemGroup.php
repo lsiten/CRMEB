@@ -24,6 +24,10 @@ class SystemGroup extends BaseModel
 {
     use ModelTrait;
 
+    // Group definitions are shared metadata; group data is tenant-owned.
+    protected $tenantScoped = false;
+    protected $globalScope = [];
+
     /**
      * 数据表主键
      * @var string

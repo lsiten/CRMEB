@@ -33,6 +33,7 @@ use app\services\system\SystemUserLevelServices;
 use app\services\user\UserLabelServices;
 use app\services\user\member\MemberCardServices;
 use app\services\user\UserLevelServices;
+use crmeb\services\TenantContext;
 use app\services\user\UserSearchServices;
 use app\services\user\UserServices;
 use crmeb\exceptions\AdminException;
@@ -1050,14 +1051,15 @@ class StoreProductServices extends BaseServices
     public function getProductList(array $where, bool $isStock = true, $is_page = true)
     {
         $prefix = Config::get('database.connections.' . Config::get('database.default') . '.prefix');
+        $tenant = TenantContext::sqlLiteral();
         if ($isStock) {
             $field = [
                 '*',
-                '(SELECT count(*) FROM `' . $prefix . 'store_product_relation` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = \'collect\') as collect',
-                '(SELECT count(*) FROM `' . $prefix . 'store_product_relation` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = \'like\') as likes',
-                '(SELECT SUM(stock) FROM `' . $prefix . 'store_product_attr_value` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = 0) as stock',
+                '(SELECT count(*) FROM `' . $prefix . 'store_product_relation` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = \'collect\'' . $tenant . ') as collect',
+                '(SELECT count(*) FROM `' . $prefix . 'store_product_relation` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = \'like\'' . $tenant . ') as likes',
+                '(SELECT SUM(stock) FROM `' . $prefix . 'store_product_attr_value` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = 0' . $tenant . ') as stock',
                 //                '(SELECT SUM(sales) FROM `' . $prefix . 'store_product_attr_value` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = 0) as sales',
-                '(SELECT count(*) FROM `' . $prefix . 'store_visit` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `product_type` = \'product\') as visitor',
+                '(SELECT count(*) FROM `' . $prefix . 'store_visit` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `product_type` = \'product\'' . $tenant . ') as visitor',
             ];
         } else {
             $field = ['*'];

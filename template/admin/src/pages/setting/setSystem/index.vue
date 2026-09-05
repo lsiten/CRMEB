@@ -126,15 +126,16 @@ export default {
         headerListApi(data)
           .then(async (res) => {
             let config = res.data.config_tab;
-            this.headerList = config;
+            this.headerList = (Array.isArray(config) ? config : []).filter((item) => item && item.value !== null && item.value !== undefined);
             if (!this.currentTab) {
             }
             if (this.$route.query.tab_id) {
               this.currentTab = this.$route.query.tab_id;
             } else {
-              this.currentTab = config[index ? index : 0].value.toString();
+              const firstTab = this.headerList[index ? index : 0] || this.headerList[0];
+              this.currentTab = firstTab ? firstTab.value.toString() : '';
             }
-            this.childrenList(index ? 1 : 0);
+            if (this.currentTab) this.childrenList(index ? 1 : 0);
             resolve(this.currentTab);
             this.spinShow = false;
           })

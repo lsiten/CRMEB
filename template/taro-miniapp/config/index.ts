@@ -9,6 +9,10 @@ const config: UserConfigExport = {
   outputRoot: 'dist',
   framework: 'react',
   compiler: 'webpack5',
+  env: {
+    TARO_API_BASE_URL: JSON.stringify(process.env['TARO_API_BASE_URL'] ?? 'http://127.0.0.1:8080/api'),
+    TARO_IMAGE_HOSTS: JSON.stringify(process.env['TARO_IMAGE_HOSTS'] ?? ''),
+  },
   mini: { postcss: { pxtransform: { enable: true }, url: { enable: true } } },
   plugins: ['@tarojs/plugin-framework-react', '@tarojs/plugin-platform-weapp', '@tarojs/plugin-platform-h5'],
   h5: {

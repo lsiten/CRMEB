@@ -17,17 +17,21 @@ import { removeCookies, getCookies, setTitle } from '@/libs/util';
 import { includeArray } from '@/libs/auth';
 import { PrevLoading } from '@/utils/loading.js';
 import { clearTenantContext } from '@/utils/tenant';
+import { menusApi } from '@/api/account';
+import { formatFlatteningRoutes } from '@/libs/system';
 
 Vue.use(Router);
 // 解决 `element ui` 导航栏重复点菜单报错问题
 const originalPush = Router.prototype.push;
 Router.prototype.push = function push(location) {
-  return originalPush.call(this, location).catch((err) => err);
+  const result = originalPush.call(this, location);
+  return result && typeof result.catch === 'function' ? result.catch((err) => err) : result;
 };
 
 const originalReplace = Router.prototype.replace;
 Router.prototype.replace = function replace(location) {
-  return originalReplace.call(this, location).catch((err) => err);
+  const result = originalReplace.call(this, location);
+  return result && typeof result.catch === 'function' ? result.catch((err) => err) : result;
 };
 
 const router = new Router({
@@ -137,17 +141,56 @@ router.beforeEach(async (to, from, next) => {
         next();
       } else {
         if (access.length == 0) {
-          next({
-            name: 'login',
-            query: {
-              redirect: to.fullPath,
-            },
-          });
-          localStorage.clear();
-          removeCookies('token');
-          removeCookies('expires_time');
-          removeCookies('uuid');
-          clearTenantContext();
+          // A full reload (for example after tenant switching) resets Vuex,
+          // but the new token is still valid. Restore menus/permissions
+          // before treating an empty in-memory permission list as logged out.
+          menusApi()
+            .then((res) => {
+              const payload = res && res.data ? res.data : res || {};
+              const menus = Array.isArray(payload) ? payload : payload.menus || payload.list || [];
+              const uniqueAuth = Array.isArray(payload.uniqueAuth)
+                ? payload.uniqueAuth
+                : Array.isArray(payload.unique_auth)
+                  ? payload.unique_auth
+                  : Array.isArray(payload.unique)
+                    ? payload.unique
+                    : [];
+              if (!uniqueAuth.length) throw new Error('菜单权限为空');
+              store.commit('userInfo/uniqueAuth', uniqueAuth);
+              store.commit('userInfo/access', uniqueAuth);
+              if (Array.isArray(menus)) {
+                store.commit('menus/getmenusNav', menus);
+                store.commit('routesList/getRoutesList', menus);
+                const childMenus = menus
+                  .filter((item) => item && item.path)
+                  .map((item) => ({
+                    ...item,
+                    children: Array.isArray(item.children)
+                      ? item.children.filter((child) => child && child.path)
+                      : item.children,
+                  }));
+                store.commit('menus/childMenuList', childMenus);
+                store.commit('menus/setOneLvRoute', formatFlatteningRoutes(menus));
+                // The aside/breadcrumb components derive their rendered lists
+                // from routesListChange; restoring Vuex alone leaves them empty
+                // after a tenant-switch reload.
+                Vue.prototype.bus.$emit('routesListChange');
+              }
+              next();
+            })
+            .catch(() => {
+              next({
+                name: 'login',
+                query: {
+                  redirect: to.fullPath,
+                },
+              });
+              localStorage.clear();
+              removeCookies('token');
+              removeCookies('expires_time');
+              removeCookies('uuid');
+              clearTenantContext();
+            });
         } else {
           next({
             name: '403',

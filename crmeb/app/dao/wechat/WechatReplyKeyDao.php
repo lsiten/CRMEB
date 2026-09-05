@@ -65,7 +65,7 @@ class WechatReplyKeyDao extends BaseDao
         /** @var WechatKey $keys */
         $keys = app()->make($this->setJoinModel());
         $name = $keys->getName();
-        return parent::getModel()->join($name . ' ' . $this->joinAlis, $this->alias . '.' . $key . ' = ' . $this->joinAlis . '.reply_id', $join)->alias($this->alias);
+        return parent::getModel()->withoutGlobalScope(['tenant'])->join($name . ' ' . $this->joinAlis, $this->alias . '.' . $key . ' = ' . $this->joinAlis . '.reply_id', $join)->alias($this->alias)->where($this->alias . '.tenant_id', \crmeb\services\TenantContext::id());
     }
 
     /**

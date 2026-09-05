@@ -52,9 +52,9 @@ class UserUserBrokerageDao extends BaseDao
         /** @var UserBrokerage $userBrokerage */
         $userBrokerage = app()->make($this->joinModel());
         $table = $userBrokerage->getName();
-        return parent::getModel()
+        return parent::getModel()->withoutGlobalScope(['tenant'])
             ->join($table . ' ' . $join_alias, $alias . '.uid = ' . $join_alias . '.uid', $join)
-            ->alias($alias);
+            ->alias($alias)->where($alias . '.tenant_id', \crmeb\services\TenantContext::id());
     }
 
     /**

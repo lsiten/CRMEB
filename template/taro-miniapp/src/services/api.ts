@@ -11,7 +11,7 @@ export class ApiError extends Error {
   }
 }
 
-const baseUrl = (process.env['TARO_API_BASE_URL'] ?? 'http://localhost/api').replace(/\/$/, '');
+const baseUrl = (process.env.TARO_API_BASE_URL ?? 'http://127.0.0.1:8080/api').replace(/\/$/, '');
 const tokenKey = 'crmeb_token';
 
 export function setToken(token: string | null): void {

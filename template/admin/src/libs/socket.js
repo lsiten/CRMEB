@@ -94,29 +94,29 @@ class wsSocket {
 }
 
 function createSocket(key) {
-  getWorkermanUrl().then((res) => {
+  return getWorkermanUrl().then((res) => {
     wsAdminSocketUrl = res.data.admin;
     wsKefuSocketUrl = res.data.chat;
     setCookies('WS_ADMIN_URL', res.data.admin);
     setCookies('WS_CHAT_URL', res.data.chat);
-  });
-  return new Promise((resolve, reject) => {
-    const ws = new wsSocket({
-      key,
-      open() {
-        resolve(ws);
-        vm.$emit('socket_open', key);
-      },
-      error(e) {
-        reject(e);
-      },
-      message(res) {
-        const { type, data = {} } = JSON.parse(res.data);
-        vm.$emit(type, data);
-      },
-      close(e) {
-        vm.$emit('close', { e, key });
-      },
+    return new Promise((resolve, reject) => {
+      const ws = new wsSocket({
+        key,
+        open() {
+          resolve(ws);
+          vm.$emit('socket_open', key);
+        },
+        error(e) {
+          reject(e);
+        },
+        message(res) {
+          const { type, data = {} } = JSON.parse(res.data);
+          vm.$emit(type, data);
+        },
+        close(e) {
+          vm.$emit('close', { e, key });
+        },
+      });
     });
   });
 }

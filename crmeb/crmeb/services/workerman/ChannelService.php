@@ -13,6 +13,7 @@ namespace crmeb\services\workerman;
 
 
 use Channel\Client;
+use crmeb\services\TenantContext;
 
 class ChannelService
 {
@@ -74,6 +75,10 @@ class ChannelService
 
         if (!is_null($ids) && count($ids))
             $res['ids'] = $ids;
+        if (!TenantContext::isCrossTenant())
+            $res['tenant_id'] = TenantContext::id();
+        else
+            $res['tenant_cross'] = true;
 
         $this->trigger($this->trigger, $res);
         $this->trigger = 'crmeb';

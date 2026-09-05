@@ -13,6 +13,7 @@ namespace crmeb\services\workerman;
 
 
 use Channel\Client;
+use crmeb\services\TenantContext;
 use Workerman\Connection\TcpConnection;
 use Workerman\Lib\Timer;
 use Workerman\Worker;
@@ -70,15 +71,19 @@ class WorkermanService
 
     public function onMessage(TcpConnection $connection, $res)
     {
-        $connection->lastMessageTime = time();
-        $res = json_decode($res, true);
-        if (!$res || !isset($res['type']) || !$res['type'] || $res['type'] == 'ping') {
-            return $this->response->connection($connection)->success('ping', ['now' => time()]);
+        TenantContext::set((int)($connection->tenantId ?? 1));
+        try {
+            $connection->lastMessageTime = time();
+            $res = json_decode($res, true);
+            if (!$res || !isset($res['type']) || !$res['type'] || $res['type'] == 'ping') {
+                return $this->response->connection($connection)->success('ping', ['now' => time()]);
+            }
+            var_dump('adminMessage', $res);
+            if (!method_exists($this->handle, $res['type'])) return;
+            $this->handle->{$res['type']}($connection, $res + ['data' => []], $this->response->connection($connection));
+        } finally {
+            TenantContext::clear();
         }
-        var_dump('adminMessage', $res);
-        if (!method_exists($this->handle, $res['type'])) return;
-
-        $this->handle->{$res['type']}($connection, $res + ['data' => []], $this->response->connection($connection));
     }
 
 
@@ -92,8 +97,9 @@ class WorkermanService
             if (!isset($eventData['type']) || !$eventData['type']) return;
             $ids = isset($eventData['ids']) && count($eventData['ids']) ? $eventData['ids'] : array_keys($this->user);
             foreach ($ids as $id) {
-                if (isset($this->user[$id]))
+                if (isset($this->user[$id]) && (($eventData['tenant_cross'] ?? false) || (isset($eventData['tenant_id']) && (int)$eventData['tenant_id'] === (int)($this->user[$id]->tenantId ?? 1)))) {
                     $this->response->connection($this->user[$id])->success($eventData['type'], $eventData['data'] ?? null);
+                }
             }
         });
 

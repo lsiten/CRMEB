@@ -53,7 +53,7 @@ class StoreOrderStoreOrderCartInfoDao extends BaseDao
     public function getModel()
     {
         $name = app()->make($this->setJoinModel())->getName();
-        return parent::getModel()->alias($this->alias)->join($name . ' ' . $this->joinAlis, $this->alias . '.id =' . $this->joinAlis . '.oid');
+        return parent::getModel()->withoutGlobalScope(['tenant'])->alias($this->alias)->join($name . ' ' . $this->joinAlis, $this->alias . '.id =' . $this->joinAlis . '.oid')->where($this->alias . '.tenant_id', \crmeb\services\TenantContext::id());
     }
 
     /**

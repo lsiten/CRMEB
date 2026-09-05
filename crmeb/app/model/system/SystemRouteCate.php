@@ -17,6 +17,10 @@ use crmeb\basic\BaseModel;
 class SystemRouteCate extends BaseModel
 {
 
+    // Route categories are platform metadata shared by all tenants.
+    protected $tenantScoped = false;
+    protected $globalScope = [];
+
     /**
      * @var string
      */

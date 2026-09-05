@@ -2,6 +2,7 @@
 
 namespace crmeb\command;
 
+use app\services\system\config\TenantConfigServices;
 use think\console\Command;
 use think\console\Input;
 use think\console\Output;
@@ -54,6 +55,7 @@ class Tenant extends Command
             if (!$indexes) Db::execute("ALTER TABLE {$quotedTable} ADD INDEX `idx_tenant_id` (`tenant_id`)");
             $updated += (int)Db::execute("UPDATE {$quotedTable} SET `tenant_id` = 1 WHERE `tenant_id` IS NULL OR `tenant_id` = 0");
         }
-        $output->info(sprintf('租户升级完成：扫描 %d 张表，新增字段 %d 张，回填 %d 行，跳过租户主表 %d 张。', count($tables), $added, $updated, $skipped));
+        $configInserted = app()->make(TenantConfigServices::class)->syncAll();
+        $output->info(sprintf('租户升级完成：扫描 %d 张表，新增字段 %d 张，回填 %d 行，补齐系统配置 %d 条，跳过租户主表 %d 张。', count($tables), $added, $updated, $configInserted, $skipped));
     }
 }

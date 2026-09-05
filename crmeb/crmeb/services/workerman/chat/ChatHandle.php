@@ -78,6 +78,7 @@ class ChatHandle
         }
 
         $connection->kefuUser = $kefuInfo;
+        $connection->tenantId = (int)($kefuInfo->tenant_id ?? 1);
         /** @var UserServices $userService */
         $userService = app()->make(UserServices::class);
         $connection->user = $userService->get($kefuInfo['uid'], ['uid', 'nickname']);
@@ -124,6 +125,7 @@ class ChatHandle
 
         $connection->user = $authInfo['user'];
         $connection->tokenData = $authInfo['tokenData'];
+        $connection->tenantId = (int)($authInfo['tokenData']['tenant_id'] ?? 1);
         $this->service->setUser($connection);
 
         /** @var StoreServiceRecordServices $service */

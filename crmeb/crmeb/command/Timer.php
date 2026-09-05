@@ -11,6 +11,8 @@
 namespace crmeb\command;
 
 use app\services\system\crontab\SystemCrontabServices;
+use app\model\system\Tenant;
+use crmeb\services\TenantContext;
 use think\console\Command;
 use think\console\Input;
 use think\console\input\Argument;
@@ -63,7 +65,12 @@ class Timer extends Command
         date_default_timezone_set('PRC');
         $task->count = 1;
         $task->onWorkerStart = function () use ($task) {
-            app()->make(SystemCrontabServices::class)->crontabCommandRun($task);
+            TenantContext::set(null, true);
+            $tenantIds = Tenant::where('status', 1)->column('id');
+            TenantContext::clear();
+            foreach ($tenantIds ?: [TenantContext::DEFAULT_TENANT_ID] as $tenantId) {
+                app()->make(SystemCrontabServices::class)->crontabCommandRun($task, (int)$tenantId);
+            }
         };
         $task->runAll();
     }
