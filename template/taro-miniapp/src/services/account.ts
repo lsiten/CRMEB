@@ -17,6 +17,9 @@ export type AddressDraft = Readonly<{
 type ApiEnvelope<T> = Readonly<{ data?: T; token?: string; userInfo?: UserProfile }>;
 
 export async function loginByWechat(): Promise<UserProfile | null> {
+  if (process.env['TARO_ENV'] === 'h5') {
+    throw new ApiError('BUSINESS', 'H5 暂不支持微信登录，请使用服务端 H5 登录态');
+  }
   const login = await Taro.login();
   const authType = await request<ApiEnvelope<Readonly<{ key?: string; bindPhone?: boolean }>>>('/v2/routine/auth_type', {
     method: 'GET', data: { code: login.code },
@@ -37,6 +40,9 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 }
 
 export async function bindWechatPhone(detail: Readonly<{ code?: string; encryptedData?: string; iv?: string }>): Promise<void> {
+  if (process.env['TARO_ENV'] === 'h5') {
+    throw new ApiError('BUSINESS', 'H5 暂不支持微信手机号绑定');
+  }
   const login = await Taro.login();
   await request('/v2/routine/auth_binding_phone', {
     method: 'POST', data: { code: detail.code ?? login.code, iv: detail.iv ?? '', encryptedData: detail.encryptedData ?? '' },

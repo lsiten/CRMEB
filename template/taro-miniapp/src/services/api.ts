@@ -66,7 +66,8 @@ const PRODUCT_CACHE_TTL_MS = 30_000;
 
 type ProductPayload = Readonly<{ data?: unknown; list?: unknown }>;
 
-function parseProducts(payload: ProductPayload, limit: number): readonly Product[] {
+/** Normalizes the API's legacy list/data envelopes into the app product model. */
+export function parseProducts(payload: ProductPayload, limit = 50): readonly Product[] {
   const data = payload.data;
   const candidates = Array.isArray(data) ? data : data && typeof data === 'object' && 'list' in data && Array.isArray(data.list)
     ? data.list : data && typeof data === 'object' ? [data] : Array.isArray(payload.list) ? payload.list : [];
