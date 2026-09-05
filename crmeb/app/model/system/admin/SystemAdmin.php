@@ -11,7 +11,7 @@
 
 namespace app\model\system\admin;
 
-use crmeb\basic\BaseModel;
+use crmeb\basic\TenantScope;
 use crmeb\traits\JwtAuthModelTrait;
 use crmeb\traits\ModelTrait;
 use think\Model;
@@ -21,7 +21,7 @@ use think\Model;
  * Class SystemAdmin
  * @package app\model\system\admin
  */
-class SystemAdmin extends BaseModel
+class SystemAdmin extends TenantScope
 {
     use ModelTrait;
     use JwtAuthModelTrait;

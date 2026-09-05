@@ -2,6 +2,19 @@
 -- 表的结构 `eb_agent_level`
 --
 
+CREATE TABLE IF NOT EXISTS `eb_tenant` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL DEFAULT '' COMMENT '租户名称',
+  `code` varchar(64) NOT NULL DEFAULT '' COMMENT '租户编码',
+  `status` tinyint(1) UNSIGNED NOT NULL DEFAULT '1' COMMENT '状态',
+  `add_time` int(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '创建时间',
+  PRIMARY KEY (`id`), UNIQUE KEY `code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='租户主表';
+
+--
+-- 表的结构 `eb_agent_level`
+--
+
 CREATE TABLE IF NOT EXISTS `eb_agent_level` (
   `id` int(10) NOT NULL AUTO_INCREMENT COMMENT '自增ID',
   `name` varchar(50) NOT NULL DEFAULT '' COMMENT '等级名称',
@@ -28422,6 +28435,7 @@ CREATE TABLE IF NOT EXISTS `eb_store_integral_order_status` (
 
 CREATE TABLE IF NOT EXISTS `eb_store_order` (
   `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '订单ID',
+  `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '租户ID',
   `pid` int(10) NOT NULL DEFAULT '0' COMMENT '父类订单id',
   `order_id` varchar(32) NOT NULL DEFAULT '0' COMMENT '订单号',
   `trade_no` varchar(100) NOT NULL DEFAULT '' COMMENT '支付订单号',
@@ -28697,6 +28711,7 @@ CREATE TABLE IF NOT EXISTS `eb_store_pink` (
 
 CREATE TABLE IF NOT EXISTS `eb_store_product` (
   `id` mediumint(11) NOT NULL AUTO_INCREMENT COMMENT '商品id',
+  `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '租户ID',
   `mer_id` int(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '商户Id(0为总后台管理员创建,不为0的时候是商户后台创建)',
   `image` varchar(256) NOT NULL DEFAULT '' COMMENT '商品图片',
   `recommend_image` varchar(256) NOT NULL DEFAULT '' COMMENT '推荐图',
@@ -29484,6 +29499,7 @@ CREATE TABLE IF NOT EXISTS `eb_store_visit` (
 
 CREATE TABLE IF NOT EXISTS `eb_system_admin` (
   `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '后台管理员表ID',
+  `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '租户ID',
   `account` varchar(32) NOT NULL DEFAULT '' COMMENT '后台管理员账号',
   `head_pic` varchar(255) NOT NULL DEFAULT '' COMMENT '管理员头像',
   `pwd` varchar(100) NOT NULL DEFAULT '' COMMENT '后台管理员密码',
@@ -51686,6 +51702,7 @@ CREATE TABLE IF NOT EXISTS `eb_upgrade_log` (
 
 CREATE TABLE IF NOT EXISTS `eb_user` (
   `uid` int(10) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '用户id',
+  `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '租户ID',
   `account` varchar(32) NOT NULL DEFAULT '' COMMENT '用户账号',
   `pwd` varchar(32) NOT NULL DEFAULT '' COMMENT '用户密码',
   `real_name` varchar(25) NOT NULL DEFAULT '' COMMENT '真实姓名',

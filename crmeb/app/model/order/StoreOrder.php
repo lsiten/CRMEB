@@ -15,7 +15,7 @@ use app\model\activity\combination\StorePink;
 use app\model\system\store\SystemStore;
 use app\model\system\store\SystemStoreStaff;
 use app\model\user\User;
-use crmeb\basic\BaseModel;
+use crmeb\basic\TenantScope;
 use crmeb\traits\ModelTrait;
 use think\Model;
 
@@ -24,7 +24,7 @@ use think\Model;
  * Class StoreOrder
  * @package app\model\order
  */
-class StoreOrder extends BaseModel
+class StoreOrder extends TenantScope
 {
     use ModelTrait;
 
