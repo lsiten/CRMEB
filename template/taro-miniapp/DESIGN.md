@@ -1,27 +1,39 @@
 ## 0. Research Log
 
-- Existing Taro pages and styles were reviewed; this iteration preserves the established CRMEB red/white commerce surface.
+- Existing project audit: extracted the current warm red CRMEB palette, 4px spacing rhythm, rounded cards, and compact mobile-first layout from `src/app.scss` and page styles.
+- Direction: operational commerce UI with a warm red action color, quiet neutral surfaces, and restrained elevation; prioritize scanability over decoration.
 
 ## 1. Tokens
 
-- Primary: `#e93323`; text: `#222`; muted: `#888`; border: `#f2f2f2`; surface: `#fff`; page: `#f7f7f7`.
-- Spacing uses 8px increments; cards use 16px radius and 16px internal padding.
-- Titles are 38px/600, body 28px, metadata 24px.
+- Colors: `--color-brand` (#e93323), `--color-brand-soft` (#fff0ed), `--color-text` (#222), `--color-text-secondary` (#666), `--color-text-muted` (#999), `--color-surface` (#fff), `--color-page` (#f7f7f7), `--color-border` (#ededed), `--color-overlay` (rgba(0,0,0,.55)).
+- Spacing: 4px base; `--space-2` 8px, `--space-3` 12px, `--space-4` 16px, `--space-5` 20px, `--space-6` 24px, `--space-8` 32px.
+- Radius: `--radius-sm` 8px, `--radius-md` 12px, `--radius-lg` 16px, `--radius-pill` 999px.
+- Type: body 28rpx/1.5, secondary 24rpx, title 36rpx/1.35, display 44rpx/1.25.
 
-## 2. Primitives
+## 2. Layout and responsiveness
 
-- `.page` is the padded page shell, `.card` is a white rounded surface, `.primary` is the action/accent color.
-- Product media is aspect-fill; primary actions use CRMEB red with white text.
+Pages use `min-height: 100dvh`, 24px page gutters, and fluid widths. Controls remain at least 88rpx high for touch; multi-column content collapses to one column below 640px.
 
-## 3. States and accessibility
+## 3. Surface recipe
 
-- Every data surface has loading, empty and recoverable error states. Disabled purchase controls are visibly muted.
-- Interactive controls use native Taro `Button`, `Input`, and click targets with readable labels.
+Cards use a white surface, `--radius-lg`, and a 1px neutral border; elevation is reserved for modal and floating action surfaces.
 
-## 4. Motion and responsive behavior
+## 4. Motion
 
-- No decorative motion; state changes use native control feedback. Two-column product grids collapse naturally to the device width.
+State changes use 160ms opacity/transform transitions. Loading and countdown updates are functional; `prefers-reduced-motion` disables decorative motion.
 
-## 5. Accepted debt
+## 5. Reusable primitives
 
-- API fixtures remain compatible with the minimal product payload; optional stock/spec fields are additive until the backend contract is available.
+`NavBar` (default/back action), `Loading`, `Empty`, `Tabs`, `Modal`, `AddressSelector`, `ImagePreview`, `Countdown`, and `Skeleton` expose named, typed props and loading/empty/active/disabled states.
+
+## 6. Accessibility constraints
+
+Interactive controls are native Taro `Button` where possible, provide visible labels, and expose `aria-label` for icon-only actions. Modal closes via an explicit close control and backdrop action.
+
+## 7. Accepted debt
+
+Visual QA is limited to static typecheck/build in this template because no browser harness is configured for the Taro mini-program target.
+
+## 8. Handoff
+
+Import primitives from `src/components`; keep page-specific styles local and use the global token variables for new values.
