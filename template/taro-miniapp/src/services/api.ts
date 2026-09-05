@@ -18,12 +18,17 @@ export function setToken(token: string | null): void {
 }
 export function getToken(): string | null { return Taro.getStorageSync<string>(tokenKey) || null; }
 
+export function clearToken(): void { setToken(null); }
+
 export async function request<T>(path: string, options: Omit<Taro.request.Option<T>, 'url'> = {}): Promise<T> {
   const token = getToken();
   const header = { ...(options.header ?? {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) };
   try {
     const response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header, timeout: options.timeout ?? 10000 });
-    if (response.statusCode === 401) throw new ApiError('UNAUTHORIZED', '登录已过期', 401);
+    if (response.statusCode === 401) {
+      clearToken();
+      throw new ApiError('UNAUTHORIZED', '登录已过期', 401);
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) throw new ApiError('HTTP', `请求失败（${response.statusCode}）`, response.statusCode);
     const body = response.data as T & { code?: number; msg?: string; status?: number };
     if (typeof body === 'object' && body !== null && typeof body.code === 'number' && body.code !== 0 && body.code !== 200) throw new ApiError('BUSINESS', body.msg ?? '业务请求失败');
@@ -47,16 +52,16 @@ function parseProducts(payload: ProductPayload, limit: number): readonly Product
   const data = payload.data;
   const candidates = Array.isArray(data) ? data : data && typeof data === 'object' && 'list' in data && Array.isArray(data.list)
     ? data.list : data && typeof data === 'object' ? [data] : Array.isArray(payload.list) ? payload.list : [];
-  return candidates.filter((item): item is Product => {
-    if (typeof item !== 'object' || item === null) return false;
+  return candidates.flatMap((item): Product[] => {
+    if (typeof item !== 'object' || item === null) return [];
     const record = item as Record<string, unknown>;
     const id = typeof record['id'] === 'number' ? record['id'] : Number(record['id']);
     const name = typeof record['name'] === 'string' ? record['name'] : record['store_name'];
     const image = typeof record['image'] === 'string' ? record['image'] : record['image_input'];
     const price = typeof record['price'] === 'number' ? record['price'] : Number(record['price']);
-    if (!Number.isSafeInteger(id) || id <= 0 || typeof name !== 'string' || !name.trim() || typeof image !== 'string' || !image || !Number.isFinite(price)) return false;
-    return { id, name, price, image } satisfies Product;
-  }).filter((item): item is Product => item !== false).slice(0, limit);
+    if (!Number.isSafeInteger(id) || id <= 0 || typeof name !== 'string' || !name.trim() || typeof image !== 'string' || !image || !Number.isFinite(price)) return [];
+    return [{ id, name, price, image } satisfies Product];
+  }).slice(0, limit);
 }
 
 export async function queryProducts(query: ProductQuery): Promise<readonly Product[]> {
