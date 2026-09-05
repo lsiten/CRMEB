@@ -24,7 +24,12 @@ export function cartTotal(items: readonly CartItem[]): number {
 }
 
 export function updateCartQuantity(id: number, quantity: number): readonly CartItem[] {
-  const next = readCart().flatMap((item) => item.id !== id ? [item] : quantity > 0 ? [{ ...item, quantity }] : []);
+  const next = readCart().flatMap((item) => {
+    if (item.id !== id) return [item];
+    if (quantity <= 0) return [];
+    const stockLimit = typeof item.stock === 'number' && item.stock > 0 ? item.stock : quantity;
+    return [{ ...item, quantity: Math.min(quantity, stockLimit) }];
+  });
   Taro.setStorageSync(storageKey, next);
   return next;
 }
