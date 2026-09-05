@@ -13,6 +13,7 @@ namespace app\dao\product\product;
 
 use app\dao\BaseDao;
 use app\model\product\product\StoreCategory;
+use crmeb\services\TenantContext;
 
 /**
  * Class StoreCategoryDao
@@ -124,7 +125,10 @@ class StoreCategoryDao extends BaseDao
      */
     public function getCateParentAndChildName(string $cateId)
     {
-        return $this->getModel()->alias('c')->leftJoin('StoreCategory b', 'b.id = c.pid')
+        return $this->getModel()->withoutGlobalScope(['tenant'])->alias('c')
+            ->leftJoin('StoreCategory b', 'b.id = c.pid')
+            ->where('c.tenant_id', TenantContext::id())
+            ->where('b.tenant_id', TenantContext::id())
             ->where('c.id', 'IN', $cateId)->field('c.cate_name as two,b.cate_name as one,c.id')
             ->select()->toArray();
     }
