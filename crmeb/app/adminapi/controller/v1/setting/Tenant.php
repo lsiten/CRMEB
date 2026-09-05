@@ -5,6 +5,8 @@ namespace app\adminapi\controller\v1\setting;
 use app\model\system\Tenant as TenantModel;
 use crmeb\basic\BaseController;
 use crmeb\services\TenantContext;
+use app\services\system\admin\AdminAuthServices;
+use app\model\system\admin\SystemAdmin;
 
 /** 后台租户查询与切换。 */
 class Tenant extends BaseController
@@ -37,8 +39,19 @@ class Tenant extends BaseController
         if (!$tenant) {
             return app('json')->fail('租户不存在或已停用');
         }
-        TenantContext::set($tenantId, (int)($admin['level'] ?? 1) === 0);
-        return app('json')->success(['tenant' => $tenant->visible(['id', 'name', 'code'])->toArray()]);
+        TenantContext::set($tenantId, false);
+        $adminModel = SystemAdmin::where('id', (int)$admin['id'])->find();
+        $result = ['tenant' => $tenant->visible(['id', 'name', 'code'])->toArray()];
+        if ($adminModel) {
+            $tokenInfo = app()->make(AdminAuthServices::class)->createToken(
+                (int)$adminModel->id,
+                (string)($admin['type'] ?? 'admin'),
+                (string)$adminModel->pwd
+            );
+            $result['token'] = $tokenInfo['token'];
+            $result['expires_time'] = $tokenInfo['params']['exp'];
+        }
+        return app('json')->success($result);
     }
 
     /** 后台租户管理页列表。 */
