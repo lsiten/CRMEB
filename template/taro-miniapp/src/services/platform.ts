@@ -3,8 +3,10 @@
 const MAX_VALUE_LENGTH = 64;
 const MAX_ID = 1_000_000_000;
 const REFERRAL_KEYS = ['spread', 'spid', 'agent_id'] as const;
+const SHARE_KEYS = ['kind', 'id', 'activity', 'activityId', 'productId', 'orderId'] as const;
 
 type ReferralKey = (typeof REFERRAL_KEYS)[number];
+type ShareKey = (typeof SHARE_KEYS)[number];
 export type DeepLinkParams = Readonly<Partial<Record<ReferralKey, string>>>;
 export type DeepLinkInput = Readonly<{ scene?: unknown; query?: unknown }>;
 
@@ -53,9 +55,16 @@ export function parseDeepLink(input: DeepLinkInput): DeepLinkParams {
 }
 
 /** Build a share route with encoded business identifiers only. */
-export function buildSharePath(path: string, params: Readonly<Record<string, string>>): string {
+function isSafeShareValue(key: ShareKey, value: string): boolean {
+  if (value.length === 0 || value.length > MAX_VALUE_LENGTH) return false;
+  if (key === 'kind' || key === 'activity') return /^[a-z][a-z-]{0,31}$/.test(value);
+  return isSafeIdentifier(value);
+}
+
+/** Build a route from the fixed set of non-sensitive business parameters. */
+export function buildSharePath(path: string, params: Readonly<Partial<Record<ShareKey, string>>>): string {
   const query = Object.entries(params)
-    .filter(([key, value]) => /^[a-zA-Z][a-zA-Z0-9_]{0,31}$/.test(key) && value.length <= MAX_VALUE_LENGTH)
+    .filter(([key, value]) => SHARE_KEYS.includes(key as ShareKey) && typeof value === 'string' && isSafeShareValue(key as ShareKey, value))
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join('&');
   return query ? `${path}?${query}` : path;

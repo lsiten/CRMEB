@@ -21,7 +21,9 @@ describe('platform capability safety', () => {
   });
 
   it('encodes business identifiers in share paths', () => {
-    expect(buildSharePath('/pages/goods/detail', { id: 'A/B' })).toBe('/pages/goods/detail?id=A%2FB');
+    expect(buildSharePath('/pages/goods/detail', { id: '42' })).toBe('/pages/goods/detail?id=42');
+    expect(buildSharePath('/pages/goods/detail', { id: 'A/B' })).toBe('/pages/goods/detail');
+    expect(buildSharePath('/pages/goods/detail', { id: '42', token: 'leak' })).toBe('/pages/goods/detail?id=42');
   });
 
   it('uses server payment state instead of client callback state', () => {
