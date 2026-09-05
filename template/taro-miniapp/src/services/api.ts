@@ -1,7 +1,16 @@
 import Taro from '@tarojs/taro';
 
-export type Product = Readonly<{ id: number; name: string; price: number; image: string }>;
+export type Product = Readonly<{
+  id: number;
+  name: string;
+  price: number;
+  image: string;
+  description?: string;
+  stock?: number;
+  specs?: readonly string[];
+}>;
 export type ApiErrorCode = 'UNAUTHORIZED' | 'TIMEOUT' | 'NETWORK' | 'BUSINESS' | 'HTTP';
+export type LoginResult = Readonly<{ token: string; expires_time?: number; bindName?: boolean }>;
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
   readonly status: number | undefined;
@@ -20,7 +29,7 @@ export function getToken(): string | null { return Taro.getStorageSync<string>(t
 
 export async function request<T>(path: string, options: Omit<Taro.request.Option<T>, 'url'> = {}): Promise<T> {
   const token = getToken();
-  const header = { ...(options.header ?? {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const header = { ...(options.header ?? {}), ...(token ? { 'Authori-zation': `Bearer ${token}` } : {}) };
   try {
     const response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header, timeout: options.timeout ?? 10000 });
     if (response.statusCode === 401) throw new ApiError('UNAUTHORIZED', '登录已过期', 401);
@@ -38,4 +47,23 @@ export async function request<T>(path: string, options: Omit<Taro.request.Option
 export async function getProducts(): Promise<readonly Product[]> {
   const payload = await request<Readonly<{ data?: readonly Product[] }>>('/products', { method: 'GET' });
   return Array.isArray(payload.data) ? payload.data : [];
+}
+
+export async function loginWithWechat(): Promise<LoginResult> {
+  const login = await Taro.login();
+  if (!login.code) throw new ApiError('BUSINESS', '无法获取微信登录凭证');
+  const authType = await request<Readonly<{ data?: Readonly<{ key?: string; bindPhone?: boolean }> }>>(
+    `/v2/routine/auth_type?code=${encodeURIComponent(login.code)}`,
+    { method: 'GET' },
+  );
+  const key = authType.data?.key;
+  if (!key) throw new ApiError('BUSINESS', authType.data?.bindPhone ? '请先绑定手机号' : '登录凭证无效');
+  const authLogin = await request<Readonly<{ data?: LoginResult }>>(
+    `/v2/routine/auth_login?key=${encodeURIComponent(key)}`,
+    { method: 'GET' },
+  );
+  const result = authLogin.data;
+  if (!result?.token) throw new ApiError('BUSINESS', '登录失败，请稍后重试');
+  setToken(result.token);
+  return result;
 }
