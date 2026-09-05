@@ -5,7 +5,7 @@ import { ApiError, getToken } from '../../services/api';
 import { bindWechatPhone, getUserProfile, loginByWechat, type UserProfile } from '../../services/account';
 import './index.scss';
 
-const menuItems = ['我的订单', '收货地址', '优惠券', '积分中心', '联系客服'] as const;
+const menuItems = ['营销活动', '我的订单', '收货地址', '优惠券', '积分中心', '联系客服'] as const;
 
 const UserPage = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -23,6 +23,7 @@ const UserPage = () => {
     finally { setLoading(false); }
   };
   const openMenu = (item: typeof menuItems[number]): void => {
+    if (item === '营销活动') { void Taro.navigateTo({ url: '/pages/marketing/index' }); return; }
     if (item === '收货地址') { void Taro.navigateTo({ url: '/pages/address/index' }); return; }
     if (item === '积分中心') { void Taro.navigateTo({ url: '/pages/integral/index' }); return; }
     if (item === '联系客服') { void Taro.navigateTo({ url: '/pages/customer/index' }); return; }
