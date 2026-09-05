@@ -19,6 +19,7 @@ use crmeb\exceptions\AdminException;
 use crmeb\services\CacheService;
 use crmeb\services\express\Express;
 use crmeb\services\FormBuilder as Form;
+use crmeb\services\TenantContext;
 
 /**
  * 物流数据
@@ -55,6 +56,7 @@ class ExpressServices extends BaseServices
     public function __construct(ExpressDao $dao)
     {
         $this->dao = $dao;
+        $this->_cacheKey = TenantContext::key($this->_cacheKey);
     }
 
     /**

@@ -10,10 +10,10 @@
 // +----------------------------------------------------------------------
 namespace app\model\system\crontab;
 
-use crmeb\basic\BaseModel;
+use crmeb\basic\TenantScope;
 use crmeb\traits\ModelTrait;
 
-class SystemCrontab extends BaseModel
+class SystemCrontab extends TenantScope
 {
     use ModelTrait;
 
