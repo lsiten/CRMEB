@@ -14,7 +14,7 @@ namespace app\model\activity\integral;
 use app\model\product\product\StoreDescription;
 use app\model\product\product\StoreProduct;
 use crmeb\traits\ModelTrait;
-use crmeb\basic\BaseModel;
+use crmeb\basic\TenantScope;
 use think\Model;
 
 /**
@@ -22,7 +22,7 @@ use think\Model;
  * Class StoreCombination
  * @package app\model\activity
  */
-class StoreIntegral extends BaseModel
+class StoreIntegral extends TenantScope
 {
     /**
      * 数据表主键

@@ -107,7 +107,7 @@
 import screenfull from 'screenfull';
 import { AccountLogout, menusApi } from '@/api/account';
 import { tenantListApi, switchTenantApi } from '@/api/tenant';
-import { removeCookies } from '@/libs/util';
+import { removeCookies, setCookies } from '@/libs/util';
 import { Session, Local } from '@/utils/storage.js';
 import { formatFlatteningRoutes } from '@/libs/system';
 import UserNews from '@/layout/navBars/breadcrumb/userNews.vue';
@@ -369,6 +369,11 @@ export default {
       switchTenantApi({ tenant_id: this.selectedTenantId })
         .then((res) => {
           const data = res.data || res;
+          if (data.token) {
+            const expires = this.getExpiresTime(data.expires_time);
+            setCookies('token', data.token, expires);
+            setCookies('expires_time', data.expires_time, expires);
+          }
           const current =
             data.current_tenant ||
             data.tenant ||

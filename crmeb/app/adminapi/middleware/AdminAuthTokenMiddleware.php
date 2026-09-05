@@ -51,7 +51,7 @@ class AdminAuthTokenMiddleware implements MiddlewareInterface
         // level=0 is the platform administrator and may explicitly cross tenant boundaries.
         // Keep tenant_id=0 as an explicit tenant so TenantScope still adds tenant_id=0
         // for non-platform administrators instead of silently disabling the scope.
-        TenantContext::set($tenantId, (int)($adminInfo['level'] ?? 1) === 0);
+        TenantContext::set($tenantId, false);
         $request->macro('isAdminLogin', function () use (&$adminInfo) {
             return !is_null($adminInfo);
         });

@@ -25,6 +25,12 @@ ALTER TABLE `eb_store_product_attr_value` ADD COLUMN `tenant_id` int(10) UNSIGNE
 CREATE INDEX `tenant_id` ON `eb_store_product_attr_value` (`tenant_id`);
 ALTER TABLE `eb_theme_download` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
 CREATE INDEX `tenant_id` ON `eb_theme_download` (`tenant_id`);
+ALTER TABLE `eb_store_integral` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
+ALTER TABLE `eb_store_integral_order` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
+ALTER TABLE `eb_store_integral_order_status` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
+CREATE INDEX `tenant_id` ON `eb_store_integral` (`tenant_id`);
+CREATE INDEX `tenant_id` ON `eb_store_integral_order` (`tenant_id`);
+CREATE INDEX `tenant_id` ON `eb_store_integral_order_status` (`tenant_id`);
 
  -- 将升级前未归属的数据纳入默认租户，避免出现 tenant_id=0 的孤儿数据。
 UPDATE `eb_system_admin` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
@@ -35,6 +41,9 @@ UPDATE `eb_system_timer` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
 UPDATE `eb_store_product_relation` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
 UPDATE `eb_store_product_attr_value` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
 UPDATE `eb_theme_download` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
+UPDATE `eb_store_integral` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
+UPDATE `eb_store_integral_order` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
+UPDATE `eb_store_integral_order_status` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
 
 -- 后台动态菜单：幂等写入“租户管理”，挂载到“维护”(id=25)菜单下。
 INSERT INTO `eb_system_menus`

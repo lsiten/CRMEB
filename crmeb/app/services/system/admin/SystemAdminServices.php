@@ -153,6 +153,8 @@ class SystemAdminServices extends BaseServices
                 'account' => $adminInfo->getData('account'),
                 'head_pic' => get_file_link($adminInfo->getData('head_pic')),
                 'level' => $adminInfo->getData('level'),
+                'tenant_id' => (int)($adminInfo->getData('tenant_id') ?? 0),
+                'tenant_id' => (int)($adminInfo->getData('tenant_id') ?? 0),
                 'real_name' => $adminInfo->getData('real_name'),
             ],
             'logo' => sys_config('site_logo'),
