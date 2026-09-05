@@ -1,6 +1,6 @@
 import Taro from '@tarojs/taro';
 
-export type Product = Readonly<{ id: number; name: string; price: number; image: string }>;
+export type Product = Readonly<{ id: number; name: string; price: number; image: string; category?: string; stock?: number; status?: number }>;
 export type ApiErrorCode = 'UNAUTHORIZED' | 'TIMEOUT' | 'NETWORK' | 'BUSINESS' | 'HTTP';
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
@@ -36,6 +36,24 @@ export async function request<T>(path: string, options: Omit<Taro.request.Option
 }
 
 export async function getProducts(): Promise<readonly Product[]> {
-  const payload = await request<Readonly<{ data?: readonly Product[] }>>('/products', { method: 'GET' });
-  return Array.isArray(payload.data) ? payload.data : [];
+  return queryProducts({});
+}
+
+export type ProductQuery = Readonly<{ keyword?: string; category?: string; ids?: readonly number[]; limit?: number }>;
+
+export async function queryProducts(query: ProductQuery): Promise<readonly Product[]> {
+  const limit = Math.min(Math.max(query.limit ?? 50, 1), 50);
+  const params = new URLSearchParams();
+  if (query.keyword) params.set('keyword', query.keyword);
+  if (query.category && query.category !== '全部') params.set('category', query.category);
+  if (query.ids?.length) params.set('ids', query.ids.join(','));
+  params.set('limit', String(limit));
+  const payload = await request<Readonly<{ data?: readonly Product[] }>>(`/products?${params.toString()}`, { method: 'GET' });
+  return Array.isArray(payload.data) ? payload.data.slice(0, limit) : [];
+}
+
+export async function getProduct(id: number): Promise<Product> {
+  const payload = await request<Readonly<{ data?: Product }>>(`/products/${encodeURIComponent(String(id))}`, { method: 'GET' });
+  if (!payload.data) throw new ApiError('BUSINESS', '商品不存在');
+  return payload.data;
 }
