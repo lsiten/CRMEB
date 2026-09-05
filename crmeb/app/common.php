@@ -79,6 +79,16 @@ if (!function_exists('getWorkerManUrl')) {
     {
         $ws = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 'wss://' : 'ws://';
         $host = $_SERVER['HTTP_HOST'];
+        // The PHP built-in server does not proxy /notice and /msg to
+        // Workerman. Use the configured listener ports for local development;
+        // production reverse proxies keep the path-based URLs below.
+        $hostname = parse_url($ws . $host, PHP_URL_HOST);
+        if (in_array($hostname, ['127.0.0.1', 'localhost', '::1'], true)) {
+            return [
+                'admin' => $ws . $hostname . ':' . config('workerman.admin.port'),
+                'chat' => $ws . $hostname . ':' . config('workerman.chat.port'),
+            ];
+        }
         $data['admin'] = $ws . $host . '/notice';
         $data['chat'] = $ws . $host . '/msg';
         return $data;

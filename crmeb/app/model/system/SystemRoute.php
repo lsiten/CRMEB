@@ -25,6 +25,10 @@ use think\model\concern\SoftDelete;
 class SystemRoute extends BaseModel
 {
 
+    // API route definitions are platform metadata shared by all tenants.
+    protected $tenantScoped = false;
+    protected $globalScope = [];
+
     use SoftDelete;
 
     /**

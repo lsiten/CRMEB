@@ -144,12 +144,13 @@ export default {
     },
     // 当前路由分割处理
     initRouteSplit(path) {
+      const firstRoute = this.$store.state.routesList.routesList[0] || {};
       this.breadcrumbList = [
         {
           path: '/',
           meta: {
-            title: this.$store.state.routesList.routesList[0].title,
-            icon: this.$store.state.routesList.routesList[0].icon,
+            title: firstRoute.title || (this.$route.meta && this.$route.meta.title) || '',
+            icon: firstRoute.icon || '',
           },
         },
       ];

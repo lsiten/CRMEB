@@ -36,7 +36,7 @@ class StoreProductCateDao extends BaseDao
      */
     public function saveAll(array $data)
     {
-        $this->getModel()->insertAll($data);
+        return parent::saveAll($data);
     }
 
     /**

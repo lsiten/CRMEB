@@ -24,6 +24,12 @@ class SystemConfigTab extends BaseModel
 {
     use ModelTrait;
 
+    // Configuration tab definitions are platform metadata shared by all
+    // tenants. The values in system_config remain tenant-owned, but the tab
+    // tree itself must not disappear when switching tenants.
+    protected $tenantScoped = false;
+    protected $globalScope = [];
+
     /**
      * 数据表主键
      * @var string

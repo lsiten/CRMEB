@@ -1,2 +1,16 @@
 declare module '*.scss';
-declare const process: { env: Record<string, string | undefined> };
+declare namespace NodeJS {
+  interface ProcessEnv {
+    TARO_API_BASE_URL?: string;
+    TARO_IMAGE_HOSTS?: string;
+    TARO_ENV?: string;
+  }
+}
+
+declare const process: {
+  env: {
+    TARO_API_BASE_URL?: string;
+    TARO_IMAGE_HOSTS?: string;
+    TARO_ENV?: string;
+  };
+};

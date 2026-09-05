@@ -52,6 +52,7 @@ class WorkermanHandle
 
         $connection->adminInfo = $authInfo;
         $connection->adminId = $authInfo['id'];
+        $connection->tenantId = (int)($authInfo['tenant_id'] ?? 1);
         $this->service->setUser($connection);
 
         return $response->success();

@@ -255,13 +255,15 @@ class SystemCrontabServices extends BaseServices
      * @param object $task 任务对象
      * @return void
      */
-    public function crontabCommandRun($task)
+    public function crontabCommandRun($task, int $tenantId = TenantContext::DEFAULT_TENANT_ID)
     {
         file_put_contents(root_path() . 'runtime/.timer', time());
         // 获取 CrontabRunServices 实例
         $crontabRunServices = app()->make(CrontabRunServices::class);
         // 创建一个每秒钟执行一次的定时任务
-        new Crontab('*/1 * * * * *', function () use ($task, $crontabRunServices) {
+        new Crontab('*/1 * * * * *', function () use ($task, $crontabRunServices, $tenantId) {
+            TenantContext::set($tenantId);
+            try {
             // 写入时间戳，用于检测定时任务是否正常执行
             $timerTime = file_get_contents(root_path() . 'runtime/.timer');
             if ($timerTime < (time() - 60)) {
@@ -283,7 +285,8 @@ class SystemCrontabServices extends BaseServices
                 // 如果更新时间不存在，则将其设置为添加时间
                 $item['update_time'] = $item['update_time'] ?: $item['add_time'];
                 // 如果任务已经被执行过，则跳过此次循环
-                if (isset($task->task_ids[$functionName]) && $task->task_ids[$functionName]['time'] == $item['update_time']) {
+                $taskKey = $tenantId . ':' . $functionName;
+                if (isset($task->task_ids[$taskKey]) && $task->task_ids[$taskKey]['time'] == $item['update_time']) {
                     continue;
                 }
                 // 获取定时器字符串
@@ -291,22 +294,30 @@ class SystemCrontabServices extends BaseServices
                 // 获取自定义代码
                 $customCode = json_decode($item['customCode']);
                 // 如果任务已经被执行过，并且当前时间和上次执行时间不同，则销毁之前的定时任务
-                if (isset($task->task_ids[$functionName]) && $task->task_ids[$functionName]['time'] != $item['update_time'] && isset($task->task_ids[$functionName]['crontab']) && $task->task_ids[$functionName]['crontab'] instanceof Crontab) {
-                    $task->task_ids[$functionName]['crontab']->destroy();
-                    unset($task->task_ids[$functionName]);
+                if (isset($task->task_ids[$taskKey]) && $task->task_ids[$taskKey]['time'] != $item['update_time'] && isset($task->task_ids[$taskKey]['crontab']) && $task->task_ids[$taskKey]['crontab'] instanceof Crontab) {
+                    $task->task_ids[$taskKey]['crontab']->destroy();
+                    unset($task->task_ids[$taskKey]);
                 }
                 // 如果任务是开启状态，则创建一个新的定时任务
                 if ($item['is_open'] == 1) {
-                    $crontab = new Crontab($timeStr, function () use ($crontabRunServices, $functionName, $customCode) {
-                        // 根据函数名调用相应的方法
-                        if (strpos($functionName, 'customTimer_') === 0) {
-                            $crontabRunServices->customTimer($customCode);
-                        } else {
-                            $crontabRunServices->$functionName();
+                    $crontab = new Crontab($timeStr, function () use ($crontabRunServices, $functionName, $customCode, $tenantId) {
+                        TenantContext::set($tenantId);
+                        try {
+                            // 根据函数名调用相应的方法
+                            if (strpos($functionName, 'customTimer_') === 0) {
+                                $crontabRunServices->customTimer($customCode);
+                            } else {
+                                $crontabRunServices->$functionName();
+                            }
+                        } finally {
+                            TenantContext::clear();
                         }
                     });
-                    $task->task_ids[$functionName] = ['crontab' => $crontab, 'time' => $item['update_time']];
+                    $task->task_ids[$taskKey] = ['crontab' => $crontab, 'time' => $item['update_time']];
                 }
+            }
+            } finally {
+                TenantContext::clear();
             }
         });
     }

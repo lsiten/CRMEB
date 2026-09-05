@@ -28,6 +28,18 @@ class BaseModel extends Model
 
     protected $globalScope = ['tenant'];
 
+    /**
+     * Whether this model belongs to the current tenant.
+     *
+     * DAOs use this when they have to build an explicit write condition. The
+     * property itself stays protected so existing models can opt out by
+     * setting `$tenantScoped = false` (shared metadata tables).
+     */
+    public function isTenantScoped(): bool
+    {
+        return (bool)$this->tenantScoped;
+    }
+
     public static function onBeforeWrite($model): void
     {
         if ($model->tenantScoped && TenantContext::id() !== null) {
@@ -38,6 +50,7 @@ class BaseModel extends Model
     public function scopeTenant(Query $query, $tenantId = null): Query
     {
         if (!$this->tenantScoped) return $query;
-        return $query->where($this->getTable() . '.tenant_id', $tenantId ?? TenantContext::id());
+        $prefix = (string)config('database.connections.' . config('database.default') . '.prefix');
+        return $query->where($prefix . $this->getName() . '.tenant_id', $tenantId ?? TenantContext::id());
     }
 }

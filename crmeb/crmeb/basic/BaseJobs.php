@@ -13,6 +13,7 @@ namespace crmeb\basic;
 
 
 use crmeb\interfaces\JobInterface;
+use crmeb\services\TenantContext;
 use think\facade\Log;
 use think\queue\Job;
 
@@ -44,7 +45,12 @@ abstract class BaseJobs implements JobInterface
             $action = $data['do'] ?? 'doJob';//任务名
             $infoData = $data['data'] ?? [];//执行数据
             $errorCount = $data['errorCount'] ?? 0;//最大错误次数
-            $this->runJob($action, $job, $infoData, $errorCount);
+            TenantContext::set(isset($data['tenant_id']) ? (int)$data['tenant_id'] : TenantContext::DEFAULT_TENANT_ID, (bool)($data['tenant_cross'] ?? false));
+            try {
+                $this->runJob($action, $job, $infoData, $errorCount);
+            } finally {
+                TenantContext::clear();
+            }
         } catch (\Throwable $e) {
             Log::error('队列错误：' . $e->getMessage());
             $job->delete();

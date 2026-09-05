@@ -95,28 +95,28 @@
               </div>
               <div class="env-info">
                 <span class="env-label">操作系统</span>
-                <span class="env-value">{{ envStatus.os?.type || '-' }} {{ envStatus.os?.version || '' }}</span>
+                <span class="env-value">{{ (envStatus.os && envStatus.os.type) || '-' }} {{ (envStatus.os && envStatus.os.version) || '' }}</span>
               </div>
             </div>
             <div class="env-item">
-              <div class="env-icon" :class="envStatus.node?.installed ? 'success' : 'error'">
+              <div class="env-icon" :class="envStatus.node && envStatus.node.installed ? 'success' : 'error'">
                 <i class="el-icon-connection"></i>
               </div>
               <div class="env-info">
                 <span class="env-label">Node.js</span>
-                <span class="env-value" :class="envStatus.node?.installed ? 'text-success' : 'text-error'">
-                  {{ envStatus.node?.installed ? 'v' + envStatus.node.version : '未安装' }}
+                <span class="env-value" :class="envStatus.node && envStatus.node.installed ? 'text-success' : 'text-error'">
+                  {{ envStatus.node && envStatus.node.installed ? 'v' + envStatus.node.version : '未安装' }}
                 </span>
               </div>
             </div>
             <div class="env-item">
-              <div class="env-icon" :class="envStatus.miniprogram_ci?.installed ? 'success' : 'error'">
+              <div class="env-icon" :class="envStatus.miniprogram_ci && envStatus.miniprogram_ci.installed ? 'success' : 'error'">
                 <i class="el-icon-box"></i>
               </div>
               <div class="env-info">
                 <span class="env-label">miniprogram-ci</span>
-                <span class="env-value" :class="envStatus.miniprogram_ci?.installed ? 'text-success' : 'text-error'">
-                  {{ envStatus.miniprogram_ci?.installed ? 'v' + envStatus.miniprogram_ci.version : '未安装' }}
+                <span class="env-value" :class="envStatus.miniprogram_ci && envStatus.miniprogram_ci.installed ? 'text-success' : 'text-error'">
+                  {{ envStatus.miniprogram_ci && envStatus.miniprogram_ci.installed ? 'v' + envStatus.miniprogram_ci.version : '未安装' }}
                 </span>
               </div>
             </div>
@@ -556,7 +556,7 @@ export default {
           this.uploadResult = {
             success: true,
             version: this.uploadForm.version,
-            message: res.data?.message || '上传成功',
+            message: (res.data && res.data.message) || '上传成功',
           };
 
           this.$message.success('上传成功');

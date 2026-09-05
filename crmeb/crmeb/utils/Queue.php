@@ -11,6 +11,7 @@
 
 namespace crmeb\utils;
 
+use crmeb\services\TenantContext;
 use think\facade\Config;
 use think\facade\Queue as QueueThink;
 use think\facade\Log;
@@ -199,6 +200,10 @@ class Queue
         $jobData['do'] = $this->do;
         $jobData['errorCount'] = $this->errorCount;
         $jobData['log'] = $this->log;
+        // Queue workers are long-lived and do not inherit the request-local
+        // tenant context. Persist it with every queued payload.
+        $jobData['tenant_id'] = TenantContext::id();
+        $jobData['tenant_cross'] = TenantContext::isCrossTenant();
         if ($this->do != $this->defaultDo) {
             $this->job .= '@' . Config::get('queue.prefix', 'eb_') . $this->do;
         }

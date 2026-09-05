@@ -17,8 +17,10 @@ namespace app\dao;
 
 use crmeb\basic\BaseModel;
 use crmeb\basic\TenantScope;
+use crmeb\services\TenantContext;
 use think\helper\Str;
 use think\Model;
+use think\model\Collection;
 
 /**
  * Class BaseDao
@@ -292,7 +294,15 @@ abstract class BaseDao
         } else {
             $where = [is_null($key) ? $this->getPk() : $key => $id];
         }
-        return $this->getModel()::update($data, $where);
+        // Static Model::update() does not inherit the query object's global
+        // scopes. Add the tenant predicate to the write condition explicitly,
+        // otherwise an update by primary key can cross tenant boundaries.
+        $model = $this->getModel();
+        if ($model instanceof BaseModel && $model->isTenantScoped()
+            && TenantContext::id() !== null && !TenantContext::isCrossTenant()) {
+            $where['tenant_id'] = TenantContext::id();
+        }
+        return $model::update($data, $where);
     }
 
     /**
@@ -340,7 +350,21 @@ abstract class BaseDao
      */
     public function saveAll(array $data)
     {
-        return $this->getModel()->saveAll($data);
+        $pk = $this->getPk();
+        $result = [];
+        foreach ($data as $key => $row) {
+            // ThinkORM's Model::saveAll() calls static update() without a
+            // where clause for rows carrying a primary key. That can turn a
+            // batch edit into an update of every row (and every tenant).
+            // Route each row through the guarded DAO update/save methods.
+            if (is_string($pk) && is_array($row) && array_key_exists($pk, $row)
+                && $row[$pk] !== null && $row[$pk] !== '') {
+                $result[$key] = $this->update($row[$pk], $row);
+            } else {
+                $result[$key] = $this->save((array)$row);
+            }
+        }
+        return new Collection($result);
     }
 
     /**

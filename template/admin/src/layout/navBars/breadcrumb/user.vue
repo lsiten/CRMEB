@@ -207,6 +207,11 @@ export default {
     this.loadTenantList();
   },
   methods: {
+    getExpiresTime(expiresTime) {
+      const nowTimeNum = Math.round(Date.now() / 1000);
+      const expiresTimeNum = expiresTime - nowTimeNum;
+      return parseFloat(expiresTimeNum / 60 / 60 / 24);
+    },
     closePopover() {
       this.$refs.searchPopover.doClose();
     },

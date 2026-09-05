@@ -15,6 +15,7 @@ namespace crmeb\services\workerman\chat;
 use app\services\kefu\service\StoreServiceRecordServices;
 use app\services\kefu\service\StoreServiceServices;
 use Channel\Client;
+use crmeb\services\TenantContext;
 use crmeb\services\workerman\ChannelService;
 use crmeb\services\workerman\Response;
 use Workerman\Connection\TcpConnection;
@@ -106,16 +107,19 @@ class ChatService
 
     public function onMessage(TcpConnection $connection, $res)
     {
-        $connection->lastMessageTime = time();
-        $res = json_decode($res, true);
-        if (!$res || !isset($res['type']) || !$res['type'] || $res['type'] == 'ping') {
-            return $this->response->connection($connection)->success('ping', ['now' => time(), 'datetime' => date('Y-m-d H:i:s')]);
-        }
-        var_dump('chatMessage', $res);
-        if (!method_exists($this->handle, $res['type'])) return;
+        TenantContext::set((int)($connection->tenantId ?? 1));
         try {
+            $connection->lastMessageTime = time();
+            $res = json_decode($res, true);
+            if (!$res || !isset($res['type']) || !$res['type'] || $res['type'] == 'ping') {
+                return $this->response->connection($connection)->success('ping', ['now' => time(), 'datetime' => date('Y-m-d H:i:s')]);
+            }
+            var_dump('chatMessage', $res);
+            if (!method_exists($this->handle, $res['type'])) return;
             $this->handle->{$res['type']}($connection, $res + ['data' => []], $this->response->connection($connection));
         } catch (\Throwable $e) {
+        } finally {
+            TenantContext::clear();
         }
     }
 
@@ -132,11 +136,14 @@ class ChatService
             $fun = $eventData['fun'] ?? false;
             foreach ($ids as $id) {
                 if (isset($this->user[$id])) {
+                    if (!($eventData['tenant_cross'] ?? false) && (!isset($eventData['tenant_id']) || (int)$eventData['tenant_id'] !== (int)($this->user[$id]->tenantId ?? 1))) continue;
+                    TenantContext::set((int)($this->user[$id]->tenantId ?? 1));
                     if ($fun) {
                         $this->handle->{$eventData['type']}($this->user[$id], $eventData + ['data' => []], $this->response->connection($this->user[$id]));
                     } else {
                         $this->response->connection($this->user[$id])->success($eventData['type'], $eventData['data'] ?? null);
                     }
+                    TenantContext::clear();
                 }
             }
         });
@@ -145,6 +152,7 @@ class ChatService
             $time_now = time();
             foreach ($worker->connections as $connection) {
                 if ($time_now - $connection->lastMessageTime > 120) {
+                    TenantContext::set((int)($connection->tenantId ?? 1));
                     //定时器判断当前用户是否下线
                     if (isset($connection->user->uid) && !isset($connection->user->isTourist)) {
                         /** @var StoreServiceRecordServices $service */
@@ -152,6 +160,7 @@ class ChatService
                         $service->updateRecord(['to_uid' => $connection->user->uid], ['online' => 0]);
                     }
                     $this->response->connection($connection)->close('timeout');
+                    TenantContext::clear();
                     //广播给客服谁下线了
                     foreach ($this->kefuUser as $uid => &$conn) {
                         if (isset($connection->user->uid) && $connection->user->uid != $uid) {
@@ -168,10 +177,12 @@ class ChatService
         Timer::add(2, function () use (&$worker) {
             $uids = [];
             foreach ($this->user() as $uid => $connection) {
+                TenantContext::set((int)($connection->tenantId ?? 1));
                 if (!isset($connection->isTourist)) {
                     $uids[] = $uid;
                 }
             }
+            TenantContext::clear();
             if ($uids) {
                 //除了当前在线的其他全部都下线
                 /** @var StoreServiceRecordServices $service */

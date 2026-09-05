@@ -7,6 +7,7 @@ use crmeb\basic\BaseController;
 use crmeb\services\TenantContext;
 use app\services\system\admin\AdminAuthServices;
 use app\model\system\admin\SystemAdmin;
+use app\services\system\config\TenantConfigServices;
 
 /** 后台租户查询与切换。 */
 class Tenant extends BaseController
@@ -74,6 +75,7 @@ class Tenant extends BaseController
         if (!$data['name'] || !$data['code']) return app('json')->fail('租户名称和编码不能为空');
         if (TenantModel::where('code', $data['code'])->find()) return app('json')->fail('租户编码已存在');
         $tenant = TenantModel::create($data);
+        app()->make(TenantConfigServices::class)->syncTenant((int)$tenant->id);
         return app('json')->success('租户创建成功', ['id' => $tenant->id]);
     }
 
