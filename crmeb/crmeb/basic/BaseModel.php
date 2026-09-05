@@ -38,6 +38,6 @@ class BaseModel extends Model
     public function scopeTenant(Query $query, $tenantId = null): Query
     {
         if (!$this->tenantScoped) return $query;
-        return $query->where($this->getName() . '.tenant_id', $tenantId ?? TenantContext::id());
+        return $query->where('tenant_id', $tenantId ?? TenantContext::id());
     }
 }

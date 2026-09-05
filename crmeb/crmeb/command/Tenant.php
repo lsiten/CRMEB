@@ -23,6 +23,10 @@ class Tenant extends Command
         $prefix = (string)Config::get('database.connections.' . Config::get('database.default') . '.prefix');
         if (!$database || !$prefix) return $output->error('无法确定当前数据库或表前缀');
 
+        // Older CRMEB installations may contain zero-date defaults. Adding a
+        // column rebuilds those tables, so relax only this migration session.
+        Db::execute("SET SESSION sql_mode = REPLACE(REPLACE(@@sql_mode, 'NO_ZERO_DATE', ''), 'NO_ZERO_IN_DATE', '')");
+
         $tables = Db::query(
             'SELECT TABLE_NAME AS name FROM information_schema.tables WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = \'BASE TABLE\' AND TABLE_NAME LIKE ?',
             [$database, $prefix . '%']
