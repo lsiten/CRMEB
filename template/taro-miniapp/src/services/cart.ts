@@ -22,3 +22,13 @@ export function addToCart(product: Product): readonly CartItem[] {
 export function cartTotal(items: readonly CartItem[]): number {
   return items.reduce((total, item) => total + item.price * item.quantity, 0);
 }
+
+export function updateCartQuantity(id: number, quantity: number): readonly CartItem[] {
+  const next = readCart().flatMap((item) => item.id !== id ? [item] : quantity > 0 ? [{ ...item, quantity }] : []);
+  Taro.setStorageSync(storageKey, next);
+  return next;
+}
+
+export function removeFromCart(id: number): readonly CartItem[] {
+  return updateCartQuantity(id, 0);
+}
