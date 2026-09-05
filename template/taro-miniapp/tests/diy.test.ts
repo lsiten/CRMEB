@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@tarojs/components', () => ({
+  Image: 'image', Swiper: 'swiper', SwiperItem: 'swiper-item', Text: 'span', View: 'div',
+}));
 import { normalizeDiyPage } from '../src/diy/normalize';
+import { getDiyRegistration } from '../src/diy/registry';
 
 describe('DIY page normalization', () => {
   it('unwraps the API data envelope before reading named theme components', () => {
@@ -22,5 +27,19 @@ describe('DIY page normalization', () => {
     const page = normalizeDiyPage({ value: [{ name: 'picture', image: 'https://cdn.example.com/a.png' }] });
     expect(page.items).toHaveLength(1);
     expect(page.items[0]?.name).toBe('picture');
+  });
+
+  it('registers every home DIY component emitted by the CRMEB theme editor', () => {
+    const names = [
+      'homeComb', 'headerSerch', 'tabNav', 'userInfor', 'member', 'newVip',
+      'articleList', 'bargain', 'blankPage', 'combination', 'coupon',
+      'customerService', 'goodList', 'goodRecommend', 'guide', 'liveBroadcast',
+      'menus', 'news', 'pictureCube', 'promotionList', 'seckill', 'swiperBg',
+      'swipers', 'titles', 'presale', 'pointsMall', 'richText', 'videos',
+      'signIn', 'hotspot', 'follow', 'productInfo', 'home_paid_vip',
+      'productService', 'homeReviews', 'productDesc', 'customComponent',
+    ] as const;
+
+    expect(names.every((name) => getDiyRegistration(name))).toBe(true);
   });
 });

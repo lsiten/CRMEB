@@ -7,4 +7,16 @@
 .diy-placeholder { margin: var(--space-2); padding: var(--space-3); color: var(--color-text-muted); background: var(--color-page); text-align: center; }
 .diy-text { padding: 24px; }
 .diy-picture { display: block; width: 100%; height: 240px; }
+.diy-swiper { width: 100%; height: 300px; overflow: hidden; }
+.diy-swiper-image { display: block; width: 100%; height: 100%; }
+.diy-card-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 16px; }
+.diy-card { overflow: hidden; border-radius: 12px; background: var(--color-surface, #fff); box-shadow: 0 2px 12px rgba(0, 0, 0, .06); }
+.diy-card-image { display: block; width: 100%; height: 220px; }
+.diy-card-body { display: flex; flex-direction: column; gap: 8px; padding: 14px; }
+.diy-card-title { overflow: hidden; font-size: 28px; line-height: 1.35; white-space: nowrap; text-overflow: ellipsis; }
+.diy-card-price { color: var(--color-brand); font-size: 30px; font-weight: 600; }
+.diy-rich-text { padding: 24px; line-height: 1.7; word-break: break-all; }
+.diy-media { overflow: hidden; padding: 16px; }
+.diy-media text { display: block; padding-top: 12px; }
+.diy-blank { height: 24px; }
 .error { display: flex; align-items: center; justify-content: space-between; }
