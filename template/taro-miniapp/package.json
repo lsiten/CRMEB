@@ -5,6 +5,8 @@
   "scripts": {
     "build:weapp": "taro build --type weapp",
     "dev:weapp": "taro build --type weapp --watch",
+    "build:h5": "taro build --type h5",
+    "dev:h5": "taro build --type h5 --watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -22,6 +24,7 @@
     "@tarojs/cli": "^4.2.1",
     "@tarojs/plugin-framework-react": "^4.2.1",
     "@tarojs/plugin-platform-weapp": "^4.2.1",
+    "@tarojs/plugin-platform-h5": "^4.2.1",
     "@tarojs/webpack5-runner": "^4.2.1",
     "babel-preset-taro": "^4.2.1",
     "@types/react": "^19.2.18",
