@@ -45,7 +45,7 @@ const IntegralDetailPage = () => {
       {canRedeem ? '立即兑换' : '暂时缺货'}
     </Button>
     {specs.length > 0 && <View className='card'><Text className='section-title'>规格</Text><Text>{specs.join('、')}</Text></View>}
-   </View>;
+  </View>;
 };
 
 export default IntegralDetailPage;

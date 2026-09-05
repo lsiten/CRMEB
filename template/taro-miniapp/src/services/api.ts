@@ -94,8 +94,9 @@ function dataOf<T>(payload: T | Readonly<{ data?: T }>): T {
 }
 
 export type ActivityOrder = Readonly<{ kind: string; id: number; productId?: number }>;
-export async function createOrder(items: readonly OrderItem[], address?: Order['address'], activity?: ActivityOrder): Promise<Order> {
-  const payload = await request<Order | { data: Order }>('/orders', { method: 'POST', data: { items, address, activity, activity_type: activity?.kind, activity_id: activity?.id, product_id: activity?.productId } });
+export type Fulfillment = Readonly<{ type: 'delivery' | 'pickup'; storeId?: number; address?: Order['address'] }>;
+export async function createOrder(items: readonly OrderItem[], address?: Order['address'], activity?: ActivityOrder, fulfillment?: Fulfillment): Promise<Order> {
+  const payload = await request<Order | { data: Order }>('/orders', { method: 'POST', data: { items, address: fulfillment?.address ?? address, activity, activity_type: activity?.kind, activity_id: activity?.id, product_id: activity?.productId, shipping_type: fulfillment?.type === 'pickup' ? 2 : 1, store_id: fulfillment?.storeId } });
   return dataOf(payload);
 }
 export async function getOrders(status?: OrderStatus): Promise<readonly Order[]> {
