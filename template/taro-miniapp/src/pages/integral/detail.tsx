@@ -29,7 +29,7 @@ const IntegralDetailPage = () => {
     return <View className='page card'><Text>正在加载积分商品…</Text></View>;
   }
 
-  const canRedeem = product.stock > 0;
+  const canRedeem = product.stock > 0 && Boolean(product.unique);
   return <View className='page integralPage'>
     <Image className='hero-image' mode='aspectFill' src={product.image} />
     <View className='card detail-card'>
