@@ -1,0 +1,10 @@
+.addressPage { padding-bottom: 120px; }
+.addressCard { padding: 24px; }
+.addressHead { display: flex; gap: 18px; align-items: center; font-size: 26px; }
+.name { font-size: 30px; font-weight: 600; }
+.tag { color: #e93323; border: 1px solid #e93323; padding: 2px 8px; border-radius: 4px; font-size: 20px; }
+.detail { display: block; margin-top: 16px; line-height: 1.5; color: #444; }
+.addressActions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
+.addressActions button { margin: 0; font-size: 22px; color: #666; }
+.empty { text-align: center; color: #999; padding: 100px 0; }
+.addButton { position: fixed; left: 24px; right: 24px; bottom: 24px; background: #e93323; color: #fff; }

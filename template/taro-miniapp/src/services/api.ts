@@ -18,12 +18,17 @@ export function setToken(token: string | null): void {
 }
 export function getToken(): string | null { return Taro.getStorageSync<string>(tokenKey) || null; }
 
+export function clearToken(): void { setToken(null); }
+
 export async function request<T>(path: string, options: Omit<Taro.request.Option<T>, 'url'> = {}): Promise<T> {
   const token = getToken();
   const header = { ...(options.header ?? {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) };
   try {
     const response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header, timeout: options.timeout ?? 10000 });
-    if (response.statusCode === 401) throw new ApiError('UNAUTHORIZED', '登录已过期', 401);
+    if (response.statusCode === 401) {
+      clearToken();
+      throw new ApiError('UNAUTHORIZED', '登录已过期', 401);
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) throw new ApiError('HTTP', `请求失败（${response.statusCode}）`, response.statusCode);
     const body = response.data as T & { code?: number; msg?: string; status?: number };
     if (typeof body === 'object' && body !== null && typeof body.code === 'number' && body.code !== 0 && body.code !== 200) throw new ApiError('BUSINESS', body.msg ?? '业务请求失败');
