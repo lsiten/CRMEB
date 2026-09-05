@@ -343,7 +343,9 @@ export default {
         .then((res) => {
           const data = res.data || res;
           const current =
-            data.current_tenant || data.tenant || this.tenantList.find((item) => item.id === this.selectedTenantId);
+            data.current_tenant ||
+            data.tenant ||
+            this.tenantList.find((item) => String(item.id) === String(this.selectedTenantId));
           const list = Array.isArray(data.tenants || data.tenant_list)
             ? data.tenants || data.tenant_list
             : this.tenantList;
