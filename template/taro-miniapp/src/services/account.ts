@@ -3,6 +3,16 @@ import { request, setToken } from './api';
 
 export type UserProfile = Readonly<{ uid: number; nickname: string; avatar: string; phone: string; integral: number }>;
 export type Address = Readonly<{ id: number; real_name: string; phone: string; province: string; city: string; district: string; detail: string; is_default: boolean }>;
+export type AddressDraft = Readonly<{
+  id?: number;
+  real_name: string;
+  phone: string;
+  province: string;
+  city: string;
+  district: string;
+  detail: string;
+  is_default: boolean;
+}>;
 
 type ApiEnvelope<T> = Readonly<{ data?: T; token?: string; userInfo?: UserProfile }>;
 
@@ -31,6 +41,21 @@ export async function bindWechatPhone(detail: Readonly<{ code?: string; encrypte
 export async function getAddresses(): Promise<readonly Address[]> {
   const payload = await request<ApiEnvelope<readonly Address[]>>('/v1/address/list', { method: 'GET' });
   return Array.isArray(payload.data) ? payload.data : [];
+}
+
+export async function saveAddress(address: AddressDraft): Promise<void> {
+  await request('/v1/address/edit', {
+    method: 'POST',
+    data: {
+      ...(address.id ? { id: address.id } : {}),
+      real_name: address.real_name,
+      phone: address.phone,
+      detail: address.detail,
+      is_default: address.is_default,
+      type: 1,
+      address: { province: address.province, city: address.city, district: address.district },
+    },
+  });
 }
 
 export async function setDefaultAddress(id: number): Promise<void> {

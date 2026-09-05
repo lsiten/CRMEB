@@ -1,6 +1,14 @@
 import Taro from '@tarojs/taro';
 
-export type Product = Readonly<{ id: number; name: string; price: number; image: string }>;
+export type Product = Readonly<{
+  id: number;
+  name: string;
+  price: number;
+  image: string;
+  description?: string;
+  stock?: number;
+  specs?: readonly string[];
+}>;
 export type ApiErrorCode = 'UNAUTHORIZED' | 'TIMEOUT' | 'NETWORK' | 'BUSINESS' | 'HTTP';
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
