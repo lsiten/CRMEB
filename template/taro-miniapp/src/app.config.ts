@@ -1,5 +1,5 @@
 export default defineAppConfig({
-  pages: ['pages/index/index', 'pages/goods/index', 'pages/goods/detail', 'pages/search/index', 'pages/cart/index', 'pages/user/index'],
+  pages: ['pages/index/index', 'pages/goods/index', 'pages/detail/index', 'pages/search/index', 'pages/cart/index', 'pages/user/index'],
   window: { navigationBarTitleText: 'CRMEB商城', navigationBarBackgroundColor: '#ffffff', navigationBarTextStyle: 'black' },
   tabBar: {
     color: '#666666', selectedColor: '#e93323', backgroundColor: '#ffffff', borderStyle: 'black',
