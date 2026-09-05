@@ -10,7 +10,13 @@ const config: UserConfigExport = {
   framework: 'react',
   compiler: 'webpack5',
   mini: { postcss: { pxtransform: { enable: true }, url: { enable: true } } },
-  plugins: ['@tarojs/plugin-framework-react', '@tarojs/plugin-platform-weapp'],
+  plugins: ['@tarojs/plugin-framework-react', '@tarojs/plugin-platform-weapp', '@tarojs/plugin-platform-h5'],
+  h5: {
+    publicPath: '/',
+    staticDirectory: 'static',
+    router: { mode: 'hash' },
+    devServer: { port: 10086 },
+  },
 };
 
 export default config;
