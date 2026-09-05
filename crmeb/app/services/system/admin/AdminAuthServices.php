@@ -15,8 +15,10 @@ namespace app\services\system\admin;
 use app\dao\system\admin\AdminAuthDao;
 use app\services\BaseServices;
 use app\services\other\CacheServices;
+use app\model\system\admin\SystemAdmin;
 use crmeb\exceptions\AuthException;
 use crmeb\services\CacheService;
+use crmeb\services\TenantContext;
 use crmeb\utils\JwtAuth;
 use Firebase\JWT\ExpiredException;
 
@@ -58,6 +60,7 @@ class AdminAuthServices extends BaseServices
         $jwtAuth = app()->make(JwtAuth::class);
         //设置解析token
         [$id, $type, $pwd, $tenantId] = $jwtAuth->parseToken($token);
+        if ($tenantId !== null) TenantContext::set((int)$tenantId);
 
         //检测token是否过期
         $md5Token = md5($token);
@@ -78,7 +81,7 @@ class AdminAuthServices extends BaseServices
         }
 
         //获取管理员信息
-        $adminInfo = $this->dao->get($id);
+        $adminInfo = SystemAdmin::where('id', $id)->find();
         if (!$adminInfo || !$adminInfo->id) {
             if (!request()->isCli()) {
                 $cacheService->delete($md5Token);
@@ -89,7 +92,8 @@ class AdminAuthServices extends BaseServices
         // 租户标识属于签发时的安全边界：不能接受令牌携带的租户覆盖管理员实际租户。
         // 旧令牌可能没有 tenant_id，缺省时沿用管理员记录中的租户以保持兼容。
         $adminTenantId = (int)($adminInfo->tenant_id ?? 0);
-        if ($tenantId !== null && (int)$tenantId !== $adminTenantId) {
+        $isPlatformAdmin = (int)($adminInfo->level ?? 1) === 0;
+        if (!$isPlatformAdmin && $tenantId !== null && (int)$tenantId !== $adminTenantId) {
             if (!request()->isCli()) {
                 $cacheService->delete($md5Token);
             }
@@ -102,7 +106,9 @@ class AdminAuthServices extends BaseServices
 
         $adminInfo->type = $type;
         $result = $adminInfo->hidden(['pwd', 'is_del', 'status'])->toArray();
-        $result['tenant_id'] = $adminTenantId;
+        $result['tenant_id'] = $isPlatformAdmin && $tenantId !== null
+            ? (int)$tenantId
+            : $adminTenantId;
         return $result;
     }
 

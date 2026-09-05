@@ -85,7 +85,11 @@ class StoreIntegralOrderController
     public function detail(Request $request, $uni)
     {
         if (!strlen(trim($uni))) return app('json')->fail('参数错误');
-        $order = $this->services->getOne(['order_id' => $uni, 'is_del' => 0]);
+        $order = $this->services->getOne([
+            'order_id' => $uni,
+            'is_del' => 0,
+            'uid' => (int)$request->uid(),
+        ]);
         if (!$order) return app('json')->fail('订单不存在');
         $order = $order->toArray();
         $orderData = $this->services->tidyOrder($order);

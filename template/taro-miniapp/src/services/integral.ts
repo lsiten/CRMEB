@@ -49,13 +49,16 @@ export async function getIntegralProducts(keyword = ''): Promise<readonly Integr
 }
 export async function getIntegralProduct(id: number): Promise<IntegralProduct> {
   const payload = unwrap(await request<unknown | Envelope<unknown>>(`/store_integral/detail/${encodeURIComponent(String(id))}`, { method: 'GET' }));
-  const product = parseProduct(payload);
+  const detail = typeof payload === 'object' && payload !== null ? payload as Record<string, unknown> : {};
+  const value = typeof detail['productValue'] === 'object' && detail['productValue'] !== null ? detail['productValue'] as Record<string, unknown> : {};
+  const store = typeof detail['storeInfo'] === 'object' && detail['storeInfo'] !== null ? detail['storeInfo'] as Record<string, unknown> : {};
+  const product = parseProduct({ ...store, ...detail, ...value, unique: value['unique'] ?? detail['unique'] });
   if (!product) throw new ApiError('BUSINESS', '积分商品不存在');
   return product;
 }
 export async function createIntegralOrder(input: Readonly<{ addressId: number; unique: string; num: number; mark?: string }>): Promise<string> {
   const payload = await request<Envelope<Readonly<{ orderId?: string }>>>(`/store_integral/order/create`, { method: 'POST', data: input, header: { 'X-Idempotency-Key': `integral-${input.unique}-${input.addressId}-${input.num}` } });
-  const orderId = payload.data?.orderId;
+  const orderId = payload.data?.orderId ?? (payload.data as Readonly<{ result?: Readonly<{ orderId?: string }> }> | undefined)?.result?.orderId;
   if (!orderId) throw new ApiError('BUSINESS', '订单创建失败');
   return orderId;
 }
