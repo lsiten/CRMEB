@@ -55,15 +55,33 @@
     </div>
     <!-- <Search ref="searchRef" /> -->
 
-    <el-dialog title="切换租户" :visible.sync="tenantDialogVisible" width="420px" append-to-body>
+    <el-dialog
+      title="切换租户"
+      :visible.sync="tenantDialogVisible"
+      width="420px"
+      custom-class="tenant-switch-dialog"
+      append-to-body
+    >
       <el-form label-width="80px">
         <el-form-item label="当前租户">
-          <el-select v-model="selectedTenantId" filterable placeholder="请选择租户" style="width: 100%">
+          <el-select
+            v-model="selectedTenantId"
+            filterable
+            :loading="tenantListLoading"
+            placeholder="请选择租户"
+            style="width: 100%"
+          >
             <el-option
               v-for="tenant in tenantList"
               :key="tenant.id"
               :label="tenant.name || tenant.code || tenant.id"
               :value="tenant.id"
+            />
+            <el-option
+              v-if="!tenantListLoading && !tenantList.length"
+              disabled
+              label="暂无可用租户"
+              value="__empty__"
             />
           </el-select>
         </el-form-item>
@@ -81,9 +99,9 @@
 <script>
 import screenfull from 'screenfull';
 import { AccountLogout, menusApi } from '@/api/account';
+import { tenantListApi, switchTenantApi } from '@/api/tenant';
 import { removeCookies } from '@/libs/util';
 import { Session, Local } from '@/utils/storage.js';
-import { switchTenantApi } from '@/api/tenant';
 import { formatFlatteningRoutes } from '@/libs/system';
 import UserNews from '@/layout/navBars/breadcrumb/userNews.vue';
 import Search from '@/layout/navBars/breadcrumb/search.vue';
@@ -99,23 +117,29 @@ export default {
       isDot: false,
       tenantDialogVisible: false,
       tenantSwitching: false,
+      tenantListLoading: false,
       selectedTenantId: '',
     };
   },
   computed: {
     // 获取用户信息
     getUserInfos() {
-      return this.$store.state.userInfo.userInfo;
+      return this.$store.state.userInfo.userInfo || {};
     },
     tenantList() {
       return this.$store.state.tenant.list || [];
     },
-    canSwitchTenant() {
+    isSuperAdmin() {
       const userInfo = this.$store.state.userInfo.userInfo || {};
-      const uniqueAuth = this.$store.state.userInfo.uniqueAuth || [];
-      const isSuperAdmin =
-        userInfo.is_super_admin === true || userInfo.is_super_admin === 1 || uniqueAuth.includes('super_admin');
-      return isSuperAdmin && this.tenantList.length > 1;
+      const uniqueAuth = this.$store.state.userInfo.uniqueAuth;
+      return (
+        userInfo.is_super_admin === true ||
+        userInfo.is_super_admin === 1 ||
+        (Array.isArray(uniqueAuth) && uniqueAuth.includes('super_admin'))
+      );
+    },
+    canSwitchTenant() {
+      return this.isSuperAdmin && this.tenantList.length > 1;
     },
     // 设置弹性盒子布局 flex
     layoutUserFlexNum() {
@@ -131,6 +155,7 @@ export default {
       this.initI18n();
       this.initComponentSize();
     }
+    this.loadTenantList();
   },
   methods: {
     closePopover() {
@@ -290,8 +315,29 @@ export default {
         this.$router.push(path);
       }
     },
+    loadTenantList() {
+      if (!this.isSuperAdmin || this.tenantList.length || this.tenantListLoading) return;
+      this.tenantListLoading = true;
+      tenantListApi()
+        .then((res) => {
+          const data = res.data || res || {};
+          const list = Array.isArray(data) ? data : data.list || data.tenants || data.tenant_list || [];
+          if (!Array.isArray(list) || !list.length) return;
+          const current =
+            data.current_tenant ||
+            data.current ||
+            this.$store.state.tenant.current ||
+            list.find((item) => String(item.id) === String(this.$store.state.userInfo.userInfo?.tenant_id)) ||
+            list[0];
+          this.$store.commit('tenant/setContext', { current, list });
+        })
+        .catch(() => {})
+        .finally(() => {
+          this.tenantListLoading = false;
+        });
+    },
     switchTenant() {
-      if (!this.selectedTenantId || this.tenantSwitching) return;
+      if (!this.selectedTenantId || this.tenantSwitching || this.tenantListLoading) return;
       this.tenantSwitching = true;
       switchTenantApi({ tenant_id: this.selectedTenantId })
         .then((res) => {
@@ -343,6 +389,12 @@ export default {
 </script>
 
 <style scoped lang="scss">
+::v-deep .tenant-switch-dialog {
+  @media (max-width: 480px) {
+    width: calc(100vw - 32px) !important;
+  }
+}
+
 .layout-navbars-breadcrumb-user {
   display: flex;
   align-items: center;
