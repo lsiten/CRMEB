@@ -48,6 +48,11 @@
 			};
 		},
 		mounted() {
+			// 组件只在微信小程序渲染；非微信端直接视为已完成协议检查，避免引用未定义的 wx。
+			if (typeof wx === 'undefined' || typeof wx.getPrivacySetting !== 'function') {
+				this.$emit('onAgree');
+				return;
+			}
 			wx.getPrivacySetting({
 				success: res => {
 					if (res.needAuthorization) {
