@@ -1,5 +1,14 @@
 export default defineAppConfig({
-  pages: ['pages/index/index', 'pages/goods/index', 'pages/detail/index', 'pages/search/index', 'pages/cart/index', 'pages/user/index', 'pages/address/index', 'pages/assets/index', 'pages/distribution/index', 'pages/coupon/index', 'pages/favorites/index', 'pages/reviews/index', 'pages/store/index', 'pages/integral/index', 'pages/integral/detail', 'pages/integral/confirm', 'pages/integral/orders', 'pages/integral/order-detail', 'pages/integral/logistics', 'pages/integral/records', 'pages/order/confirm', 'pages/order/pay', 'pages/order/list', 'pages/order/detail', 'pages/order/logistics', 'pages/order/verify', 'pages/marketing/index', 'pages/marketing/detail', 'pages/news/index', 'pages/news-detail/index', 'pages/messages/index', 'pages/customer/index'],
+  pages: ['pages/index/index', 'pages/goods/index', 'pages/detail/index', 'pages/search/index', 'pages/cart/index', 'pages/user/index'],
+  // Keep the tab-bar and landing pages in the main package; infrequently used
+  // business flows are downloaded on first navigation.
+  subPackages: [
+    { root: 'pages/order', pages: ['confirm', 'pay', 'list', 'detail', 'logistics', 'verify'] },
+    { root: 'pages/integral', pages: ['index', 'detail', 'confirm', 'orders', 'order-detail', 'logistics', 'records'] },
+    { root: 'pages/marketing', pages: ['index', 'detail'] },
+    { root: 'pages/news', pages: ['index'] },
+    { root: 'pages', pages: ['news-detail/index', 'assets/index', 'distribution/index', 'coupon/index', 'favorites/index', 'reviews/index', 'store/index', 'address/index', 'messages/index', 'customer/index'] },
+  ],
   window: { navigationBarTitleText: 'CRMEB商城', navigationBarBackgroundColor: '#ffffff', navigationBarTextStyle: 'black' },
   tabBar: {
     color: '#666666', selectedColor: '#e93323', backgroundColor: '#ffffff', borderStyle: 'black',
