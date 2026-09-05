@@ -88,7 +88,12 @@
       </el-form>
       <span slot="footer">
         <el-button @click="tenantDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="tenantSwitching" :disabled="!selectedTenantId" @click="switchTenant">
+        <el-button
+          type="primary"
+          :loading="tenantSwitching"
+          :disabled="tenantListLoading || !tenantList.length || !selectedTenantId"
+          @click="switchTenant"
+        >
           切换
         </el-button>
       </span>
@@ -148,6 +153,17 @@ export default {
       if (layout === 'defaults' || (layout === 'classic' && !isClassicSplitMenu) || layout === 'columns') num = 1;
       else num = null;
       return num;
+    },
+  },
+  watch: {
+    getUserInfos: {
+      deep: true,
+      handler() {
+        this.loadTenantList();
+      },
+    },
+    '$store.state.userInfo.uniqueAuth'() {
+      this.loadTenantList();
     },
   },
   mounted() {
@@ -316,7 +332,7 @@ export default {
       }
     },
     loadTenantList() {
-      if (!this.isSuperAdmin || this.tenantList.length || this.tenantListLoading) return;
+      if (!this.isSuperAdmin || this.tenantListLoading) return;
       this.tenantListLoading = true;
       tenantListApi()
         .then((res) => {
@@ -331,7 +347,9 @@ export default {
             list[0];
           this.$store.commit('tenant/setContext', { current, list });
         })
-        .catch(() => {})
+        .catch(() => {
+          this.$message.error('租户列表加载失败，请刷新重试');
+        })
         .finally(() => {
           this.tenantListLoading = false;
         });
