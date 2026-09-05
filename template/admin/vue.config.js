@@ -57,6 +57,10 @@ module.exports = {
     },
   },
   chainWebpack: (config) => {
+    // Vue CLI 3 的 cssnano 插件与当前 Node/PostCSS 版本不兼容，保留 CSS 提取但跳过该压缩插件。
+    if (process.env.NODE_ENV === 'production') {
+      config.plugins.delete('optimize-css');
+    }
     config.plugins.delete('prefetch');
     config.resolve.alias
       .set('@', resolve('src')) // key,value自行定义，比如.set('@@', resolve('src/components'))

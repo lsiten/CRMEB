@@ -12,7 +12,7 @@
 namespace app\model\product\sku;
 
 use app\model\activity\integral\StoreIntegral;
-use crmeb\basic\BaseModel;
+use crmeb\basic\TenantScope;
 use crmeb\traits\ModelTrait;
 use think\Model;
 use app\model\product\product\StoreProduct;
@@ -21,7 +21,7 @@ use app\model\product\product\StoreProduct;
  * Class StoreProductAttrValue
  * @package app\common\model\product
  */
-class StoreProductAttrValue extends BaseModel
+class StoreProductAttrValue extends TenantScope
 {
     use ModelTrait;
 

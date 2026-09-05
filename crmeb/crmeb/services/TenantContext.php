@@ -16,4 +16,24 @@ final class TenantContext
     public static function id(): ?int { return self::$tenantId; }
     public static function isCrossTenant(): bool { return self::$crossTenant; }
     public static function clear(): void { self::set(null, false); }
+    /** 为缓存、队列和导出资源生成租户隔离键。 */
+    public static function key(string $name): string
+    {
+        return 'tenant:' . (self::$tenantId ?? 'global') . ':' . $name;
+    }
+
+    /** 返回可拼接到原生 SQL 的参数化租户条件。 */
+    public static function sqlCondition(string $column = 'tenant_id'): array
+    {
+        if (self::$tenantId === null || self::$crossTenant) {
+            return ['', []];
+        }
+        return [' AND `' . $column . '` = ?', [self::$tenantId]];
+    }
+
+    public static function sqlLiteral(string $column = 'tenant_id'): string
+    {
+        return self::$tenantId !== null && !self::$crossTenant
+            ? ' AND `' . $column . '` = ' . (int)self::$tenantId : '';
+    }
 }

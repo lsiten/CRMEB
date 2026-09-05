@@ -15,6 +15,7 @@ namespace app\dao\product\product;
 use app\dao\BaseDao;
 use app\model\product\product\StoreProduct;
 use think\facade\Config;
+use crmeb\services\TenantContext;
 use think\facade\Log;
 
 /**
@@ -85,14 +86,15 @@ class StoreProductDao extends BaseDao
     public function getList(array $where, int $page = 0, int $limit = 0, string $order = '')
     {
         $prefix = Config::get('database.connections.' . Config::get('database.default') . '.prefix');
+        $tenant = TenantContext::sqlLiteral();
         return $this->search($where, false)->order(($order ? $order . ' ,' : '') . 'sort desc,id desc')
             ->when($page != 0 && $limit != 0, function ($query) use ($page, $limit) {
                 $query->page($page, $limit);
             })->field([
                 '*',
-                '(SELECT count(*) FROM `' . $prefix . 'store_product_relation` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = \'collect\') as collect',
-                '(SELECT count(*) FROM `' . $prefix . 'store_product_relation` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = \'like\') as likes',
-                '(SELECT SUM(stock) FROM `' . $prefix . 'store_product_attr_value` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = 0) as stock',
+                '(SELECT count(*) FROM `' . $prefix . 'store_product_relation` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = \'collect\'' . $tenant . ') as collect',
+                '(SELECT count(*) FROM `' . $prefix . 'store_product_relation` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = \'like\'' . $tenant . ') as likes',
+                '(SELECT SUM(stock) FROM `' . $prefix . 'store_product_attr_value` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `type` = 0' . $tenant . ') as stock',
                 '(SELECT count(*) FROM `' . $prefix . 'store_visit` WHERE `product_id` = `' . $prefix . 'store_product`.`id` AND `product_type` = \'product\') as visitor',
             ])->select()->toArray();
     }

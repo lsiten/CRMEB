@@ -10,7 +10,7 @@
 // +----------------------------------------------------------------------
 namespace app\model\diy;
 
-use crmeb\basic\BaseModel;
+use crmeb\basic\TenantScope;
 use crmeb\traits\ModelTrait;
 
 /**
@@ -21,7 +21,7 @@ use crmeb\traits\ModelTrait;
  * @email 442384644@qq.com
  * @date 2026/3/10
  */
-class ThemeDownload extends BaseModel
+class ThemeDownload extends TenantScope
 {
     use ModelTrait;
 

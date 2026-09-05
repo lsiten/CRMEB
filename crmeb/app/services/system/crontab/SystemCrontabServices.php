@@ -13,12 +13,17 @@ namespace app\services\system\crontab;
 use app\dao\system\crontab\SystemCrontabDao;
 use app\services\BaseServices;
 use crmeb\exceptions\AdminException;
+use crmeb\services\TenantContext;
 use think\facade\Cache;
 use think\helper\Str;
 use Workerman\Crontab\Crontab;
 
 class SystemCrontabServices extends BaseServices
 {
+    private function cacheKey(): string
+    {
+        return TenantContext::key('crontabCache');
+    }
     public function __construct(SystemCrontabDao $dao)
     {
         $this->dao = $dao;
@@ -103,8 +108,8 @@ class SystemCrontabServices extends BaseServices
             $res = $this->dao->update(['id' => $data['id']], $data);
         }
         if (!$res) throw new AdminException('保存失败');
-        Cache::delete('crontabCache');
-        Cache::set('crontabCache', $this->dao->selectList(['is_open' => 1, 'is_del' => 0])->toArray());
+        Cache::delete($this->cacheKey());
+        Cache::set($this->cacheKey(), $this->dao->selectList(['is_open' => 1, 'is_del' => 0])->toArray());
         return true;
     }
 
@@ -123,8 +128,8 @@ class SystemCrontabServices extends BaseServices
         $data['is_del'] = 1;
         $res = $this->dao->update(['id' => $id], $data);
         if (!$res) throw new AdminException('删除失败');
-        Cache::delete('crontabCache');
-        Cache::set('crontabCache', $this->dao->selectList(['is_open' => 1, 'is_del' => 0])->toArray());
+        Cache::delete($this->cacheKey());
+        Cache::set($this->cacheKey(), $this->dao->selectList(['is_open' => 1, 'is_del' => 0])->toArray());
         return true;
     }
 
@@ -144,8 +149,8 @@ class SystemCrontabServices extends BaseServices
         $data['is_open'] = $is_open;
         $res = $this->dao->update(['id' => $id], $data);
         if (!$res) throw new AdminException('设置成功');
-        Cache::delete('crontabCache');
-        Cache::set('crontabCache', $this->dao->selectList(['is_open' => 1, 'is_del' => 0])->toArray());
+        Cache::delete($this->cacheKey());
+        Cache::set($this->cacheKey(), $this->dao->selectList(['is_open' => 1, 'is_del' => 0])->toArray());
         return true;
     }
 
@@ -263,10 +268,10 @@ class SystemCrontabServices extends BaseServices
                 file_put_contents(root_path() . 'runtime/.timer', time());
             }
             // 从缓存中获取定时任务列表
-            $list = Cache::get('crontabCache');
+            $list = Cache::get($this->cacheKey());
             if (!$list) {
                 $list = $this->dao->selectList(['is_open' => 1, 'is_del' => 0])->toArray();
-                Cache::set('crontabCache', $list);
+                Cache::set($this->cacheKey(), $list);
             }
             // 遍历定时任务列表
             foreach ($list as &$item) {

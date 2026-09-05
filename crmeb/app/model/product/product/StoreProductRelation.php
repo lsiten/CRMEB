@@ -11,7 +11,7 @@
 namespace app\model\product\product;
 
 use crmeb\traits\ModelTrait;
-use crmeb\basic\BaseModel;
+use crmeb\basic\TenantScope;
 use think\Model;
 
 /**
@@ -19,7 +19,7 @@ use think\Model;
  * Class StoreProductRelation
  * @package app\model\product\product
  */
-class StoreProductRelation extends BaseModel
+class StoreProductRelation extends TenantScope
 {
     use ModelTrait;
 

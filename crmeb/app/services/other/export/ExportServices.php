@@ -23,6 +23,7 @@ use app\services\product\sku\StoreProductAttrResultServices;
 use app\services\user\member\MemberCardServices;
 use app\services\user\UserServices;
 use crmeb\services\SpreadsheetExcelService;
+use crmeb\services\TenantContext;
 
 class ExportServices extends BaseServices
 {
@@ -540,6 +541,8 @@ class ExportServices extends BaseServices
      */
     public function export($header, $title_arr, $export = [], $filename = '', $suffix = 'xlsx', $is_save = false)
     {
+        // 文件名带租户前缀，避免共享存储时不同租户互相覆盖或读取导出文件。
+        $filename = TenantContext::key($filename ?: 'export');
         $title = isset($title_arr[0]) && !empty($title_arr[0]) ? $title_arr[0] : '导出数据';
         $name = isset($title_arr[1]) && !empty($title_arr[1]) ? $title_arr[1] : '导出数据';
         $info = isset($title_arr[2]) && !empty($title_arr[2]) ? $title_arr[2] : date('Y-m-d H:i:s', time());
