@@ -11,15 +11,15 @@
 
 namespace app\model\product\product;
 
+use crmeb\basic\BaseModel;
 use crmeb\traits\ModelTrait;
-use think\Model;
 
 /**
  *  商品分类关联Model
  * Class StoreProductCate
  * @package app\model\product\product
  */
-class StoreProductCate extends Model
+class StoreProductCate extends BaseModel
 {
     use ModelTrait;
 

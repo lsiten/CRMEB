@@ -40,7 +40,8 @@ class Tenant extends BaseController
             return app('json')->fail('租户不存在或已停用');
         }
         TenantContext::set($tenantId, false);
-        $adminModel = SystemAdmin::where('id', (int)$admin['id'])->find();
+        // 平台管理员可跨租户切换，签发新令牌时必须绕过当前业务租户作用域。
+        $adminModel = SystemAdmin::withoutGlobalScope(['tenant'])->where('id', (int)$admin['id'])->find();
         $result = ['tenant' => $tenant->visible(['id', 'name', 'code'])->toArray()];
         if ($adminModel) {
             $tokenInfo = app()->make(AdminAuthServices::class)->createToken(
