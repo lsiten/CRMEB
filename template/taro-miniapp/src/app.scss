@@ -1,5 +1,6 @@
-:root { --color-brand: #e93323; --color-brand-soft: #fff0ed; --color-text: #222; --color-text-secondary: #666; --color-text-muted: #999; --color-surface: #fff; --color-page: #f7f7f7; --color-border: #ededed; --color-overlay: rgba(0,0,0,.55); --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-pill: 999px; }
+:root { --color-brand: #e93323; --color-brand-soft: #fff0ed; --color-text: #222; --color-text-secondary: #666; --color-text-muted: #999; --color-surface: #fff; --color-page: #f7f7f7; --color-border: #ededed; --color-overlay: rgba(0,0,0,.55); --space-1: 8rpx; --space-2: 16rpx; --space-3: 24rpx; --space-4: 32rpx; --space-5: 48rpx; --text-sm: 24rpx; --text-md: 28rpx; --text-lg: 32rpx; --text-xl: 40rpx; --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-pill: 999px; }
 page { background: var(--color-page); color: var(--color-text); }
 .page { min-height: 100dvh; padding: 24px; box-sizing: border-box; }
 .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 20px; }
 .primary { color: var(--color-brand); }
+@media (max-width: 640px) { .page { padding: var(--space-3); } }
