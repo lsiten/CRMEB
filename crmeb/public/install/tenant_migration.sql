@@ -23,3 +23,9 @@ ALTER TABLE `eb_store_product_attr_value` ADD COLUMN `tenant_id` int(10) UNSIGNE
 CREATE INDEX `tenant_id` ON `eb_store_product_attr_value` (`tenant_id`);
 ALTER TABLE `eb_theme_download` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '租户ID' AFTER `id`;
 CREATE INDEX `tenant_id` ON `eb_theme_download` (`tenant_id`);
+
+-- 后台动态菜单：幂等写入“租户管理”，挂载到“维护”(id=25)菜单下。
+INSERT INTO `eb_system_menus`
+(`pid`, `icon`, `menu_name`, `module`, `controller`, `action`, `api_url`, `methods`, `params`, `sort`, `is_show`, `is_show_path`, `access`, `menu_path`, `path`, `auth_type`, `header`, `is_header`, `unique_auth`, `is_del`, `mark`)
+SELECT 25, '', '租户管理', 'admin', 'setting.tenant', 'adminList', '/setting/tenant', 'GET', '[]', 20, 1, 1, 1, '/system/tenant', '25', 1, 'setting', 0, 'admin-tenant-index', 0, '租户管理'
+WHERE NOT EXISTS (SELECT 1 FROM `eb_system_menus` WHERE `unique_auth` = 'admin-tenant-index' AND `is_del` = 0);

@@ -45,6 +45,7 @@ INSERT INTO `eb_agent_level` (`id`, `name`, `image`, `one_brokerage`, `one_broke
 
 -- --------------------------------------------------------
 
+
 --
 -- 表的结构 `eb_agent_level_task`
 --
@@ -52540,3 +52541,9 @@ CREATE TABLE IF NOT EXISTS `eb_spread_apply` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='分销员申请';
 
 -- --------------------------------------------------------
+
+-- 后台动态菜单：租户管理（幂等，兼容已有安装升级）。
+INSERT INTO `eb_system_menus`
+(`pid`, `icon`, `menu_name`, `module`, `controller`, `action`, `api_url`, `methods`, `params`, `sort`, `is_show`, `is_show_path`, `access`, `menu_path`, `path`, `auth_type`, `header`, `is_header`, `unique_auth`, `is_del`, `mark`)
+SELECT 25, '', '租户管理', 'admin', 'setting.tenant', 'adminList', '/setting/tenant', 'GET', '[]', 20, 1, 1, 1, '/system/tenant', '25', 1, 'setting', 0, 'admin-tenant-index', 0, '租户管理'
+WHERE NOT EXISTS (SELECT 1 FROM `eb_system_menus` WHERE `unique_auth` = 'admin-tenant-index' AND `is_del` = 0);
