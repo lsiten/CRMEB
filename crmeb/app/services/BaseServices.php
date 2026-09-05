@@ -14,6 +14,7 @@ namespace app\services;
 use app\services\user\UserServices;
 use crmeb\exceptions\ApiException;
 use crmeb\utils\JwtAuth;
+use crmeb\services\TenantContext;
 use think\facade\Db;
 use think\facade\Config;
 use think\facade\Route as Url;
@@ -117,7 +118,9 @@ abstract class BaseServices
                 'user_type' => $user['user_type']
             ]]);
         }
-        return $jwtAuth->createToken($id, $type, ['pwd' => md5($pwd)]);
+        $params = ['pwd' => md5($pwd)];
+        if (TenantContext::id() !== null) $params['tenant_id'] = TenantContext::id();
+        return $jwtAuth->createToken($id, $type, $params);
     }
 
     /**

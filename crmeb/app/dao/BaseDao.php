@@ -16,6 +16,7 @@
 namespace app\dao;
 
 use crmeb\basic\BaseModel;
+use crmeb\basic\TenantScope;
 use think\helper\Str;
 use think\Model;
 
@@ -148,7 +149,8 @@ abstract class BaseDao
      */
     protected function getModel()
     {
-        return app()->make($this->setModel());
+        $model = app()->make($this->setModel());
+        return $model instanceof TenantScope ? TenantScope::applyTenantScope($model) : $model;
     }
 
     /**

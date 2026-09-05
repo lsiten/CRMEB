@@ -57,7 +57,7 @@ class AdminAuthServices extends BaseServices
         /** @var JwtAuth $jwtAuth */
         $jwtAuth = app()->make(JwtAuth::class);
         //设置解析token
-        [$id, $type, $pwd] = $jwtAuth->parseToken($token);
+        [$id, $type, $pwd, $tenantId] = $jwtAuth->parseToken($token);
 
         //检测token是否过期
         $md5Token = md5($token);
@@ -91,7 +91,9 @@ class AdminAuthServices extends BaseServices
         }
 
         $adminInfo->type = $type;
-        return $adminInfo->hidden(['pwd', 'is_del', 'status'])->toArray();
+        $result = $adminInfo->hidden(['pwd', 'is_del', 'status'])->toArray();
+        $result['tenant_id'] = $tenantId !== null ? (int)$tenantId : (int)($result['tenant_id'] ?? 0);
+        return $result;
     }
 
     /**
