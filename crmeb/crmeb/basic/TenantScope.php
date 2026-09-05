@@ -10,11 +10,21 @@ abstract class TenantScope extends BaseModel
     protected static function init()
     {
         parent::init();
-        static::onBeforeInsert(function ($model) {
-            if (!$model->getData('tenant_id') && TenantContext::id() !== null) {
-                $model->setAttr('tenant_id', TenantContext::id());
-            }
-        });
+    }
+
+    /**
+     * Populate the tenant on every model write.
+     *
+     * ThinkORM 2.0.33 does not provide the static event-registration helpers
+     * (such as onBeforeInsert($callback)); its event dispatcher invokes
+     * concrete onBefore* methods on the model instead.
+     */
+    public static function onBeforeWrite($model): void
+    {
+        $data = $model->getData();
+        if (empty($data['tenant_id']) && TenantContext::id() !== null) {
+            $model->setAttr('tenant_id', TenantContext::id());
+        }
     }
 
     protected function setTenantIdAttr($value): int

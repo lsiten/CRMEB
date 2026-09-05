@@ -9,13 +9,16 @@ importers:
   .:
     dependencies:
       '@tarojs/components':
-        specifier: ^4.1.0
+        specifier: ^4.2.1
         version: 4.2.1(@tarojs/helper@4.2.1(supports-color@8.0.0))(@types/react@19.2.18)(html-webpack-plugin@5.6.8(webpack@5.91.0(@swc/core@1.3.96)(clean-css@5.3.3)(cssnano@6.0.3(postcss@8.5.28))(csso@5.0.5)(esbuild@0.21.0)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(uglify-js@3.19.3)))(postcss@8.5.28)(rollup@3.30.0)(webpack-chain@6.5.1)(webpack-dev-server@4.15.2(debug@4.4.3(supports-color@8.0.0))(supports-color@8.0.0)(webpack@5.91.0(@swc/core@1.3.96)(clean-css@5.3.3)(cssnano@6.0.3(postcss@8.5.28))(csso@5.0.5)(esbuild@0.21.0)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(uglify-js@3.19.3)))(webpack@5.91.0(@swc/core@1.3.96)(clean-css@5.3.3)(cssnano@6.0.3(postcss@8.5.28))(csso@5.0.5)(esbuild@0.21.0)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(uglify-js@3.19.3))
       '@tarojs/runtime':
-        specifier: ^4.1.0
+        specifier: ^4.2.1
+        version: 4.2.1
+      '@tarojs/shared':
+        specifier: ^4.2.1
         version: 4.2.1
       '@tarojs/taro':
-        specifier: ^4.1.0
+        specifier: ^4.2.1
         version: 4.2.1(a1dafdc0b0f05e643c881002c3ebe1a8)
       react:
         specifier: ^18.3.1
@@ -25,13 +28,16 @@ importers:
         version: 18.3.1(react@18.3.1)
     devDependencies:
       '@tarojs/cli':
-        specifier: ^4.1.0
+        specifier: ^4.2.1
         version: 4.2.1(debug@4.4.3(supports-color@8.0.0))(supports-color@8.0.0)
       '@tarojs/plugin-framework-react':
-        specifier: ^4.1.0
+        specifier: ^4.2.1
         version: 4.2.1(@tarojs/helper@4.2.1(supports-color@8.0.0))(@tarojs/runtime@4.2.1)(@tarojs/shared@4.2.1)(react@18.3.1)(webpack@5.91.0(@swc/core@1.3.96)(clean-css@5.3.3)(cssnano@6.0.3(postcss@8.5.28))(csso@5.0.5)(esbuild@0.21.0)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(uglify-js@3.19.3))
+      '@tarojs/plugin-platform-weapp':
+        specifier: ^4.2.1
+        version: 4.2.1(@tarojs/service@4.2.1(supports-color@8.0.0))(@tarojs/shared@4.2.1)
       '@tarojs/webpack5-runner':
-        specifier: ^4.1.0
+        specifier: ^4.2.1
         version: 4.2.1(@babel/core@7.29.7(supports-color@8.0.0))(@swc/core@1.3.96)(@tarojs/runtime@4.2.1)(clean-css@5.3.3)(cssnano@6.0.3(postcss@8.5.28))(csso@5.0.5)(debug@4.4.3(supports-color@8.0.0))(html-minifier-terser@6.1.0)(less@4.9.1(supports-color@8.0.0))(postcss@8.5.28)(sass@1.103.1)(stylus@0.64.0(supports-color@8.0.0))(supports-color@8.0.0)(typescript@5.6.3)(uglify-js@3.19.3)(webpack@5.91.0(@swc/core@1.3.96)(clean-css@5.3.3)(cssnano@6.0.3(postcss@8.5.28))(csso@5.0.5)(esbuild@0.21.0)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(uglify-js@3.19.3))
       '@types/react':
         specifier: ^19.2.18
@@ -874,6 +880,13 @@ packages:
         optional: true
       webpack:
         optional: true
+
+  '@tarojs/plugin-platform-weapp@4.2.1':
+    resolution: {integrity: sha512-5XKHqGAQLqd7JQJcM3OVZXOJJXo0IX8O4CZpQ0U1cuTTkfamQU+GEV/XmYNJ8kNxO/KASNQ/rDVkcMGMX2LqEQ==}
+    engines: {node: '>= 18'}
+    peerDependencies:
+      '@tarojs/service': 4.2.1
+      '@tarojs/shared': 4.2.1
 
   '@tarojs/runner-utils@4.2.1':
     resolution: {integrity: sha512-9cSNRGJkFJARIrYWzXosHbr8zrGPai4m4dXyTWkO34HIY0HQ5Ad1UnOWBtLr7I+deFfqS22kBmPYrqCyhW3vWg==}
@@ -5456,6 +5469,11 @@ snapshots:
     optionalDependencies:
       react: 18.3.1
       webpack: 5.91.0(@swc/core@1.3.96)(clean-css@5.3.3)(cssnano@6.0.3(postcss@8.5.28))(csso@5.0.5)(esbuild@0.21.0)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(uglify-js@3.19.3)
+
+  '@tarojs/plugin-platform-weapp@4.2.1(@tarojs/service@4.2.1(supports-color@8.0.0))(@tarojs/shared@4.2.1)':
+    dependencies:
+      '@tarojs/service': 4.2.1(supports-color@8.0.0)
+      '@tarojs/shared': 4.2.1
 
   '@tarojs/runner-utils@4.2.1(supports-color@8.0.0)':
     dependencies:
