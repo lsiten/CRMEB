@@ -1,5 +1,5 @@
 import Taro from '@tarojs/taro';
-import { request, setToken } from './api';
+import { ApiError, request, setToken } from './api';
 
 export type UserProfile = Readonly<{ uid: number; nickname: string; avatar: string; phone: string; integral: number }>;
 export type Address = Readonly<{ id: number; real_name: string; phone: string; province: string; city: string; district: string; detail: string; is_default: boolean }>;
