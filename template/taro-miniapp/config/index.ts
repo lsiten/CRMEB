@@ -10,7 +10,7 @@ const config: UserConfigExport = {
   framework: 'react',
   compiler: 'webpack5',
   mini: { postcss: { pxtransform: { enable: true }, url: { enable: true } } },
-  plugins: ['@tarojs/plugin-framework-react'],
+  plugins: ['@tarojs/plugin-framework-react', '@tarojs/plugin-platform-weapp'],
 };
 
 export default config;
