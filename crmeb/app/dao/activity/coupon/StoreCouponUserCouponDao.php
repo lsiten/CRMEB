@@ -61,7 +61,7 @@ class StoreCouponUserCouponDao extends BaseDao
         /** @var StoreCoupon $joinModel */
         $joinModel = app()->make($this->setJoinModel());
         $name = $joinModel->getName();
-        return parent::getModel()->alias($this->alias)->join($name . ' ' . $this->joinAlis, $this->joinAlis . '.id=' . $this->alias . '.cid');
+        return parent::getModel()->withoutGlobalScope(['tenant'])->alias($this->alias)->join($name . ' ' . $this->joinAlis, $this->joinAlis . '.id=' . $this->alias . '.cid')->where($this->alias . '.tenant_id', \crmeb\services\TenantContext::id());
     }
 
     /**

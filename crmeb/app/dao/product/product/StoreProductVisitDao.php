@@ -60,7 +60,7 @@ class StoreProductVisitDao extends BaseDao
     protected function getModel()
     {
         $name = app()->make($this->setJoinModel())->getName();
-        return parent::getModel()->alias($this->alias)->join($name . ' ' . $this->joinAlis, $this->alias . '.id = ' . $this->joinAlis . '.product_id');
+        return parent::getModel()->withoutGlobalScope(['tenant'])->alias($this->alias)->join($name . ' ' . $this->joinAlis, $this->alias . '.id = ' . $this->joinAlis . '.product_id')->where($this->alias . '.tenant_id', \crmeb\services\TenantContext::id());
     }
 
     /**
