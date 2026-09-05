@@ -1,5 +1,6 @@
 // @ts-nocheck
 import Taro from '@tarojs/taro';
+import { track } from './telemetry';
 
 export type Product = Readonly<{ id: number; name: string; price: number; image: string; description?: string; stock?: number; specs?: readonly string[]; category?: string; status?: number }>;
 export type ApiErrorCode = 'UNAUTHORIZED' | 'TIMEOUT' | 'NETWORK' | 'BUSINESS' | 'HTTP';
@@ -22,6 +23,7 @@ export function getToken(): string | null { return Taro.getStorageSync<string>(t
 export function clearToken(): void { setToken(null); }
 
 export async function request<T>(path: string, options: Omit<Taro.request.Option<T>, 'url'> = {}): Promise<T> {
+  const startedAt = Date.now();
   const token = getToken();
   // CRMEB's API middleware expects the historical `Authori-zation` header.
   const header = { ...(options.header ?? {}), ...(token ? { 'Authori-zation': `Bearer ${token}` } : {}) };
@@ -29,16 +31,25 @@ export async function request<T>(path: string, options: Omit<Taro.request.Option
     const response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header, timeout: options.timeout ?? 10000 });
     if (response.statusCode === 401) {
       clearToken();
+      track('api_error', { path, code: 'UNAUTHORIZED', status: 401, durationMs: Date.now() - startedAt });
       throw new ApiError('UNAUTHORIZED', '登录已过期', 401);
     }
-    if (response.statusCode < 200 || response.statusCode >= 300) throw new ApiError('HTTP', `请求失败（${response.statusCode}）`, response.statusCode);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      track('api_error', { path, code: 'HTTP', status: response.statusCode, durationMs: Date.now() - startedAt });
+      throw new ApiError('HTTP', `请求失败（${response.statusCode}）`, response.statusCode);
+    }
     const body = response.data as T & { code?: number; msg?: string; status?: number };
-    if (typeof body === 'object' && body !== null && typeof body.code === 'number' && body.code !== 0 && body.code !== 200) throw new ApiError('BUSINESS', body.msg ?? '业务请求失败');
+    if (typeof body === 'object' && body !== null && typeof body.code === 'number' && body.code !== 0 && body.code !== 200) {
+      track('api_error', { path, code: 'BUSINESS', durationMs: Date.now() - startedAt });
+      throw new ApiError('BUSINESS', body.msg ?? '业务请求失败');
+    }
     return body as T;
   } catch (error) {
     if (error instanceof ApiError) throw error;
     const message = String(error);
-    throw new ApiError(message.toLowerCase().includes('timeout') ? 'TIMEOUT' : 'NETWORK', '网络请求失败');
+    const code = message.toLowerCase().includes('timeout') ? 'TIMEOUT' : 'NETWORK';
+    track('api_error', { path, code, durationMs: Date.now() - startedAt });
+    throw new ApiError(code, '网络请求失败');
   }
 }
 
@@ -47,6 +58,11 @@ export async function getProducts(): Promise<readonly Product[]> {
 }
 
 export type ProductQuery = Readonly<{ keyword?: string; category?: string; ids?: readonly number[]; limit?: number }>;
+
+type ProductCacheEntry = Readonly<{ expiresAt: number; value: readonly Product[] }>;
+// Builder-owned cache: bounded TTL avoids duplicate list requests during tab switches.
+const productCache = new Map<string, ProductCacheEntry>();
+const PRODUCT_CACHE_TTL_MS = 30_000;
 
 type ProductPayload = Readonly<{ data?: unknown; list?: unknown }>;
 
@@ -68,12 +84,17 @@ function parseProducts(payload: ProductPayload, limit: number): readonly Product
 
 export async function queryProducts(query: ProductQuery): Promise<readonly Product[]> {
   const limit = Math.min(Math.max(query.limit ?? 50, 1), 50);
+  const cacheKey = JSON.stringify({ keyword: query.keyword ?? '', category: query.category ?? '', ids: query.ids ?? [], limit });
+  const cached = productCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
   const params = [`limit=${limit}`];
   if (query.keyword) params.push(`keyword=${encodeURIComponent(query.keyword)}`);
   if (query.category && query.category !== '全部') params.push(`category=${encodeURIComponent(query.category)}`);
   if (query.ids?.length) params.push(`ids=${encodeURIComponent(query.ids.join(','))}`);
   const payload = await request<ProductPayload>(`/products?${params.join('&')}`, { method: 'GET' });
-  return parseProducts(payload, limit);
+  const value = parseProducts(payload, limit);
+  productCache.set(cacheKey, { value, expiresAt: Date.now() + PRODUCT_CACHE_TTL_MS });
+  return value;
 }
 
 export async function getProduct(id: number): Promise<Product> {
@@ -109,8 +130,13 @@ export async function getOrder(orderId: string): Promise<Order> {
 }
 export async function cancelOrder(orderId: string): Promise<void> { await request(`/orders/${encodeURIComponent(orderId)}/cancel`, { method: 'POST' }); }
 export async function requestPayment(params: PaymentParams): Promise<Readonly<{ paymentId?: string; payParams?: Record<string, unknown> }>> {
-  const payload = await request<Readonly<{ data?: Readonly<{ paymentId?: string; payParams?: Record<string, unknown> }> }>>('/payments', { method: 'POST', data: params });
-  return payload.data ?? {};
+  try {
+    const payload = await request<Readonly<{ data?: Readonly<{ paymentId?: string; payParams?: Record<string, unknown> }> }>>('/payments', { method: 'POST', data: params });
+    return payload.data ?? {};
+  } catch (error) {
+    track('payment_failed', { properties: { method: params.method } });
+    throw error;
+  }
 }
 export async function queryPayment(orderId: string): Promise<Readonly<{ status: 'pending' | 'paid' | 'failed' | 'cancelled' }>> {
   const payload = await request<Readonly<{ data?: Readonly<{ status: 'pending' | 'paid' | 'failed' | 'cancelled' }> }>>(`/payments/${encodeURIComponent(orderId)}/status`, { method: 'GET' });
