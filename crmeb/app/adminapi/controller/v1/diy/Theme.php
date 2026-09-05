@@ -12,6 +12,7 @@ namespace app\adminapi\controller\v1\diy;
 
 use app\adminapi\controller\AuthController;
 use app\jobs\ThemeExportJob;
+use crmeb\services\TenantContext;
 use app\services\activity\coupon\StoreCouponIssueServices;
 use app\services\article\ArticleServices;
 use app\services\diy\ThemeDownloadServices;
@@ -257,7 +258,8 @@ class Theme extends AuthController
         $info = $this->services->getThemeInfo($id);
 
         // 2. 创建主题打包目录
-        $dir = public_path() . 'theme/download/' . $id . '/';
+        $tenantPrefix = (string)(TenantContext::id() ?? 0);
+        $dir = public_path() . 'theme/download/' . $tenantPrefix . '/' . $id . '/';
         if (!is_dir($dir)) mkdir($dir, 0755, true);
 
         // 3. 清理打包目录，防止数据污染
@@ -283,7 +285,7 @@ class Theme extends AuthController
         $recordId = $themeDownloadServices->addDownloadRecord($id, $info['title'], '');
 
         // 6. 将打包任务推入队列
-        ThemeExportJob::dispatch('export', [$info, $recordId]);
+        ThemeExportJob::dispatch('export', [$info, $recordId, TenantContext::id()]);
 
         return app('json')->success('正在导出中，请勿操作页面！', ['record_id' => $recordId]);
     }

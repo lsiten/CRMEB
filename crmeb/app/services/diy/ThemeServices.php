@@ -14,6 +14,7 @@ namespace app\services\diy;
 
 use app\dao\diy\ThemeDao;
 use app\services\BaseServices;
+use crmeb\services\TenantContext;
 use crmeb\exceptions\AdminException;
 use crmeb\exceptions\ApiException;
 
@@ -719,7 +720,8 @@ class ThemeServices extends BaseServices
     public function exportThemePackage($info): string
     {
         // 1. 设置导出临时目录
-        $dir = public_path() . 'theme/download/' . $info['id'] . '/';
+        $tenantPrefix = (string)(TenantContext::id() ?? 0);
+        $dir = public_path() . 'theme/download/' . $tenantPrefix . '/' . $info['id'] . '/';
 
         // 2. 处理主要图片（首页图、分类图、详情图、个人中心图）
         $images = ['home_image', 'category_image', 'detail_image', 'user_image'];
@@ -749,8 +751,8 @@ class ThemeServices extends BaseServices
                     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     curl_close($ch);
                     if ($content && $httpCode === 200 && file_put_contents($newPath, $content) !== false) {
-                        $info[$image] = 'theme/download/' . $i . '_' . $image . '.' . $extension;
-                        $info[$defaultImages[$key]] = 'theme/download/' . $i . '_' . $image . '.' . $extension;
+                        $info[$image] = 'theme/download/' . $tenantPrefix . '/' . $i . '_' . $image . '.' . $extension;
+                        $info[$defaultImages[$key]] = 'theme/download/' . $tenantPrefix . '/' . $i . '_' . $image . '.' . $extension;
                     }
                 } else {
                     $localPath = public_path() . ltrim(preg_replace('/^https?:\/\/[^\/]+/', '', $originalUrl), '/');
@@ -761,8 +763,8 @@ class ThemeServices extends BaseServices
                     $extension = strtolower(pathinfo($localPath, PATHINFO_EXTENSION)) ?: 'jpg';
                     $newPath = $dir . $i . '_' . $image . '.' . $extension;
                     if (copy($localPath, $newPath)) {
-                        $info[$image] = 'theme/download/' . $i . '_' . $image . '.' . $extension;
-                        $info[$defaultImages[$key]] = 'theme/download/' . $i . '_' . $image . '.' . $extension;
+                        $info[$image] = 'theme/download/' . $tenantPrefix . '/' . $i . '_' . $image . '.' . $extension;
+                        $info[$defaultImages[$key]] = 'theme/download/' . $tenantPrefix . '/' . $i . '_' . $image . '.' . $extension;
                     }
                 }
             }
@@ -861,6 +863,6 @@ class ThemeServices extends BaseServices
         }
         $zip->close();
 
-        return sys_config('site_url') . '/theme/download/' . $info['id'] . '/' . $info['title'] . '.zip';
+        return sys_config('site_url') . '/theme/download/' . $tenantPrefix . '/' . $info['id'] . '/' . $info['title'] . '.zip';
     }
 }

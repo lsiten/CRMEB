@@ -21,3 +21,5 @@ ALTER TABLE `eb_store_product_relation` ADD COLUMN `tenant_id` int(10) UNSIGNED 
 CREATE INDEX `tenant_id` ON `eb_store_product_relation` (`tenant_id`);
 ALTER TABLE `eb_store_product_attr_value` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '租户ID' AFTER `id`;
 CREATE INDEX `tenant_id` ON `eb_store_product_attr_value` (`tenant_id`);
+ALTER TABLE `eb_theme_download` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '租户ID' AFTER `id`;
+CREATE INDEX `tenant_id` ON `eb_theme_download` (`tenant_id`);

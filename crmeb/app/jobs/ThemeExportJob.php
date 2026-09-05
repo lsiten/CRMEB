@@ -14,6 +14,7 @@ namespace app\jobs;
 use app\services\diy\ThemeDownloadServices;
 use app\services\diy\ThemeServices;
 use crmeb\basic\BaseJobs;
+use crmeb\services\TenantContext;
 use crmeb\traits\QueueTrait;
 use think\facade\Log;
 
@@ -38,8 +39,9 @@ class ThemeExportJob extends BaseJobs
      * @email 442384644@qq.com
      * @date 2026/3/10
      */
-    public function export($info, int $recordId): bool
+    public function export($info, int $recordId, ?int $tenantId = null): bool
     {
+        TenantContext::set($tenantId);
         try {
             /** @var ThemeServices $themeServices */
             $themeServices = app()->make(ThemeServices::class);
@@ -53,6 +55,8 @@ class ThemeExportJob extends BaseJobs
         } catch (\Throwable $e) {
             Log::error('主题导出队列失败，原因：' . $e->getMessage() . ' ' . $e->getFile() . ':' . $e->getLine());
             return false;
+        } finally {
+            TenantContext::clear();
         }
         return true;
     }
