@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildSharePath,
   getClipboardFallback,
+  getPaymentPresentation,
   parseDeepLink,
   resolvePaymentStatus,
 } from '../src/services/platform';
@@ -20,6 +21,15 @@ describe('platform capability safety', () => {
     expect(params).toEqual({});
   });
 
+  it('merges object query with encoded scene while query values take precedence', () => {
+    const params = parseDeepLink({
+      query: { spread: '12' },
+      scene: encodeURIComponent('spid=42&spread=99&agent_id=7'),
+    });
+
+    expect(params).toEqual({ spread: '12', spid: '42', agent_id: '7' });
+  });
+
   it('encodes business identifiers in share paths', () => {
     expect(buildSharePath('/pages/goods/detail', { id: '42' })).toBe('/pages/goods/detail?id=42');
     expect(buildSharePath('/pages/goods/detail', { id: 'A/B' })).toBe('/pages/goods/detail');
@@ -29,6 +39,14 @@ describe('platform capability safety', () => {
   it('uses server payment state instead of client callback state', () => {
     expect(resolvePaymentStatus('ok', 'pending')).toBe('pending');
     expect(resolvePaymentStatus('cancel', 'paid')).toBe('paid');
+  });
+
+  it('models cancelled payment as terminal and retryable', () => {
+    expect(getPaymentPresentation('cancelled')).toEqual({
+      label: '支付已取消',
+      canRetry: true,
+      isTerminal: true,
+    });
   });
 
   it('returns copyable text when clipboard capability is unavailable', () => {

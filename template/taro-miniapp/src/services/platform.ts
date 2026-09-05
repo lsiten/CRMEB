@@ -32,19 +32,21 @@ function isSafeIdentifier(value: string): boolean {
 /** Parse only referral identifiers from untrusted scene/query values. */
 export function parseDeepLink(input: DeepLinkInput): DeepLinkParams {
   const output: Partial<Record<ReferralKey, string>> = {};
-  const source = isRecord(input.query) ? input.query : input.query ?? input.scene;
-  const query = new URLSearchParams(typeof source === 'string' ? valueFromInput(source) : '');
-  if (isRecord(source)) {
+  const query = new URLSearchParams();
+  if (typeof input.query === 'string') {
+    for (const [key, value] of new URLSearchParams(valueFromInput(input.query))) query.set(key, value);
+  }
+  if (isRecord(input.query)) {
     for (const key of REFERRAL_KEYS) {
-      const value = source[key];
+      const value = input.query[key];
       if (typeof value === 'string') query.set(key, value);
     }
   }
-  if (typeof input.scene === 'string' && source !== input.query) {
+  if (typeof input.scene === 'string') {
     const scene = new URLSearchParams(valueFromInput(input.scene));
-    for (const key of REFERRAL_KEYS) if (!query.has(key)) {
+    for (const key of REFERRAL_KEYS) {
       const value = scene.get(key);
-      if (value !== null) query.set(key, value);
+      if (value !== null && !query.has(key)) query.set(key, value);
     }
   }
   for (const key of REFERRAL_KEYS) {
@@ -72,6 +74,17 @@ export function buildSharePath(path: string, params: Readonly<Partial<Record<Sha
 
 export type ClientPaymentResult = 'ok' | 'cancel' | 'fail';
 export type ServerPaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled';
+
+export type PaymentPresentation = Readonly<{ label: string; canRetry: boolean; isTerminal: boolean }>;
+
+export function getPaymentPresentation(status: ServerPaymentStatus): PaymentPresentation {
+  switch (status) {
+    case 'pending': return { label: '等待支付', canRetry: true, isTerminal: false };
+    case 'paid': return { label: '支付成功', canRetry: false, isTerminal: true };
+    case 'failed': return { label: '支付失败', canRetry: true, isTerminal: true };
+    case 'cancelled': return { label: '支付已取消', canRetry: true, isTerminal: true };
+  }
+}
 
 /** Client callbacks never establish payment; the server status is authoritative. */
 export function resolvePaymentStatus(_clientResult: ClientPaymentResult, serverStatus: ServerPaymentStatus): ServerPaymentStatus {
