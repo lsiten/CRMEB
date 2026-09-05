@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Image, Text, View } from '@tarojs/components';
+import { Button, Text, View } from '@tarojs/components';
+import { OptimizedImage } from '../../components';
 import Taro, { useRouter } from '@tarojs/taro';
 import { getProducts, type Product } from '../../services/api';
 import { addToCart } from '../../services/cart';
@@ -26,7 +27,7 @@ const DetailPage = () => {
   if (!product) return <View className='page'><View className='card detail-state'><Text>商品不存在</Text><Button onClick={() => Taro.navigateBack()}>返回</Button></View></View>;
   const canBuy = (product.stock ?? 1) > 0;
   return <View className='page detail-page'>
-    <Image className='hero-image' mode='aspectFill' src={product.image} />
+    <OptimizedImage className='hero-image' mode='aspectFill' src={product.image} />
     <View className='card detail-card'><Text className='detail-name'>{product.name}</Text><Text className='primary detail-price'>¥{product.price.toFixed(2)}</Text><Text className='stock'>{canBuy ? `库存 ${product.stock ?? '充足'}` : '暂时缺货'}</Text></View>
     <View className='card spec-card'><Text className='section-title'>规格</Text><View className='specs'>{specs.map((spec) => <Text key={spec} className={activeSpec === spec ? 'spec active' : 'spec'} onClick={() => setSelectedSpec(spec)}>{spec}</Text>)}</View></View>
     <View className='card description'><Text className='section-title'>商品详情</Text><Text>{product.description ?? '精选好物，品质保障。'}</Text></View>

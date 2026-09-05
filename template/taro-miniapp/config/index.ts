@@ -13,7 +13,15 @@ const config: UserConfigExport = {
     TARO_API_BASE_URL: JSON.stringify(process.env['TARO_API_BASE_URL'] ?? 'http://127.0.0.1:8080/api'),
     TARO_IMAGE_HOSTS: JSON.stringify(process.env['TARO_IMAGE_HOSTS'] ?? ''),
   },
-  mini: { postcss: { pxtransform: { enable: true }, url: { enable: true } } },
+  mini: {
+    postcss: { pxtransform: { enable: true }, url: { enable: true } },
+    webpackChain(chain) {
+      chain.optimization.splitChunks({ chunks: 'all', minSize: 20_000, maxSize: 250_000, cacheGroups: {
+        taro: { name: 'taro-vendor', test: /[\\/]node_modules[\\/]@tarojs[\\/]/, priority: 20, reuseExistingChunk: true },
+        common: { name: 'common', minChunks: 2, priority: 10, reuseExistingChunk: true },
+    } });
+    },
+  },
   plugins: ['@tarojs/plugin-framework-react', '@tarojs/plugin-platform-weapp', '@tarojs/plugin-platform-h5'],
   h5: {
     publicPath: '/',

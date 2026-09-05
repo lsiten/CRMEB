@@ -6,6 +6,8 @@ export { Empty } from './empty';
 export type { EmptyProps } from './empty';
 export { ImagePreview } from './image-preview';
 export type { ImagePreviewProps } from './image-preview';
+export { OptimizedImage } from './optimized-image';
+export type { OptimizedImageProps } from './optimized-image';
 export { Loading } from './loading';
 export type { LoadingProps } from './loading';
 export { Modal } from './modal';

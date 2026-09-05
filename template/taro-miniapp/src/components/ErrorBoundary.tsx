@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Button, Text, View } from '@tarojs/components';
+import { track } from '../services/telemetry';
 
 type ErrorBoundaryProps = Readonly<{ children: ReactNode }>;
 type ErrorBoundaryState = Readonly<{ hasError: boolean }>;
@@ -13,6 +14,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   public componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('Taro 页面渲染异常', error, info.componentStack);
+    track('crash', { properties: { message: error.message.slice(0, 200) } });
   }
 
   private readonly handleRetry = (): void => {

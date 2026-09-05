@@ -10,6 +10,7 @@ vi.mock('@tarojs/taro', () => ({
 }));
 
 import { ApiError, parseProducts } from '../src/services/api';
+import { resolveImageUrl } from '../src/services/assets';
 
 describe('API contract parsing', () => {
   it('accepts both legacy list envelopes and drops invalid records', () => {
@@ -34,5 +35,12 @@ describe('API contract parsing', () => {
     const error = new ApiError('UNAUTHORIZED', '登录已过期', 401);
     expect(error.code).toBe('UNAUTHORIZED');
     expect(error.status).toBe(401);
+  });
+
+  it('keeps absolute assets intact when no CDN rewrite is needed', () => {
+    expect(resolveImageUrl('https://cdn.example.com/a.webp')).toBe('https://cdn.example.com/a.webp');
+    expect(resolveImageUrl('data:image/png;base64,abc')).toBe('data:image/png;base64,abc');
+    expect(resolveImageUrl('//cdn.example.com/a.webp')).toBe('//cdn.example.com/a.webp');
+    expect(resolveImageUrl(undefined)).toBe('');
   });
 });
