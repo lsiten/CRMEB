@@ -23,7 +23,8 @@ export function clearToken(): void { setToken(null); }
 
 export async function request<T>(path: string, options: Omit<Taro.request.Option<T>, 'url'> = {}): Promise<T> {
   const token = getToken();
-  const header = { ...(options.header ?? {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  // CRMEB's API middleware expects the historical `Authori-zation` header.
+  const header = { ...(options.header ?? {}), ...(token ? { 'Authori-zation': `Bearer ${token}` } : {}) };
   try {
     const response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header, timeout: options.timeout ?? 10000 });
     if (response.statusCode === 401) {
