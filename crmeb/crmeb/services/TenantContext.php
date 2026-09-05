@@ -16,7 +16,6 @@ final class TenantContext
     public static function id(): ?int { return self::$tenantId; }
     public static function isCrossTenant(): bool { return self::$crossTenant; }
     public static function clear(): void { self::set(null, false); }
-
     /** 为缓存、队列和导出资源生成租户隔离键。 */
     public static function key(string $name): string
     {
