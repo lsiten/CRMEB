@@ -24,16 +24,16 @@ const UserPage = () => {
     finally { setLoading(false); }
   };
   const openMenu = (item: typeof menuItems[number]): void => {
-    if (item === '我的资产') { void Taro.navigateTo({ url: '/pages/assets/index' }); return; }
-    if (item === '分销中心') { void Taro.navigateTo({ url: '/pages/distribution/index' }); return; }
+    if (item === '我的资产') { void Taro.navigateTo({ url: '/pages-extra/assets/index' }); return; }
+    if (item === '分销中心') { void Taro.navigateTo({ url: '/pages-extra/distribution/index' }); return; }
     if (item === '营销活动') { void Taro.navigateTo({ url: '/pages/marketing/index' }); return; }
     if (item === '我的订单') { void Taro.navigateTo({ url: '/pages/order/list' }); return; }
-    if (item === '收货地址') { void Taro.navigateTo({ url: '/pages/address/index' }); return; }
-    if (item === '优惠券') { void Taro.navigateTo({ url: '/pages/coupon/index' }); return; }
-    if (item === '我的收藏') { void Taro.navigateTo({ url: '/pages/favorites/index' }); return; }
-    if (item === '我的评价') { void Taro.navigateTo({ url: '/pages/reviews/index' }); return; }
+    if (item === '收货地址') { void Taro.navigateTo({ url: '/pages-extra/address/index' }); return; }
+    if (item === '优惠券') { void Taro.navigateTo({ url: '/pages-extra/coupon/index' }); return; }
+    if (item === '我的收藏') { void Taro.navigateTo({ url: '/pages-extra/favorites/index' }); return; }
+    if (item === '我的评价') { void Taro.navigateTo({ url: '/pages-extra/reviews/index' }); return; }
     if (item === '积分中心') { void Taro.navigateTo({ url: '/pages/integral/index' }); return; }
-    if (item === '联系客服') { void Taro.navigateTo({ url: '/pages/customer/index' }); return; }
+    if (item === '联系客服') { void Taro.navigateTo({ url: '/pages-extra/customer/index' }); return; }
     void Taro.showToast({ title: `${item}功能即将上线`, icon: 'none' });
   };
   const bindPhone = async (event: { detail?: { code?: string; encryptedData?: string; iv?: string } }): Promise<void> => {

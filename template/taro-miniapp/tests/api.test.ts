@@ -39,6 +39,8 @@ describe('API contract parsing', () => {
 
   it('keeps absolute assets intact when no CDN rewrite is needed', () => {
     expect(resolveImageUrl('https://cdn.example.com/a.webp')).toBe('https://cdn.example.com/a.webp');
+    expect(resolveImageUrl('data:image/png;base64,abc')).toBe('data:image/png;base64,abc');
+    expect(resolveImageUrl('//cdn.example.com/a.webp')).toBe('//cdn.example.com/a.webp');
     expect(resolveImageUrl(undefined)).toBe('');
   });
 });

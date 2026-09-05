@@ -19,36 +19,52 @@ export type TelemetryEvent = Readonly<{
   properties?: Readonly<Record<string, string | number | boolean>>;
 }>;
 
-const endpoint = (process.env['TARO_TELEMETRY_URL'] ?? '/monitoring/events').replace(/\/$/, '');
+const apiBaseUrl = (process.env['TARO_API_BASE_URL'] ?? '').replace(/\/$/, '');
+const endpoint = (process.env['TARO_TELEMETRY_URL'] ?? (apiBaseUrl ? `${apiBaseUrl}/monitoring/events` : '')).replace(/\/$/, '');
+const tokenKey = 'crmeb_token';
 const queue: TelemetryEvent[] = [];
 let flushScheduled = false;
+let flushInFlight = false;
+
+function scheduleFlush(delayMs = 0): void {
+  if (flushScheduled) return;
+  flushScheduled = true;
+  setTimeout(() => {
+    flushScheduled = false;
+    flush();
+  }, delayMs);
+}
 
 function flush(): void {
-  if (queue.length === 0 || !endpoint) return;
-  const events = queue.splice(0, queue.length);
+  if (queue.length === 0 || !endpoint || flushInFlight) return;
+  flushInFlight = true;
+  const events = queue.slice();
+  const token = Taro.getStorageSync<string>(tokenKey);
+  const header = token ? { 'Authori-zation': `Bearer ${token}` } : undefined;
   Taro.request({
     url: endpoint,
     method: 'POST',
     data: { events },
+    ...(header ? { header } : {}),
     timeout: 3000,
+  }).then(() => {
+    queue.splice(0, events.length);
   }).catch((error: unknown) => {
     if (error instanceof Error) console.warn('遥测上报失败', error.message);
+    scheduleFlush(1000);
+  }).finally(() => {
+    flushInFlight = false;
+    if (queue.length > 0 && !flushScheduled) scheduleFlush(1000);
   });
 }
 
 export function track(name: TelemetryName, fields: Omit<TelemetryEvent, 'name' | 'timestamp'> = {}): void {
   queue.push({ name, timestamp: new Date().toISOString(), ...fields });
-  if (!flushScheduled) {
-    flushScheduled = true;
-    setTimeout(() => {
-      flushScheduled = false;
-      flush();
-    }, 0);
-  }
+  scheduleFlush();
 }
 
 export function startPerformanceTracking(): void {
   const startedAt = Date.now();
   track('app_start', { properties: { platform: Taro.getEnv() } });
-  setTimeout(() => track('first_screen', { durationMs: Date.now() - startedAt }), 0);
+  Taro.nextTick(() => track('first_screen', { durationMs: Date.now() - startedAt }));
 }

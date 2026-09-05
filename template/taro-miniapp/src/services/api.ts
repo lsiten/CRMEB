@@ -88,6 +88,7 @@ export async function queryProducts(query: ProductQuery): Promise<readonly Produ
   const cacheKey = JSON.stringify({ keyword: query.keyword ?? '', category: query.category ?? '', ids: query.ids ?? [], limit });
   const cached = productCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
+  if (cached) productCache.delete(cacheKey);
   const params = [`limit=${limit}`];
   if (query.keyword) params.push(`keyword=${encodeURIComponent(query.keyword)}`);
   if (query.category && query.category !== '全部') params.push(`category=${encodeURIComponent(query.category)}`);
@@ -131,13 +132,8 @@ export async function getOrder(orderId: string): Promise<Order> {
 }
 export async function cancelOrder(orderId: string): Promise<void> { await request(`/orders/${encodeURIComponent(orderId)}/cancel`, { method: 'POST' }); }
 export async function requestPayment(params: PaymentParams): Promise<Readonly<{ paymentId?: string; payParams?: Record<string, unknown> }>> {
-  try {
-    const payload = await request<Readonly<{ data?: Readonly<{ paymentId?: string; payParams?: Record<string, unknown> }> }>>('/payments', { method: 'POST', data: params });
-    return payload.data ?? {};
-  } catch (error) {
-    track('payment_failed', { properties: { method: params.method } });
-    throw error;
-  }
+  const payload = await request<Readonly<{ data?: Readonly<{ paymentId?: string; payParams?: Record<string, unknown> }> }>>('/payments', { method: 'POST', data: params });
+  return payload.data ?? {};
 }
 export async function queryPayment(orderId: string): Promise<Readonly<{ status: 'pending' | 'paid' | 'failed' | 'cancelled' }>> {
   const payload = await request<Readonly<{ data?: Readonly<{ status: 'pending' | 'paid' | 'failed' | 'cancelled' }> }>>(`/payments/${encodeURIComponent(orderId)}/status`, { method: 'GET' });
