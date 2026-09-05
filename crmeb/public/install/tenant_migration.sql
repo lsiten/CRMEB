@@ -26,7 +26,7 @@ CREATE INDEX `tenant_id` ON `eb_store_product_attr_value` (`tenant_id`);
 ALTER TABLE `eb_theme_download` ADD COLUMN `tenant_id` int(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '租户ID' AFTER `id`;
 CREATE INDEX `tenant_id` ON `eb_theme_download` (`tenant_id`);
 
--- 将升级前未归属的数据纳入默认租户，避免出现 tenant_id=0 的孤儿数据。
+ -- 将升级前未归属的数据纳入默认租户，避免出现 tenant_id=0 的孤儿数据。
 UPDATE `eb_system_admin` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
 UPDATE `eb_user` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
 UPDATE `eb_store_product` SET `tenant_id` = 1 WHERE `tenant_id` = 0;
