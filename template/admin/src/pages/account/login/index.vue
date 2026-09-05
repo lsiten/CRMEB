@@ -83,6 +83,7 @@ import Verify from '@/components/verifition/Verify';
 import { PrevLoading } from '@/utils/loading.js';
 import { formatFlatteningRoutes, findFirstNonNullChildren } from '@/libs/system';
 import { Local } from '@/utils/storage.js';
+import { tenantListApi } from '@/api/tenant';
 
 export default {
   components: {
@@ -177,6 +178,20 @@ export default {
           setCookies('token', data.token, expires);
           setCookies('expires_time', data.expires_time, expires);
           Local.set('PERMISSIONS', data.site_func);
+          this.$store.commit('tenant/setContext', {
+            current: data.current_tenant || data.tenant || null,
+            list: data.tenants || data.tenant_list || [],
+          });
+          if (!data.tenants && !data.tenant_list) {
+            tenantListApi()
+              .then((tenantRes) => {
+                const tenantData = tenantRes.data || tenantRes;
+                const list = Array.isArray(tenantData) ? tenantData : tenantData.list || [];
+                const current = tenantData.current_tenant || tenantData.current || list[0] || null;
+                this.$store.commit('tenant/setContext', { current, list });
+              })
+              .catch(() => {});
+          }
           this.$store.commit('userInfo/uniqueAuth', data.unique_auth);
           this.$store.commit('userInfo/userInfo', data.user_info);
           this.$store.commit('menus/setopenMenus', []);

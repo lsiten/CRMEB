@@ -16,6 +16,7 @@ import store from '@/store';
 import { removeCookies, getCookies, setTitle } from '@/libs/util';
 import { includeArray } from '@/libs/auth';
 import { PrevLoading } from '@/utils/loading.js';
+import { clearTenantContext } from '@/utils/tenant';
 
 Vue.use(Router);
 // 解决 `element ui` 导航栏重复点菜单报错问题
@@ -146,6 +147,7 @@ router.beforeEach(async (to, from, next) => {
           removeCookies('token');
           removeCookies('expires_time');
           removeCookies('uuid');
+          clearTenantContext();
         } else {
           next({
             name: '403',
@@ -166,6 +168,7 @@ router.beforeEach(async (to, from, next) => {
       removeCookies('token');
       removeCookies('expires_time');
       removeCookies('uuid');
+      clearTenantContext();
     }
   } else {
     // 不需要身份校验 直接通过

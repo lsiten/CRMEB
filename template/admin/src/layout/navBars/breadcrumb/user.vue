@@ -46,6 +46,7 @@
       </span>
       <el-dropdown-menu slot="dropdown">
         <el-dropdown-item command="user">{{ $t('message.user.dropdown6') }}</el-dropdown-item>
+        <el-dropdown-item v-if="tenantList.length > 1" command="tenant">切换租户</el-dropdown-item>
         <el-dropdown-item divided command="logOut">{{ $t('message.user.dropdown5') }}</el-dropdown-item>
       </el-dropdown-menu>
     </el-dropdown>
@@ -61,6 +62,7 @@ import screenfull from 'screenfull';
 import { AccountLogout } from '@/api/account';
 import { removeCookies } from '@/libs/util';
 import { Session, Local } from '@/utils/storage.js';
+import { switchTenantApi } from '@/api/tenant';
 import UserNews from '@/layout/navBars/breadcrumb/userNews.vue';
 import Search from '@/layout/navBars/breadcrumb/search.vue';
 export default {
@@ -79,6 +81,9 @@ export default {
     // 获取用户信息
     getUserInfos() {
       return this.$store.state.userInfo.userInfo;
+    },
+    tenantList() {
+      return this.$store.state.tenant.list || [];
     },
     // 设置弹性盒子布局 flex
     layoutUserFlexNum() {
@@ -195,6 +200,22 @@ export default {
     },
     // `dropdown 下拉菜单` 当前项点击
     onDropdownCommand(path) {
+      if (path === 'tenant') {
+        this.$prompt('请输入租户 ID', '切换租户', {
+          confirmButtonText: '切换',
+          cancelButtonText: '取消',
+          inputValue: this.$store.state.tenant.current && this.$store.state.tenant.current.id,
+        })
+          .then(({ value }) => switchTenantApi({ tenant_id: value }))
+          .then((res) => {
+            const data = res.data || res;
+            const current = data.current_tenant || data.tenant || data;
+            this.$store.commit('tenant/setContext', { current, list: this.tenantList });
+            window.location.reload();
+          })
+          .catch(() => {});
+        return;
+      }
       if (path === 'logOut') {
         setTimeout(() => {
           this.$msgbox({
@@ -219,6 +240,7 @@ export default {
                     removeCookies('token');
                     removeCookies('expires_time');
                     removeCookies('uuid');
+                    this.$store.commit('tenant/clear');
                     // this.$router.replace({ path: `${settings.routePre}/login` });
                   })
                   .finally(() => {

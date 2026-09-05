@@ -34,6 +34,7 @@ import routesList from './module/routesList';
 import tagsViewRoutes from './module/tagsViewRoutes';
 import userInfos from './module/userInfos';
 import keepAliveNames from './module/keepAliveNames';
+import tenant from './module/tenant';
 
 Vue.use(Vuex);
 // 持久化储存
@@ -71,6 +72,7 @@ export default new Vuex.Store({
         themeConfig: state.themeConfig,
         routesList: state.routesList,
         keepAliveNames: state.keepAliveNames,
+        tenant: state.tenant,
       }),
       storage: window.localStorage,
     }).plugin,
@@ -98,5 +100,6 @@ export default new Vuex.Store({
     tagsViewRoutes,
     userInfos,
     keepAliveNames,
+    tenant,
   },
 });

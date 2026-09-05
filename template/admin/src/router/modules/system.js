@@ -27,6 +27,12 @@ export default {
   component: LayoutMain,
   children: [
     {
+      path: 'tenant',
+      name: `${pre}tenant`,
+      meta: { auth: ['admin-tenant-index'], title: '租户管理' },
+      component: () => import('@/pages/system/tenant/index'),
+    },
+    {
       path: 'code_generation',
       name: `${pre}code_generation`,
       meta: {
