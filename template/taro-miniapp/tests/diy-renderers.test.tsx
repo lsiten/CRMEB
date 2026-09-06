@@ -3,6 +3,9 @@ import TestRenderer from 'react-test-renderer';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
+const navigation = vi.hoisted(() => ({ switchTab: vi.fn().mockResolvedValue({}), showToast: vi.fn().mockResolvedValue({}) }));
+vi.mock('@tarojs/taro', () => ({ default: navigation }));
+
 vi.mock('@tarojs/components', () => ({
   Image: 'image',
   RichText: 'rich-text',
@@ -18,6 +21,34 @@ import { DiyRenderer } from '../src/diy/registry';
 const render = (item: DiyItem) => TestRenderer.create(<DiyRenderer item={item} />).root;
 
 describe('DIY component renderers', () => {
+  it.each([
+    ['/pages/index/index', '/pages/index/index'],
+    ['/pages/goods_cate/goods_cate', '/pages/goods/index'],
+    ['/pages/order_addcart/order_addcart', '/pages/cart/index'],
+    ['/pages/user/index', '/pages/user/index'],
+    ['/pages/goods/index', '/pages/goods/index'],
+    ['/pages/cart/index', '/pages/cart/index'],
+  ])('opens the configured footer tab %s', async (link, url) => {
+    navigation.switchTab.mockClear();
+    const footer = render({ name: 'pageFoot', menuList: [{ name: '自定义名称', link }] });
+    await footer.findByProps({ className: 'diy-footer__item' }).props.onClick();
+    expect(navigation.switchTab).toHaveBeenCalledWith({ url });
+  });
+
+  it('reports unsupported footer links instead of silently doing nothing', async () => {
+    navigation.switchTab.mockClear();
+    const footer = render({ name: 'pageFoot', menuList: [{ name: '无效入口', link: 'javascript:alert(1)' }] });
+    await footer.findByProps({ className: 'diy-footer__item' }).props.onClick();
+    expect(navigation.showToast).toHaveBeenCalledWith({ title: '该导航暂不支持', icon: 'none' });
+    expect(navigation.switchTab).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed tab switch', async () => {
+    navigation.switchTab.mockRejectedValueOnce(new Error('navigation failed'));
+    const footer = render({ name: 'pageFoot', menuList: [{ link: '/pages/cart/index' }] });
+    await footer.findByProps({ className: 'diy-footer__item' }).props.onClick();
+    expect(navigation.showToast).toHaveBeenCalledWith({ title: '页面跳转失败，请重试', icon: 'none' });
+  });
   it('rewrites uploaded theme assets to the current API origin', () => {
     expect(sanitizeDiyImageUrl('http://demo.crmeb.com/uploads/theme/banner.png'))
       .toBe('http://127.0.0.1:8080/uploads/theme/banner.png');
