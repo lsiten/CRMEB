@@ -5,6 +5,7 @@ import Taro, { useRouter } from '@tarojs/taro';
 import { getProducts, type Product } from '../../services/api';
 import { addToCart } from '../../services/cart';
 import { isFavorite, toggleFavorite } from '../../services/favorites';
+import { requireLogin } from '../../services/auth-flow';
 import './index.scss';
 
 const DetailPage = () => {
@@ -31,7 +32,7 @@ const DetailPage = () => {
     <View className='card detail-card'><Text className='detail-name'>{product.name}</Text><Text className='primary detail-price'>¥{product.price.toFixed(2)}</Text><Text className='stock'>{canBuy ? `库存 ${product.stock ?? '充足'}` : '暂时缺货'}</Text></View>
     <View className='card spec-card'><Text className='section-title'>规格</Text><View className='specs'>{specs.map((spec) => <Text key={spec} className={activeSpec === spec ? 'spec active' : 'spec'} onClick={() => setSelectedSpec(spec)}>{spec}</Text>)}</View></View>
     <View className='card description'><Text className='section-title'>商品详情</Text><Text>{product.description ?? '精选好物，品质保障。'}</Text></View>
-    <View className='detail-actions'><Button className={favorite ? 'favorite active' : 'favorite'} onClick={() => setFavorite(toggleFavorite(product))}>{favorite ? '已收藏' : '收藏'}</Button><Button className='cart-action' disabled={!canBuy} onClick={() => { addToCart(product, activeSpec); void Taro.showToast({ title: '已加入购物车', icon: 'success' }); }}>加入购物车</Button><Button className='buy-action' disabled={!canBuy} onClick={() => void Taro.showToast({ title: '请先登录', icon: 'none' })}>立即购买</Button></View>
+    <View className='detail-actions'><Button className={favorite ? 'favorite active' : 'favorite'} onClick={() => setFavorite(toggleFavorite(product))}>{favorite ? '已收藏' : '收藏'}</Button><Button className='cart-action' disabled={!canBuy} onClick={() => { addToCart(product, activeSpec); void Taro.showToast({ title: '已加入购物车', icon: 'success' }); }}>加入购物车</Button><Button className='buy-action' disabled={!canBuy} onClick={() => { if (requireLogin(`/pages/detail/index?id=${product.id}`)) void Taro.showToast({ title: '请选择规格后加入购物车结算', icon: 'none' }); }}>立即购买</Button></View>
   </View>;
 };
 

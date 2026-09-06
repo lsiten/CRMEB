@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react';
 import { Text } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { claimReward, type Reward } from '../services/diy-actions';
+import { requireLogin } from '../services/auth-flow';
+import { ApiError } from '../services/api';
 
 type Props = Readonly<{ reward: Reward; claimed?: boolean; className?: string; style?: CSSProperties }>;
 export function RewardAction({ reward, claimed = false, className, style }: Props) {
@@ -12,6 +14,8 @@ export function RewardAction({ reward, claimed = false, className, style }: Prop
   const claim = async (event?: { stopPropagation: () => void }) => {
     event?.stopPropagation();
     if (locked.current || complete) return;
+    const returnUrl = reward.kind === 'coupon' ? '/pages-extra/coupon/index' : '/pages/integral/index';
+    if (!requireLogin(returnUrl)) return;
     locked.current = true;
     setPending(true);
     try {
@@ -19,6 +23,7 @@ export function RewardAction({ reward, claimed = false, className, style }: Prop
       setComplete(true);
       await Taro.showToast({ title: reward.kind === 'sign' ? '签到成功' : '领取成功', icon: 'success' });
     } catch (error) {
+      if (error instanceof ApiError && error.code === 'UNAUTHORIZED') { requireLogin(returnUrl); return; }
       await Taro.showToast({ title: error instanceof Error ? error.message : '操作失败，请重试', icon: 'none' });
     } finally {
       locked.current = false;

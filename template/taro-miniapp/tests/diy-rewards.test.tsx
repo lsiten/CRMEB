@@ -1,13 +1,13 @@
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeEach, expect, it, vi } from 'vitest';
-const api = vi.hoisted(() => ({ getToken: vi.fn(() => 'token'), request: vi.fn().mockResolvedValue({ status: 200 }) }));
-const toast = vi.hoisted(() => vi.fn().mockResolvedValue({}));
+const api = vi.hoisted(() => ({ ApiError: class extends Error { readonly code = 'UNAUTHORIZED'; }, getToken: vi.fn(() => 'token'), request: vi.fn().mockResolvedValue({ status: 200 }) }));
+const nav = vi.hoisted(() => ({ navigateTo: vi.fn().mockResolvedValue({}), showToast: vi.fn().mockResolvedValue({}) }));
 vi.mock('../src/services/api', () => api);
-vi.mock('@tarojs/taro', () => ({ default: { showToast: toast } }));
+vi.mock('@tarojs/taro', () => ({ default: nav }));
 vi.mock('@tarojs/components', () => ({ Text: 'span', View: 'div' }));
 import { RewardAction } from '../src/diy/reward-actions';
-beforeEach(() => { vi.clearAllMocks(); api.getToken.mockReturnValue('token'); });
+beforeEach(() => { vi.clearAllMocks(); api.getToken.mockReturnValue('token'); nav.showToast.mockResolvedValue({}); });
 it.each([{ kind: 'sign' }, { kind: 'coupon', couponId: 12 }] as const)('submits a real $kind reward and marks it complete', async (reward) => {
   const root = TestRenderer.create(<RewardAction reward={reward} />).root;
   await act(async () => { await root.findByType('span').props.onClick(); });
@@ -19,7 +19,8 @@ it('requires login before sending a reward request', async () => {
   const root = TestRenderer.create(<RewardAction reward={{ kind: 'sign' }} />).root;
   await act(async () => { await root.findByType('span').props.onClick(); });
   expect(api.request).not.toHaveBeenCalled();
-  expect(toast).toHaveBeenCalledWith({ title: '请先登录后再操作', icon: 'none' });
+  expect(nav.navigateTo).toHaveBeenCalledWith({ url: expect.stringContaining('/pages-extra/login/index?returnUrl=') });
+  expect(nav.showToast).not.toHaveBeenCalled();
 });
 it('keeps failed requests retryable', async () => {
   api.request.mockResolvedValueOnce({ status: 400, msg: '领取失败' });
@@ -32,7 +33,7 @@ it.each([null, {}, { status: '200' }, { status: 500 }])('rejects an unconfirmed 
   const root = TestRenderer.create(<RewardAction reward={{ kind: 'sign' }} />).root;
   await act(async () => { await root.findByType('span').props.onClick(); });
   expect(root.findByType('span').props['aria-disabled']).toBe(false);
-  expect(toast).toHaveBeenCalledWith(expect.objectContaining({ icon: 'none' }));
+  expect(nav.showToast).toHaveBeenCalledWith(expect.objectContaining({ icon: 'none' }));
 });
 it('retries a failed claim successfully', async () => {
   api.request.mockRejectedValueOnce(new Error('网络失败'));

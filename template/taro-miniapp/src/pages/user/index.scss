@@ -1,4 +1,4 @@
-.account-page { max-width: 750PX; margin: 0 auto; background: linear-gradient(180deg, var(--color-brand-soft), var(--color-page) 600px); }
+.account-page { max-width: 750PX; margin: 0 auto; padding-right: var(--page-gutter); padding-left: var(--page-gutter); background: linear-gradient(180deg, var(--color-brand-soft), var(--color-page) 600px); }
 .account-page button::after { border: 0; }
 .account-heading { display: flex; align-items: center; justify-content: space-between; font-size: max(36px, 18PX); font-weight: 700; }
 .account-heading button { margin: 0; padding: 0 16px; line-height: max(88px, 44PX); background: transparent; font-size: max(26px, 13PX); font-weight: 400; color: var(--color-text-secondary); }
