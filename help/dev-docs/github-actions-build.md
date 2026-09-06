@@ -73,3 +73,7 @@ docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revisi
 ## 验证范围
 
 GitHub 检查两种架构镜像的 PHP 扩展、Composer 自动加载、Nginx/PHP-FPM 配置、HTTP 健康端点、后台静态页面和安装页面。构建上下文排除本机 `.env`、`.constant`、安装锁、上传和运行数据，保留安装 SQL。本检查不等同于已安装业务系统的交易验收。
+
+## 运行时依赖快照
+
+PHP 7.4 基础镜像使用 Debian 11。其安全更新源在本次构建时仍提供索引，但部分索引引用的软件包已从源站移除；CDN 缓存命中时可下载，未命中则返回 404。因此 Dockerfile 固定使用 Debian 官方 `20260901T000000Z` 快照，保证软件包与索引一致。仅针对冻结快照关闭索引有效期检查，APT 签名和软件包哈希校验保留。后续升级 PHP/系统运行时应另行验证兼容性。

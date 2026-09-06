@@ -73,17 +73,6 @@ jobs:
           name: admin
           path: template/admin/dist
       - uses: docker/setup-buildx-action@v3
-      - name: Diagnose Debian package transport
-        run: |
-          docker run --rm php:7.4-fpm-bullseye sh -c '
-            base="https://security.debian.org/debian-security/pool/updates/main/n/nginx/nginx-common_1.18.0-6.1"
-            for suffix in "%2bdeb11u8_all.deb" "+deb11u8_all.deb" "%2Bdeb11u8_all.deb" "%2bdeb11u8_all.deb?probe=1"; do
-              echo "URL: $base$suffix"
-              curl --max-time 20 -sS -D - -o /dev/null "$base$suffix"
-            done
-            echo "No-cache probe"
-            curl --max-time 20 -sS -H "Cache-Control: no-cache" -D - -o /dev/null "${base}%2bdeb11u8_all.deb"
-          '
       - uses: docker/build-push-action@v6
         with:
           context: .
