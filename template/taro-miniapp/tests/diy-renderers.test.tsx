@@ -1,5 +1,6 @@
 import React from 'react';
 import TestRenderer from 'react-test-renderer';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@tarojs/components', () => ({
@@ -47,8 +48,27 @@ describe('DIY component renderers', () => {
     expect(menu.findByProps({ className: 'diy-menu__label' }).children).toEqual(['秒杀']);
     expect(hotspot.findByProps({ className: 'diy-hotspot__image' }).props.src).toContain('/uploads/theme/hot.png');
     expect(products.findByProps({ className: 'diy-product__name' }).children).toEqual(['蓝牙手表']);
+    expect(products.findByProps({ className: 'diy-product__image' }).props.mode).toBe('widthFix');
     expect(products.findByProps({ className: 'diy-product__original' }).children.join('')).toBe('¥359');
     expect(richText.findByType('rich-text').props.nodes).toBe('<b>猜你喜欢</b>');
     expect(footer.findByProps({ className: 'diy-footer__label is-active' }).children).toEqual(['首页']);
+  });
+
+  it('does not render an incomplete activity card without products', () => {
+    const activity = TestRenderer.create(<DiyRenderer item={{ name: 'seckill', goodsList: { list: [] } }} />);
+
+    expect(activity.toJSON()).toBeNull();
+  });
+
+  it('keeps product media square across responsive card widths', () => {
+    const styles = readFileSync(new URL('../src/pages/index/index.scss', import.meta.url), 'utf8');
+
+    expect(styles).toMatch(/\.diy-product__image\s*\{[^}]*aspect-ratio:\s*1\s*\/\s*1;/s);
+  });
+
+  it('aligns the H5 tab bar with the desktop content width', () => {
+    const styles = readFileSync(new URL('../src/app.scss', import.meta.url), 'utf8');
+
+    expect(styles).toMatch(/\.taro-tabbar__tabbar\s*\{[^}]*width:\s*min\(100%,\s*750PX\);[^}]*margin:\s*0 auto;/s);
   });
 });

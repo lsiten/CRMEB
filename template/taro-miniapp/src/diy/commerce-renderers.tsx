@@ -11,7 +11,7 @@ const ProductGrid = ({ rows, compact = false }: ProductGridProps) => <View class
   const name = textValue(row, 'store_name', 'productName', 'title', 'name') || '精选商品';
   const price = textValue(row, 'price', 'product_price');
   const original = textValue(row, 'ot_price');
-  return <View className='diy-product' key={String(row['id'] ?? index)}>{image && <Image className='diy-product__image' mode='aspectFill' src={image} />}<View className='diy-product__body'><Text className='diy-product__name'>{name}</Text><View className='diy-product__price-row'>{price && <Text className='diy-product__price'>¥{price}</Text>}{original && <Text className='diy-product__original'>¥{original}</Text>}</View></View></View>;
+  return <View className='diy-product' key={String(row['id'] ?? index)}>{image && <Image className='diy-product__image' mode='widthFix' src={image} />}<View className='diy-product__body'><Text className='diy-product__name'>{name}</Text><View className='diy-product__price-row'>{price && <Text className='diy-product__price'>¥{price}</Text>}{original && <Text className='diy-product__original'>¥{original}</Text>}</View></View></View>;
 })}</View>;
 
 export const ProductList = ({ item }: DiyRendererProps) => {
@@ -31,8 +31,9 @@ const activityTitle = (item: DiyItem): string => nestedText(item, [['titleTxtCon
 
 export const ActivityBlock = ({ item }: DiyRendererProps) => {
   const rows = configList(item, ['goodsList', 'list'], ['productList', 'list'], ['list']);
+  if (!rows.length) return null;
   const titleImage = imageValue(nestedValue(item, 'imgConfig'));
-  return <View className={`diy-activity diy-activity--${item.name}`}><View className='diy-section-heading'>{titleImage ? <Image className='diy-section-heading__image' mode='heightFix' src={titleImage} /> : <Text className='diy-section-heading__title'>{activityTitle(item)}</Text>}<Text className='diy-section-heading__more'>更多 ›</Text></View>{rows.length ? <ProductGrid rows={rows} compact /> : <View className='diy-activity__empty'><Text>活动商品持续上新</Text></View>}</View>;
+  return <View className={`diy-activity diy-activity--${item.name}`}><View className='diy-section-heading'>{titleImage ? <Image className='diy-section-heading__image' mode='heightFix' src={titleImage} /> : <Text className='diy-section-heading__title'>{activityTitle(item)}</Text>}<Text className='diy-section-heading__more'>更多 ›</Text></View><ProductGrid rows={rows} compact /></View>;
 };
 
 export const SignIn = ({ item }: DiyRendererProps) => {
