@@ -1,10 +1,28 @@
-.profile { display: flex; align-items: center; gap: 18px; padding: 30px 24px; }
-.avatar { width: 84px; height: 84px; border-radius: 50%; background: #ffe9e5; display: flex; align-items: center; justify-content: center; font-size: 42px; }
-.profile view:nth-child(2) { flex: 1; }
-.welcome, .hint { display: block; }
-.welcome { font-size: 30px; font-weight: 600; }
-.hint { color: #999; font-size: 24px; margin-top: 8px; }
-.profile button { margin: 0; background: #e93323; color: #fff; font-size: 24px; }
-.menu { padding: 0 24px; }
-.menuItem { display: flex; justify-content: space-between; padding: 28px 0; border-bottom: 1px solid #f2f2f2; font-size: 28px; }
-.menuItem:last-child { border-bottom: 0; }
+.account-page { max-width: 750PX; margin: 0 auto; background: linear-gradient(180deg, var(--color-brand-soft), var(--color-page) 600px); }
+.account-page button::after { border: 0; }
+.account-heading { display: flex; align-items: center; justify-content: space-between; font-size: max(36px, 18PX); font-weight: 700; }
+.account-heading button { margin: 0; padding: 0 16px; line-height: max(88px, 44PX); background: transparent; font-size: max(26px, 13PX); font-weight: 400; color: var(--color-text-secondary); }
+.account-profile { display: flex; align-items: center; gap: 24px; padding: 32px 8px; }
+.account-avatar { width: 112px; height: 112px; flex-shrink: 0; border-radius: 50%; background: var(--color-surface); color: var(--color-brand); display: flex; align-items: center; justify-content: center; font-size: max(28px, 14PX); overflow: hidden; border: 6px solid var(--color-surface); }
+.account-avatar image { width: 100%; height: 100%; }
+.account-identity { min-width: 0; }
+.account-name { display: block; font-size: max(34px, 17PX); font-weight: 600; overflow-wrap: anywhere; }
+.account-hint { display: block; margin-top: 8px; color: var(--color-text-secondary); font-size: max(24px, 12PX); line-height: 1.5; }
+.account-login { background: var(--color-brand); color: var(--color-surface); border-radius: var(--radius-pill); font-size: max(28px, 14PX); line-height: max(88px, 44PX); margin: 0 0 32px; }
+.account-retry { font-size: max(26px, 13PX); color: var(--color-brand); margin-bottom: 24px; }
+.account-section { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: max(30px, 15PX); font-weight: 600; }
+.account-section button { margin: 0; padding: 0; background: transparent; line-height: max(88px, 44PX); color: var(--color-text-secondary); font-size: max(24px, 12PX); font-weight: 400; }
+.account-section .account-hint { font-weight: 400; margin: 0; }
+.account-order-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+.account-order-grid button, .account-service-grid button { display: flex; align-items: center; flex-direction: column; gap: 16px; margin: 0; padding: 24px 0; font-size: max(26px, 13PX); line-height: 1.5; background: transparent; }
+.account-order-mark { width: 64px; height: 64px; display: flex; justify-content: center; align-items: center; border: 2px solid var(--color-brand); color: var(--color-brand); border-radius: var(--radius-md); font-size: max(30px, 15PX); }
+.account-service-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding-top: 16px; }
+.account-service-grid button { font-size: max(24px, 12PX); white-space: nowrap; }
+.account-service-mark { display: flex; align-items: center; justify-content: center; width: 72px; height: 72px; border-radius: var(--radius-lg); background: var(--color-brand-soft); color: var(--color-brand); font-size: max(24px, 12PX); font-weight: 600; }
+.account-support { display: flex; align-items: center; justify-content: space-between; text-align: left; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 24px; margin: 0; font-size: max(28px, 14PX); line-height: 1.5; }
+.account-heading button, .account-section button { width: auto; flex-shrink: 0; }
+.account-heading > text, .account-section > text { white-space: nowrap; }
+.account-avatar .commerce-image { width: 100%; height: 100%; }
+.account-order-grid button, .account-service-grid button { width: 100%; }
+
+.account-page button { min-height: 44PX; }

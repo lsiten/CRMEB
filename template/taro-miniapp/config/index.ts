@@ -27,6 +27,21 @@ const config: UserConfigExport = {
   },
   plugins: ['@tarojs/plugin-framework-react', '@tarojs/plugin-platform-weapp', '@tarojs/plugin-platform-h5'],
   h5: {
+    webpackChain(chain) {
+      chain.optimization.splitChunks({
+        chunks: 'all',
+        cacheGroups: {
+          commerce: {
+            test: /[\\/]src[\\/](services|components)[\\/]/,
+            name: 'commerce-common',
+            minChunks: 2,
+            minSize: 0,
+            priority: 30,
+            reuseExistingChunk: true,
+          },
+        },
+      });
+    },
     publicPath: '/',
     staticDirectory: 'static',
     router: { mode: 'hash' },

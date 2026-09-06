@@ -40,3 +40,20 @@ export function updateCartQuantity(id: number, quantity: number, spec = '默认�
 export function removeFromCart(id: number, spec = '默认规格'): readonly CartItem[] {
   return updateCartQuantity(id, 0, spec);
 }
+
+export function cartItemKey(item: Pick<CartItem, 'id' | 'spec'>): string {
+  return JSON.stringify([item.id, item.spec ?? '默认规格']);
+}
+
+export function readCheckoutItems(selection?: string): readonly CartItem[] {
+  const items = readCart();
+  if (selection === undefined) return items;
+  try {
+    const keys: unknown = JSON.parse(selection.startsWith('%') ? decodeURIComponent(selection) : selection);
+    if (!Array.isArray(keys) || !keys.every((key: unknown) => typeof key === 'string')) return [];
+    return items.filter((item) => keys.includes(cartItemKey(item)) && item.stock !== 0);
+  } catch (error) {
+    if (error instanceof SyntaxError || error instanceof URIError) return [];
+    throw error;
+  }
+}

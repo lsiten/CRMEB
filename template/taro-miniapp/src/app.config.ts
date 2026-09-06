@@ -13,10 +13,10 @@ export default defineAppConfig({
   tabBar: {
     color: '#666666', selectedColor: '#e93323', backgroundColor: '#ffffff', borderStyle: 'black',
     list: [
-      { pagePath: 'pages/index/index', text: '首页' },
-      { pagePath: 'pages/goods/index', text: '商品' },
-      { pagePath: 'pages/cart/index', text: '购物车' },
-      { pagePath: 'pages/user/index', text: '我的' },
+      { iconPath: 'assets/tabbar/1-001.png', selectedIconPath: 'assets/tabbar/1-002.png', pagePath: 'pages/index/index', text: '首页' },
+      { iconPath: 'assets/tabbar/2-001.png', selectedIconPath: 'assets/tabbar/2-002.png', pagePath: 'pages/goods/index', text: '分类' },
+      { iconPath: 'assets/tabbar/3-001.png', selectedIconPath: 'assets/tabbar/3-002.png', pagePath: 'pages/cart/index', text: '购物车' },
+      { iconPath: 'assets/tabbar/4-001.png', selectedIconPath: 'assets/tabbar/4-002.png', pagePath: 'pages/user/index', text: '我的' },
     ],
   },
 });
