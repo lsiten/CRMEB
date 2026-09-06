@@ -21,11 +21,24 @@ export default function GoodsPage() {
   const [failed, setFailed] = useState(false);
   const [categoryFailed, setCategoryFailed] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [pendingCategory, setPendingCategory] = useState(0);
   const current = categories.find((item) => item.id === categoryId);
   useDidShow(() => {
+    const category = Taro.getStorageSync<number>('crmeb_diy_category');
+    if (Number.isSafeInteger(category) && category > 0) {
+      setPendingCategory(category); setKeyword(''); setSearch(''); setPage(1);
+      Taro.removeStorageSync('crmeb_diy_category');
+    }
     const pending = Taro.getStorageSync<string>('crmeb_search_keyword');
     if (pending) { setKeyword(pending); setSearch(pending); setPage(1); Taro.removeStorageSync('crmeb_search_keyword'); }
   });
+  useEffect(() => {
+    if (!pendingCategory || !categories.length) return;
+    const parent = categories.find((entry) => entry.id === pendingCategory || entry.children.some((child) => child.id === pendingCategory));
+    if (parent) { setCategoryId(parent.id); setChildId(parent.id === pendingCategory ? 0 : pendingCategory); }
+    else { setCategoryId(0); setChildId(0); void Taro.showToast({ title: '该分类已下架', icon: 'none' }); }
+    setPendingCategory(0);
+  }, [categories, pendingCategory]);
   useEffect(() => {
     let active = true;
     setCategoryFailed(false);
