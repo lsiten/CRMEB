@@ -28,20 +28,17 @@ const timestampOf = (item: DiyItem): number => typeof item.timestamp === 'number
 export function normalizeDiyPage(payload: unknown): DiyPage {
   const root = record(payload);
   const data = record(root['data']);
-  // v2 returns `{ code, data: { title, value: {...} } }`; older deployments
-  // return `{ title, value: {...} }` directly. Unwrap either envelope first.
-  const page = Object.keys(data).length > 0 ? data : root;
-  const source = page['value'] ?? page['data'] ?? payload;
+  const source = root['value'] ?? data['value'] ?? root['data'] ?? payload;
   const sourceRecord = record(source);
   const values = Array.isArray(source) ? source : typeof sourceRecord['name'] === 'string' ? [sourceRecord] : Object.values(sourceRecord);
   const items = values.map(record).filter((item): item is DiyItem => typeof item['name'] === 'string' && item['name'].length > 0 && item['isHide'] !== true);
   const hasTimestamp = items.some((item) => timestampOf(item) !== Number.POSITIVE_INFINITY);
   const orderedItems = hasTimestamp ? [...items].sort((a, b) => timestampOf(a) - timestampOf(b)) : items;
-  const background = { ...root, ...page, ...(record(page['background'])) };
+  const background = { ...data, ...(record(data['background'])), ...root, ...(record(root['background'])) };
   return {
-    title: typeof page['title'] === 'string' ? page['title'] : typeof page['name'] === 'string' ? page['name'] : '',
-    version: String(page['version'] ?? root['version'] ?? ''),
-    schema_version: typeof page['schema_version'] === 'number' ? page['schema_version'] : typeof root['schema_version'] === 'number' ? root['schema_version'] : 1,
+    title: typeof data['title'] === 'string' ? data['title'] : typeof data['name'] === 'string' ? data['name'] : typeof root['title'] === 'string' ? root['title'] : '',
+    version: String(data['version'] ?? root['version'] ?? ''),
+    schema_version: typeof data['schema_version'] === 'number' ? data['schema_version'] : typeof root['schema_version'] === 'number' ? root['schema_version'] : 1,
     background,
     items: orderedItems,
     raw: payload,
