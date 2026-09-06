@@ -37,3 +37,13 @@ Visual QA is limited to static typecheck/build in this template because no brows
 ## 8. Handoff
 
 Import primitives from `src/components`; keep page-specific styles local and use the global token variables for new values.
+
+## 9. 分类、购物车、我的（LSIT-64）
+
+附件是首页及三个底部入口的范围标注，不是三个内页的逐像素稿。延续红白商城风格：分类采用左侧真实分类导航与右侧商品卡片；购物车采用商品卡片、明确选择状态和底部结算栏；个人中心采用浅红身份区、订单入口与服务网格。禁止虚构余额、订单数量或营销权益。
+
+复用 OptimizedImage、Empty 与原生 Button；新增样式限定在页面 class 内，避免 title、empty 等全局选择器互相覆盖。页面内容桌面最大宽度 750PX，手机保持双栏分类结构；操作按钮至少 88px（750 设计稿单位），金额和短标签不换行。购物车底部操作区预留原生 tabBar 与安全区空间。
+
+状态覆盖：分类加载/失败重试/空结果/搜索提交/子分类切换；购物车空态/全选/部分选中/数量边界/确认删除/选中项结算；个人中心游客/已登录/资料加载失败/绑定手机号。登录和支付沿用现有平台能力，H5 不虚构授权成功。验证以 H5 实际渲染和两端构建为准，小程序真机授权仍需微信环境。
+
+H5 使用至少 12PX 的辅助文字、14PX 的正文和 18PX 的标题；操作最小高度 44PX，避免 Taro pxtransform 在手机上缩小点击区域。底部使用仓库原有四组 PNG 导航图标。CommerceImage 为三个内页提供加载失败占位，不替换后端真实商品图。H5 通过 commerce-common 共享跨页服务与组件，保留原包体预算不放宽。
