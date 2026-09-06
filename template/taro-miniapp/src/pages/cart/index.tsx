@@ -5,6 +5,7 @@ import { CommerceImage } from '../../components/commerce-image';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { cartItemKey, cartTotal, readCart, updateCartQuantity } from '../../services/cart';
 import type { CartItem } from '../../services/cart';
+import { requireLogin } from '../../services/auth-flow';
 import './index.scss';
 
 export default function CartPage() {
@@ -20,6 +21,7 @@ export default function CartPage() {
   const allSelected = available.length > 0 && selectedItems.length === available.length;
   const count = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
   const changeQuantity = (item: CartItem, quantity: number) => setItems(updateCartQuantity(item.id, quantity, item.spec));
+  const checkoutUrl = `/pages/order/confirm?selection=${encodeURIComponent(JSON.stringify(selectedItems.map(cartItemKey)))}`;
   const remove = async (item: CartItem): Promise<void> => {
     const result = await Taro.showModal({ title: '删除商品', content: `确定将“${item.name}”移出购物车吗？`, confirmText: '删除' });
     if (result.confirm) {
@@ -49,7 +51,7 @@ export default function CartPage() {
       <View className='cart-checkout'>
         <Button className='cart-select-all' {...(!available.length ? { disabled: true } : {})} onClick={() => setSelected(allSelected ? [] : available.map(cartItemKey))}><Text className={allSelected ? 'cart-selected' : ''}>{allSelected ? '✓' : '○'}</Text> 全选</Button>
         <View className='cart-summary'><Text>合计 <Text className='cart-price'>¥{cartTotal(selectedItems).toFixed(2)}</Text></Text><Text className='cart-caption'>运费以结算页为准</Text></View>
-        <Button className='cart-submit' {...(count === 0 ? { disabled: true } : {})} onClick={() => void Taro.navigateTo({ url: `/pages/order/confirm?selection=${encodeURIComponent(JSON.stringify(selectedItems.map(cartItemKey)))}` })}>去结算 ({count})</Button>
+        <Button className='cart-submit' {...(count === 0 ? { disabled: true } : {})} onClick={() => { if (requireLogin(checkoutUrl)) void Taro.navigateTo({ url: checkoutUrl }); }}>去结算 ({count})</Button>
       </View>
     </>}
   </View>;

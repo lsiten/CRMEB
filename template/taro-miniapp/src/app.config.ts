@@ -7,7 +7,8 @@ export default defineAppConfig({
     { root: 'pages/integral', pages: ['index', 'detail', 'confirm', 'orders', 'order-detail', 'logistics', 'records'] },
     { root: 'pages/marketing', pages: ['index', 'detail'] },
     { root: 'pages/news', pages: ['index'] },
-    { root: 'pages-extra', pages: ['news-detail/index', 'assets/index', 'distribution/index', 'coupon/index', 'favorites/index', 'reviews/index', 'store/index', 'address/index', 'messages/index', 'customer/index'] },
+    { root: 'pages/account', pages: ['login', 'reset', 'profile', 'phone', 'agreement', 'cancellation', 'address-editor'] },
+    { root: 'pages-extra', pages: ['news-detail/index', 'assets/index', 'distribution/index', 'coupon/index', 'favorites/index', 'reviews/index', 'store/index', 'address/index', 'login/index', 'messages/index', 'customer/index'] },
   ],
   window: { navigationBarTitleText: 'CRMEB商城', navigationBarBackgroundColor: '#ffffff', navigationBarTextStyle: 'black' },
   tabBar: {

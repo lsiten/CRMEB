@@ -5,6 +5,7 @@ import { CommerceImage } from '../../components/commerce-image';
 import { ApiError, getToken } from '../../services/api';
 import { bindWechatPhone, getUserProfile, loginByWechat } from '../../services/account';
 import type { UserProfile } from '../../services/account';
+import { loginUrl, requireLogin } from '../../services/auth-flow';
 import './index.scss';
 
 const maskPhone = (phone: string): string => phone.length >= 7 ? `${phone.slice(0, 3)}****${phone.slice(-4)}` : phone;
@@ -35,6 +36,7 @@ export default function UserPage() {
   useDidShow(() => { void refresh(); });
   const login = async (): Promise<void> => {
     if (loading) return;
+    if (process.env.TARO_ENV === 'h5') { await Taro.navigateTo({ url: loginUrl('/pages/user/index') }); return; }
     setLoading(true);
     try {
       const user = await loginByWechat();
@@ -51,10 +53,13 @@ export default function UserPage() {
     catch (error) { await Taro.showToast({ title: error instanceof ApiError ? error.message : '绑定失败', icon: 'none' }); }
     finally { setLoading(false); }
   };
-  const navigate = (url: string) => { void Taro.navigateTo({ url }); };
+  const navigate = (url: string, protectedRoute = true) => {
+    if (protectedRoute && !requireLogin(url)) return;
+    void Taro.navigateTo({ url });
+  };
   return <View className='page account-page'>
     <View className='account-heading'><Text>我的</Text><Button onClick={() => navigate('/pages-extra/messages/index')}>消息 ›</Button></View>
-    <View className='account-profile'>
+    <View className='account-profile' onClick={() => profile && navigate('/pages/account/profile')}>
       <View className='account-avatar'>{profile?.avatar ? <CommerceImage src={profile.avatar} mode='aspectFill' /> : <Text>{profile?.nickname.slice(0, 1) ?? '访客'}</Text>}</View>
       <View className='account-identity'><Text className='account-name'>{profile?.nickname ?? '欢迎来到 CRMEB'}</Text><Text className='account-hint'>{profile ? (profile.phone ? maskPhone(profile.phone) : '微信用户') : '登录后查看订单与专属权益'}</Text></View>
     </View>
@@ -72,6 +77,7 @@ export default function UserPage() {
     <View className='card account-services'><View className='account-section'><Text>我的服务</Text><Text className='account-hint'>{profile ? `${profile.integral ?? 0} 积分` : '便捷管理，轻松购物'}</Text></View>
       <View className='account-service-grid'>{services.map((item) => <Button key={item.name} onClick={() => navigate(item.url)}><Text className='account-service-mark'>{item.mark}</Text><Text>{item.name}</Text></Button>)}</View>
     </View>
-    <Button className='account-support' onClick={() => navigate('/pages-extra/customer/index')}><View><Text>联系客服</Text><Text className='account-hint'>购物遇到问题？我们来帮你</Text></View><Text>›</Text></Button>
+    {profile && <Button className='account-retry' onClick={() => navigate('/pages/account/profile')}>编辑个人资料</Button>}
+    <Button className='account-support' onClick={() => navigate('/pages-extra/customer/index', false)}><View><Text>联系客服</Text><Text className='account-hint'>购物遇到问题？我们来帮你</Text></View><Text>›</Text></Button>
   </View>;
 }
