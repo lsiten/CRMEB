@@ -4,3 +4,4 @@ page { background: var(--color-page); color: var(--color-text); }
 .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 20px; }
 .primary { color: var(--color-brand); }
 @media (max-width: 640px) { .page { padding: var(--space-3); } }
+@media (min-width: 641px) { .taro-tabbar__tabbar { width: min(100%, 750PX); margin: 0 auto; } }

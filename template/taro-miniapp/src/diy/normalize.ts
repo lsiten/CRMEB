@@ -9,14 +9,27 @@ const configuredImageHosts = (process.env.TARO_IMAGE_HOSTS ?? '')
   .map((host) => host.trim().toLowerCase())
   .filter((host) => host.length > 0);
 
-/** Return only HTTPS images hosted on an explicitly allowed domain. */
+const apiBaseUrl = process.env.TARO_API_BASE_URL ?? 'http://127.0.0.1:8080/api';
+const configuredAssetBase = process.env.TARO_IMAGE_CDN || process.env.TARO_IMAGE_HOST || apiBaseUrl;
+const assetOrigin = (() => {
+  try {
+    return new URL(configuredAssetBase).origin;
+  } catch {
+    return '';
+  }
+})();
+
+/** Keep theme assets on the current deployment while allowing explicit remote hosts. */
 export function sanitizeDiyImageUrl(value: unknown): string {
   if (typeof value !== 'string' || value.trim().length === 0) return '';
+  const source = value.trim();
+  if (/^data:image\/(?:png|jpe?g|gif|webp);base64,/i.test(source)) return source;
   try {
-    const url = new URL(value.trim());
-    if (url.protocol !== 'https:') return '';
+    const url = new URL(source, assetOrigin || undefined);
+    if (assetOrigin && url.pathname.startsWith('/uploads/')) return new URL(`${url.pathname}${url.search}${url.hash}`, assetOrigin).toString();
+    if (url.protocol !== 'https:' && url.origin !== assetOrigin) return '';
     const hostname = url.hostname.toLowerCase();
-    return configuredImageHosts.includes(hostname) ? url.toString() : '';
+    return url.origin === assetOrigin || configuredImageHosts.includes(hostname) ? url.toString() : '';
   } catch {
     return '';
   }
