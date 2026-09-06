@@ -1,6 +1,7 @@
 FROM php:7.4-fpm-bullseye
 
-RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list \
+RUN sed -i -e 's|http://deb.debian.org|https://deb.debian.org|g' \
+           -e 's|deb.debian.org/debian-security|security.debian.org/debian-security|g' /etc/apt/sources.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends nginx supervisor curl \
        libfreetype6-dev libjpeg62-turbo-dev libpng-dev libzip-dev libonig-dev libxml2-dev \
