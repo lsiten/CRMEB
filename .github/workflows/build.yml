@@ -2,7 +2,7 @@ name: Build and publish Docker
 
 on:
   push:
-    branches: [master]
+    tags: ['*']
   pull_request:
     branches: [master]
   workflow_dispatch:
@@ -77,20 +77,20 @@ jobs:
           IMAGE: ghcr.io/lsiten/crmeb:sha-${{ github.sha }}-${{ matrix.arch }}
         run: bash docker/smoke-test.sh "$IMAGE"
       - uses: docker/login-action@v3
-        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        if: startsWith(github.ref, 'refs/tags/') && github.event_name != 'pull_request'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push tested image
-        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        if: startsWith(github.ref, 'refs/tags/') && github.event_name != 'pull_request'
         env:
           IMAGE: ghcr.io/lsiten/crmeb:sha-${{ github.sha }}-${{ matrix.arch }}
         run: docker push "$IMAGE"
 
   publish:
     needs: image
-    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    if: startsWith(github.ref, 'refs/tags/') && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -103,12 +103,22 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish multi-platform latest and commit tags
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/lsiten/crmeb
+          tags: |
+            type=ref,event=tag
+            type=raw,value=sha-${{ github.sha }}
+            type=raw,value=latest
+      - name: Publish multi-platform version, latest and commit tags
         env:
           IMAGE: ghcr.io/lsiten/crmeb
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          docker buildx imagetools create \
-            --tag "$IMAGE:sha-$GITHUB_SHA" --tag "$IMAGE:latest" \
+          args=()
+          while IFS= read -r tag; do args+=(--tag "$tag"); done <<< "$IMAGE_TAGS"
+          docker buildx imagetools create "${args[@]}" \
             "$IMAGE:sha-$GITHUB_SHA-amd64" "$IMAGE:sha-$GITHUB_SHA-arm64"
           docker buildx imagetools inspect "$IMAGE:latest"
           printf 'Image: `%s:latest`\n\nCommit: `%s`\n' "$IMAGE" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"

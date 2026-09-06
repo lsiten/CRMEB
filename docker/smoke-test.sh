@@ -18,7 +18,8 @@ for attempt in $(seq 1 30); do
 done
 curl --fail --silent http://127.0.0.1:18080/healthz
 curl --fail --silent http://127.0.0.1:18080/admin/ >/dev/null
-curl --fail --silent http://127.0.0.1:18080/install/index.php | grep -q CRMEB
+curl --fail --silent http://127.0.0.1:18080/install/index.php -o /tmp/crmeb-install.html
+grep -q CRMEB /tmp/crmeb-install.html
 docker exec "$container" sh -ec '
   test -L .env && test -L .constant && test -L public/install.lock
   test ! -e public/install.lock

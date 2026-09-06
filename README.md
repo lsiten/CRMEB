@@ -93,18 +93,19 @@ CRMEB开源商城系统代码100%开源，基于 **Apache-2.0协议** 免费商�
 
 ---
 
-### docker一键体验
-```
-# 拉取并运行CRMEB Docker镜像
-docker run -d --name crmeb -p 8080:80 ccr.ccs.tencentyun.com/crmebky_php/crmebky:latest
+### Docker 部署本项目
+
+使用本仓库 GitHub Actions 发布的 `ghcr.io/lsiten/crmeb:latest`，包含最新成功发布的版本 Tag 源码与管理后台。每次推送新 Tag 自动构建 amd64/arm64 镜像，不构建 H5 或小程序。
+
+使用 [docker/compose.yml](docker/compose.yml)，配置数据库密码后执行：
+
+```sh
+docker compose pull
+docker compose up -d
 ```
 
-#### 访问服务
-- **网站**: http://localhost:8080 
-- **后台**: http://localhost:8080/admin （账号: admin，密码: crmeb.com）
-- **MySQL**: localhost:3306（账号: root，密码: 123456）
-- **Redis**: localhost:6379
-> 详细说明点击查看 [帮助文档](/help/docker/docker.md)。
+默认访问端口为 8011，首次启动通过安装向导设置管理员。升级和回滚详见 [Docker 部署说明](help/dev-docs/github-actions-build.md)。
+
 ---
 
 ### 🫧 技术特点

@@ -1,19 +1,31 @@
 # 本仓库 Docker 构建与部署
 
-使用镜像 `ghcr.io/lsiten/crmeb:latest`，由本仓库 `master` 的最新成功构建生成。不要继续用 `ccr.ccs.tencentyun.com/.../crmebky` 上游应用镜像，它不包含本仓库的定制源码。
+使用镜像 `ghcr.io/lsiten/crmeb:latest`，由本仓库最新成功构建的版本 Tag 源码生成。不要继续用 `ccr.ccs.tencentyun.com/.../crmebky` 上游应用镜像，它不包含本仓库的定制源码。
 
 ## 自动构建
 
-`.github/workflows/build.yml` 在推送 `master` 后构建管理后台，并将本次后台产物、当前提交的 PHP 源码和仓库内 `vendor/` 放进镜像。**不构建 H5 或小程序**，保留仓库中已有移动端静态资源。
+`.github/workflows/build.yml` 在推送任意 Git Tag 后构建管理后台，并将本次后台产物、当前提交的 PHP 源码和仓库内 `vendor/` 放进镜像。**不构建 H5 或小程序**，保留仓库中已有移动端静态资源。
 
 镜像包含 PHP 7.4、Nginx、队列、定时任务和 Workerman；MySQL 和 Redis 由 Compose 独立运行。项目入口明确不支持 PHP 8，因此暂时沿用 PHP 7.4。管理后台使用 Node.js 22.19.0、pnpm 11.22.0 与冻结锁文件构建，默认同站 API，可通过 Actions Variable `VUE_APP_API_URL` 调整公开 API 地址。
 
 amd64 和 arm64 分别在原生 runner 构建，启动冒烟检查通过后发布：
 
-- `latest`：主分支最新成功构建的双架构镜像。
+- `<版本 Tag>`：与 Git Tag 对应的镜像版本，例如 `docker-20260906-1`；不符合 Docker 标签格式的字符由 metadata-action 规范化。
+- `latest`：最近成功发布的版本 Tag 的双架构镜像。
 - `sha-<完整提交 SHA>`：固定源码版本，用于可追溯部署和回滚。
 
-PR 只验证构建，不发布镜像。Actions 页面也可选择 `master` 手动运行。构建失败时 `latest` 保留上次成功版本，应先检查 Actions 结果。
+普通分支推送不触发发布，PR 只验证构建。Actions 页面手动选择一个 Tag 时可以重新构建该版本，选择分支时只验证、不发布。构建失败时 `latest` 保留上次成功版本，应先检查 Actions 结果。
+
+## 触发新版本
+
+先将需要发布的最新源码提交并推送，再创建版本 Tag：
+
+```sh
+git tag docker-20260906-1
+git push origin docker-20260906-1
+```
+
+后续发布请替换为新的版本号。构建检出 Tag 指向的准确提交，不会混入后续分支改动；已有 Tag 不应移动。
 
 ## 在其他服务器部署
 
@@ -41,7 +53,7 @@ docker compose up -d
 
 ## 获取最新源码对应镜像
 
-等待主分支 Actions 成功后，在既有部署目录执行：
+等待目标版本 Tag 的 Actions 成功后，在既有部署目录执行：
 
 ```sh
 docker compose pull app
