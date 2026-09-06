@@ -6,6 +6,7 @@ vi.mock('@tarojs/components', () => ({
   Image: 'image', Swiper: 'swiper', SwiperItem: 'swiper-item', Text: 'span', View: 'div',
 }));
 vi.mock('../src/services/api', () => ({ request: requestMock }));
+vi.mock('@tarojs/taro', () => ({ default: { switchTab: vi.fn(), showToast: vi.fn() } }));
 import { normalizeDiyPage, splitDiyRegions } from '../src/diy/normalize';
 import { getDiyRegistration } from '../src/diy/registry';
 import { getDiyPage } from '../src/services/diy';

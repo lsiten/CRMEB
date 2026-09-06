@@ -1,9 +1,19 @@
 import { Image, RichText, Swiper, SwiperItem, Text, View } from '@tarojs/components';
+import Taro from '@tarojs/taro';
 import type { CSSProperties } from 'react';
 import type { DiyItem } from './normalize';
 import { arrayValue, colorValue, configList, imageValue, nestedText, nestedValue, numberValue, recordValue, textValue } from './render-values';
 
 export type DiyRendererProps = Readonly<{ item: DiyItem }>;
+
+const footerRoutes: Readonly<Record<string, string>> = {
+  '/pages/index/index': '/pages/index/index',
+  '/pages/goods_cate/goods_cate': '/pages/goods/index',
+  '/pages/goods/index': '/pages/goods/index',
+  '/pages/order_addcart/order_addcart': '/pages/cart/index',
+  '/pages/cart/index': '/pages/cart/index',
+  '/pages/user/index': '/pages/user/index',
+};
 
 const SearchBar = ({ item }: DiyRendererProps) => {
   const logo = imageValue(nestedValue(item, 'logoConfig'));
@@ -73,6 +83,12 @@ export const PageFooter = ({ item }: DiyRendererProps) => {
     const images = arrayValue(row['imgList']);
     const src = imageValue(images[index === 0 ? 0 : 1] ?? images[0]);
     const label = textValue(entry, 'name', 'title');
-    return <View className='diy-footer__item' key={`${label}-${index}`}>{src && <Image className='diy-footer__icon' mode='aspectFit' src={src} />}<Text className={`diy-footer__label${index === 0 ? ' is-active' : ''}`} style={{ color: index === 0 ? activeColor : textColor }}>{label}</Text></View>;
+    const navigate = async (): Promise<void> => {
+      const link = textValue(entry, 'link').trim();
+      const url = Object.prototype.hasOwnProperty.call(footerRoutes, link) ? footerRoutes[link] : undefined;
+      if (!url) { await Taro.showToast({ title: '该导航暂不支持', icon: 'none' }); return; }
+      await Taro.switchTab({ url }).catch(() => Taro.showToast({ title: '页面跳转失败，请重试', icon: 'none' }));
+    };
+    return <View className='diy-footer__item' key={`${label}-${index}`} onClick={navigate}>{src && <Image className='diy-footer__icon' mode='aspectFit' src={src} />}<Text className={`diy-footer__label${index === 0 ? ' is-active' : ''}`} style={{ color: index === 0 ? activeColor : textColor }}>{label}</Text></View>;
   })}</View>;
 };

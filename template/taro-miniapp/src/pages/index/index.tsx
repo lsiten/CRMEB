@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Button } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useDidHide, useDidShow } from '@tarojs/taro';
 import { Empty, Loading } from '../../components';
 import { getDiyPage } from '../../services/diy';
 import { sanitizeDiyImageUrl, splitDiyRegions, type DiyPage } from '../../diy/normalize';
@@ -15,6 +15,8 @@ const IndexPage = () => {
   useEffect(load, []);
   const regions = splitDiyRegions(page.items);
   const customFooterVisible = regions.bottom.some((item) => numberValue(nestedValue(item, 'effectConfig', 'tabVal')) === 1);
+  useDidShow(() => { void (customFooterVisible ? Taro.hideTabBar() : Taro.showTabBar()); });
+  useDidHide(() => { void Taro.showTabBar(); });
   useEffect(() => {
     if (customFooterVisible) void Taro.hideTabBar();
     else void Taro.showTabBar();
