@@ -19,9 +19,9 @@ export type TelemetryEvent = Readonly<{
   properties?: Readonly<Record<string, string | number | boolean>>;
 }>;
 
-const apiBaseUrl = (process.env['TARO_API_BASE_URL'] ?? '').replace(/\/$/, '');
-const configuredEndpoint = process.env['TARO_TELEMETRY_URL'];
-const endpoint = (configuredEndpoint ?? (apiBaseUrl ? `${apiBaseUrl}/monitoring/events` : '')).replace(/\/$/, '');
+const apiBaseUrl = (process.env.TARO_API_BASE_URL ?? '').replace(/\/$/, '');
+const configuredEndpoint = process.env.TARO_TELEMETRY_URL;
+const endpoint = (configuredEndpoint || (apiBaseUrl ? `${apiBaseUrl}/monitoring/events` : '')).replace(/\/$/, '');
 const tokenKey = 'crmeb_token';
 const queue: TelemetryEvent[] = [];
 const MAX_QUEUE_SIZE = 200;

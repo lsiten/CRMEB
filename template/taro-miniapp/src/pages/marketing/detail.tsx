@@ -30,7 +30,7 @@ const DetailPage = () => {
     const update = () => setRemaining(Math.max(0, new Date(item.endsAt as string).getTime() - Date.now()));
     update(); const timer = setInterval(update, 1000); return () => clearInterval(timer);
   }, [item?.endsAt]);
-  if (process.env['TARO_ENV'] !== 'h5') Taro.useShareAppMessage(() => ({ title: item?.title ?? '营销活动', path: buildSharePath('/pages/marketing/detail', { kind, id: String(id) }) }));
+  if (process.env.TARO_ENV !== 'h5') Taro.useShareAppMessage(() => ({ title: item?.title ?? '营销活动', path: buildSharePath('/pages/marketing/detail', { kind, id: String(id) }) }));
   if (failed) return <View className='page card'><Text>活动已结束或不存在</Text></View>;
   if (!item) return <View className='page card'><Loading label='正在加载活动详情' /></View>;
   const available = item.stock === undefined || item.stock > 0;

@@ -6,7 +6,7 @@ export type Coupon = Readonly<{ id: number; title: string; amount: number; minPr
 export type PromotionInfo = Readonly<{ enabled: boolean; uid?: number; commission: number; peopleCount: number; qrcode?: string; poster?: string }>;
 
 type Envelope<T> = Readonly<{ data?: T; list?: T }>;
-const imageCdn = (process.env['TARO_IMAGE_CDN'] ?? process.env['TARO_IMAGE_HOST'] ?? '').replace(/\/$/, '');
+const imageCdn = (process.env.TARO_IMAGE_CDN || process.env.TARO_IMAGE_HOST || '').replace(/\/$/, '');
 
 /** Rewrites relative/absolute assets to the configured CDN without changing query parameters. */
 export function resolveImageUrl(value: string | undefined): string {

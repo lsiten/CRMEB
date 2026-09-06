@@ -11,6 +11,9 @@ const config: UserConfigExport = {
   compiler: 'webpack5',
   env: {
     TARO_API_BASE_URL: JSON.stringify(process.env['TARO_API_BASE_URL'] ?? 'http://127.0.0.1:8080/api'),
+    TARO_TELEMETRY_URL: JSON.stringify(process.env['TARO_TELEMETRY_URL'] ?? ''),
+    TARO_IMAGE_CDN: JSON.stringify(process.env['TARO_IMAGE_CDN'] ?? ''),
+    TARO_IMAGE_HOST: JSON.stringify(process.env['TARO_IMAGE_HOST'] ?? ''),
     TARO_IMAGE_HOSTS: JSON.stringify(process.env['TARO_IMAGE_HOSTS'] ?? ''),
   },
   mini: {

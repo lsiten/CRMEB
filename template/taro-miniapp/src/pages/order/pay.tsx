@@ -34,7 +34,7 @@ export default function PayPage() {
     setLoading(true);
     try {
       const result = await requestPayment({ orderId, method: 'wechat' });
-      if (process.env['TARO_ENV'] === 'h5') {
+      if (process.env.TARO_ENV === 'h5') {
         setStatus('failed');
         await Taro.showToast({ title: result.payParams ? '请在服务端配置 H5 支付跳转' : 'H5 暂不支持微信支付', icon: 'none' });
         return;
@@ -43,7 +43,7 @@ export default function PayPage() {
       if (paymentParams) await Taro.requestPayment(paymentParams);
       await refreshStatus();
     } catch {
-      track('payment_failed', { properties: { method: 'wechat', phase: 'requestPayment', platform: process.env['TARO_ENV'] ?? 'unknown' } });
+      track('payment_failed', { properties: { method: 'wechat', phase: 'requestPayment', platform: process.env.TARO_ENV ?? 'unknown' } });
       setStatus('failed');
     } finally {
       setLoading(false);
