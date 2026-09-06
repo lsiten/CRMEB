@@ -21,7 +21,7 @@ const imageValue = (value: unknown): string => {
   return sanitizeDiyImageUrl(value);
 };
 const listValue = (item: DiyItem): readonly unknown[] => {
-  const value = item['list'] ?? item['data'] ?? item['value'] ?? item['goods'] ?? item['menus'];
+  const value = item['list'] ?? item['data'] ?? item['value'] ?? item['goods'] ?? item['menus'] ?? item['menuList'];
   return Array.isArray(value) ? value : [];
 };
 const Placeholder = ({ item }: DiyRendererProps) => <View className='diy-placeholder'><Text>{textValue(item, 'message') || `暂不支持当前版本：${item.name}`}</Text></View>;
@@ -34,7 +34,7 @@ const RichText = ({ item }: DiyRendererProps) => <View className='diy-rich-text'
 const Media = ({ item }: DiyRendererProps) => <View className='diy-media'><Picture item={item} />{textValue(item, 'title', 'text') && <Text>{textValue(item, 'title', 'text')}</Text>}</View>;
 const allPages = ['index', 'topic', 'user', 'detail'] as const;
 const textNames = ['headerSerch', 'tabNav', 'member', 'userInfor', 'newVip', 'articleList', 'bargain', 'combination', 'coupon', 'customerService', 'guide', 'liveBroadcast', 'menus', 'news', 'titles', 'presale', 'pointsMall', 'signIn', 'follow', 'productInfo', 'home_paid_vip', 'productService', 'homeReviews', 'productDesc', 'customComponent'] as const;
-const listNames = ['goodList', 'goodRecommend', 'promotionList', 'seckill', 'pictureCube', 'homeComb'] as const;
+const listNames = ['goodList', 'goodRecommend', 'promotionList', 'seckill', 'pictureCube', 'homeComb', 'pageFoot'] as const;
 const registry: Record<string, DiyRegistration> = { swiperBg: { version: '1.0.0', pages: allPages, render: SwiperBlock }, swipers: { version: '1.0.0', pages: allPages, render: SwiperBlock }, picture: { version: '1.0.0', pages: allPages, render: Picture }, richText: { version: '1.0.0', pages: allPages, render: RichText }, videos: { version: '1.0.0', pages: allPages, render: Media }, hotspot: { version: '1.0.0', pages: allPages, render: Picture }, blankPage: { version: '1.0.0', pages: allPages, render: Blank } };
 for (const name of textNames) registry[name] = { version: '1.0.0', pages: allPages, render: TextBlock };
 for (const name of listNames) registry[name] = { version: '1.0.0', pages: allPages, render: CardList };
