@@ -1,16 +1,19 @@
-import { Image, Text, View } from '@tarojs/components';
+import { Text, Video, View } from '@tarojs/components';
 import type { ComponentType, ReactNode } from 'react';
 import type { DiyItem } from './normalize';
 import { ActivityBlock, GenericSection, ProductList, PromotionTabs, SignIn } from './commerce-renderers';
 import { HeaderSearch, HomeComb, Hotspot, MenuGrid, PageFooter, Picture, RichTextBlock, TabNav, type DiyRendererProps } from './home-renderers';
-import { imageValue, textValue } from './render-values';
+import { imageValue, nestedValue, textValue } from './render-values';
 
 export type { DiyRendererProps };
 export type DiyRegistration = Readonly<{ version: string; pages: readonly string[]; render: ComponentType<DiyRendererProps> }>;
 
 const Placeholder = ({ item }: DiyRendererProps) => <View className='diy-placeholder'><Text>{textValue(item, 'message') || `暂不支持当前版本：${item.name}`}</Text></View>;
 const Blank = () => <View className='diy-blank' />;
-const Media = ({ item }: DiyRendererProps) => <View className='diy-media'>{imageValue(item) && <Image className='diy-picture' mode='widthFix' src={imageValue(item)} />}{textValue(item, 'title', 'text') && <Text>{textValue(item, 'title', 'text')}</Text>}</View>;
+const Media = ({ item }: DiyRendererProps) => {
+  const src = imageValue(nestedValue(item, 'videoConfig'));
+  return src ? <Video className='diy-picture' src={src} controls /> : <View className='diy-media'><Text>视频尚未配置</Text></View>;
+};
 const allPages = ['index', 'topic', 'user', 'detail'] as const;
 const genericNames = ['member', 'userInfor', 'newVip', 'articleList', 'coupon', 'customerService', 'guide', 'liveBroadcast', 'news', 'titles', 'presale', 'pointsMall', 'follow', 'productInfo', 'home_paid_vip', 'productService', 'homeReviews', 'productDesc', 'customComponent'] as const;
 const registry: Record<string, DiyRegistration> = {
