@@ -3,11 +3,11 @@
 const MAX_VALUE_LENGTH = 64;
 const MAX_ID = 1_000_000_000;
 const REFERRAL_KEYS = ['spread', 'spid', 'agent_id'] as const;
-const SHARE_KEYS = ['kind', 'id', 'activity', 'activityId', 'productId', 'orderId'] as const;
+const SHARE_KEYS = ['kind', 'id', 'activity', 'activityId', 'productId', 'orderId', 'type', 'lottery_id', 'spread'] as const;
 
 type ReferralKey = (typeof REFERRAL_KEYS)[number];
 type ShareKey = (typeof SHARE_KEYS)[number];
-export type DeepLinkParams = Readonly<Partial<Record<ReferralKey, string>>>;
+export type DeepLinkParams = Readonly<Partial<Record<ReferralKey | 'code', string>>>;
 export type DeepLinkInput = Readonly<{ scene?: unknown; query?: unknown }>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -26,15 +26,15 @@ function valueFromInput(input: unknown): string {
 
 function isSafeIdentifier(value: string): boolean {
   const number = Number(value);
-  return /^\d+$/.test(value) && Number.isSafeInteger(number) && number > 0 && number <= MAX_ID;
+  return value.length <= MAX_VALUE_LENGTH && /^\d+$/.test(value) && Number.isSafeInteger(number) && number > 0 && number <= MAX_ID;
 }
 
 /** Parse only referral identifiers from untrusted scene/query values. */
 export function parseDeepLink(input: DeepLinkInput): DeepLinkParams {
-  const output: Partial<Record<ReferralKey, string>> = {};
+  const output: Partial<Record<ReferralKey | 'code', string>> = {};
   const query = new URLSearchParams();
   if (typeof input.query === 'string') {
-    for (const [key, value] of new URLSearchParams(valueFromInput(input.query))) query.set(key, value);
+    new URLSearchParams(valueFromInput(input.query)).forEach((value, key) => query.set(key, value));
   }
   if (isRecord(input.query)) {
     for (const key of REFERRAL_KEYS) {
@@ -53,13 +53,35 @@ export function parseDeepLink(input: DeepLinkInput): DeepLinkParams {
     const value = query.get(key);
     if (value !== null && value.length <= MAX_VALUE_LENGTH && isSafeIdentifier(value)) output[key] = value;
   }
+  if (typeof input.scene === 'number' && isRecord(input.query)) {
+    const scene = valueFromInput(input.query['scene']);
+    const pid = new URLSearchParams(scene).get('pid');
+    if (pid !== null && isSafeIdentifier(pid)) {
+      output.spread = pid;
+      delete output.spid;
+    } else if (isSafeIdentifier(scene)) {
+      switch (input.scene) {
+        case 1047: case 1048: case 1049: output.code = scene; break;
+        case 1001: output.spid = scene; break;
+        default: break;
+      }
+    }
+  }
   return output;
+}
+
+/** QR record ids are persisted separately; ordinary URL code parameters are not referrals. */
+export function parseStoredReferral(value: unknown): DeepLinkParams {
+  const referral = parseDeepLink({ query: value });
+  const code = isRecord(value) ? value['code'] : undefined;
+  return { ...referral, ...(typeof code === 'string' && isSafeIdentifier(code) ? { code } : {}) };
 }
 
 /** Build a share route with encoded business identifiers only. */
 function isSafeShareValue(key: ShareKey, value: string): boolean {
   if (value.length === 0 || value.length > MAX_VALUE_LENGTH) return false;
   if (key === 'kind' || key === 'activity') return /^[a-z][a-z-]{0,31}$/.test(value);
+  if (key === 'type') return /^[1-5]$/.test(value);
   return isSafeIdentifier(value);
 }
 

@@ -2,3 +2,30 @@
   padding-right: var(--page-gutter);
   padding-left: var(--page-gutter);
 }
+.order-confirm-page {
+  font-size: 28rpx;
+  padding-bottom: calc(192rpx + env(safe-area-inset-bottom));
+  .checkout-title { display: block; font-size: 40rpx; font-weight: 600; margin-bottom: var(--space-3); }
+  .checkout-product { display: flex; gap: var(--space-3); padding: var(--space-2) 0; }
+  .checkout-product-info { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: var(--space-2); }
+  .checkout-image { width: 144rpx; height: 144rpx; flex: none; border-radius: var(--radius-sm); }
+  .checkout-muted { display: block; color: var(--color-text-muted); font-size: 24rpx; margin: var(--space-2) 0; }
+  .checkout-error { color: var(--color-brand); }
+  .checkout-input { display: block; width: 100%; min-height: 88rpx; margin: var(--space-2) 0; padding: var(--space-2); box-sizing: border-box; background: var(--color-page); border-radius: var(--radius-sm); }
+  .checkout-option { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); text-align: left; margin: 0 0 var(--space-2); }
+  .checkout-options { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 0; }
+  .order-address { flex-direction: column; align-items: stretch; }
+  .primaryButton[disabled='false'] { color: var(--color-surface); }
+  button { min-height: 88rpx; font-size: 28rpx; white-space: normal; line-height: 1.5; display: flex; align-items: center; justify-content: center; padding: var(--space-2); }
+  .checkout-bottom { position: fixed; z-index: 5; bottom: 0; left: 0; right: 0; max-width: 750PX; box-sizing: border-box; margin: 0 auto; padding: var(--space-3); padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom)); background: var(--color-surface); border-top: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+  .checkout-bottom button { margin: 0; flex: 1; max-width: 360rpx; }
+}
+@media screen {
+  .order-confirm-page { font-size: 14PX; padding-bottom: calc(96PX + env(safe-area-inset-bottom)); }
+  .order-confirm-page .checkout-title { font-size: 20PX; }
+  .order-confirm-page .checkout-muted { font-size: 12PX; }
+  .order-confirm-page .order-address__detail { font-size: 12PX; }
+  .order-confirm-page .tabs button { font-size: 14PX; }
+  .order-confirm-page button, .order-confirm-page .checkout-input { min-height: 44PX; font-size: 14PX; }
+  .order-confirm-page .checkout-image { width: 72PX; height: 72PX; }
+}

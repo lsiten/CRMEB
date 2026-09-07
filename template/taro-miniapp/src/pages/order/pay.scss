@@ -1,0 +1,13 @@
+.payPage{max-width:750PX;margin:0 auto;font-size:var(--text-md);padding-bottom:var(--space-6)}
+.payPage .title{font-size:20PX}.payPage .payStatus{font-size:18PX;margin:var(--space-4) 0}
+.payPage .payment-amount{display:block;font-size:32PX;font-weight:700;color:var(--color-brand);margin-bottom:var(--space-4)}
+.payment-order{display:block;font-size:12PX;color:var(--color-text-secondary);overflow-wrap:anywhere}
+.payPage button{min-height:44PX;font-size:14PX;margin:var(--space-3) 0;line-height:1.5;padding:12PX}
+.payPage button[disabled]:not([disabled='false']){opacity:.5}
+.payment-methods{margin:var(--space-5) 0}.payment-methods button{display:flex;align-items:center;justify-content:space-between;background:var(--color-surface);border:1PX solid var(--color-border);text-align:left}
+.payment-methods button.selected{border-color:var(--color-brand);color:var(--color-brand)}
+.payPage .hint,.payment-error{display:block;font-size:14PX;line-height:1.6;margin:var(--space-3) 0}.payment-error{color:var(--color-brand)}
+.payment-link{font-size:12PX;overflow-wrap:anywhere;text-align:left}
+.payPage button[disabled='false']{color:var(--color-text)}
+.payPage .primaryButton[disabled='false']{color:var(--color-surface)}
+.payPage .payment-methods button.selected[disabled='false']{color:var(--color-brand)}

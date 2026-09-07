@@ -11,8 +11,10 @@ import './index.scss';
 const maskPhone = (phone: string): string => phone.length >= 7 ? `${phone.slice(0, 3)}****${phone.slice(-4)}` : phone;
 const services = [
   { name: '我的资产', mark: '资产', url: '/pages-extra/assets/index' },
+  { name: '发票管理', mark: '发票', url: '/pages-extra/invoice/index' },
   { name: '优惠券', mark: '券', url: '/pages-extra/coupon/index' },
   { name: '我的收藏', mark: '收藏', url: '/pages-extra/favorites/index' },
+  { name: '浏览记录', mark: '足迹', url: '/pages-extra/visits/index' },
   { name: '收货地址', mark: '地址', url: '/pages-extra/address/index' },
   { name: '积分中心', mark: '积分', url: '/pages/integral/index' },
   { name: '我的评价', mark: '评价', url: '/pages-extra/reviews/index' },

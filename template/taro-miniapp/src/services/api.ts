@@ -1,8 +1,8 @@
-// @ts-nocheck
 import Taro from '@tarojs/taro';
 import { track } from './telemetry';
 
-export type Product = Readonly<{ id: number; name: string; price: number; image: string; description?: string; stock?: number; specs?: readonly string[]; category?: string; status?: number }>;
+export type ProductVariant = Readonly<{ unique: string; label: string; price: number; stock: number; image?: string }>;
+export type Product = Readonly<{ id: number; name: string; price: number; image: string; description?: string; stock?: number; specs?: readonly string[]; variants?: readonly ProductVariant[]; unique?: string; category?: string; status?: number }>;
 export type ApiErrorCode = 'UNAUTHORIZED' | 'TIMEOUT' | 'NETWORK' | 'BUSINESS' | 'HTTP';
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
@@ -26,11 +26,12 @@ export async function request<T>(path: string, options: Omit<Taro.request.Option
   const startedAt = Date.now();
   const token = getToken();
   // CRMEB's API middleware expects the historical `Authori-zation` header.
-  const header = { ...(options.header ?? {}), ...(token ? { 'Authori-zation': `Bearer ${token}` } : {}) };
+  const formType = process.env.TARO_ENV === 'h5' ? (typeof navigator !== 'undefined' && /micromessenger/i.test(navigator.userAgent) ? 'wechat' : 'h5') : 'routine';
+  const header = { 'content-type': 'application/json', 'Form-type': formType, ...(options.header ?? {}), ...(token ? { 'Authori-zation': `Bearer ${token}` } : {}) };
   try {
     const response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header, timeout: options.timeout ?? 10000 });
     if (response.statusCode === 401) {
-      clearToken();
+      if (getToken() === token) clearToken();
       track('api_error', { path, code: 'UNAUTHORIZED', status: 401, durationMs: Date.now() - startedAt });
       throw new ApiError('UNAUTHORIZED', '登录已过期', 401);
     }
@@ -38,12 +39,24 @@ export async function request<T>(path: string, options: Omit<Taro.request.Option
       track('api_error', { path, code: 'HTTP', status: response.statusCode, durationMs: Date.now() - startedAt });
       throw new ApiError('HTTP', `请求失败（${response.statusCode}）`, response.statusCode);
     }
-    const body = response.data as T & { code?: number; msg?: string; status?: number };
-    if (typeof body === 'object' && body !== null && typeof body.code === 'number' && body.code !== 0 && body.code !== 200) {
-      track('api_error', { path, code: 'BUSINESS', durationMs: Date.now() - startedAt });
-      throw new ApiError('BUSINESS', body.msg ?? '业务请求失败');
+    const body = response.data;
+    if (typeof body === 'object' && body !== null && 'status' in body && typeof body.status === 'number') {
+      const message = 'msg' in body && typeof body.msg === 'string' ? body.msg : '业务请求失败';
+      if (body.status === 401) {
+        if (getToken() === token) clearToken();
+        track('api_error', { path, code: 'UNAUTHORIZED', status: 401, durationMs: Date.now() - startedAt });
+        throw new ApiError('UNAUTHORIZED', message, 401);
+      }
+      if (body.status !== 200 && body.status !== 0) {
+        track('api_error', { path, code: 'BUSINESS', status: body.status, durationMs: Date.now() - startedAt });
+        throw new ApiError('BUSINESS', message, body.status);
+      }
     }
-    return body as T;
+    if (typeof body === 'object' && body !== null && 'code' in body && typeof body.code === 'number' && body.code !== 0 && body.code !== 200) {
+      track('api_error', { path, code: 'BUSINESS', durationMs: Date.now() - startedAt });
+      throw new ApiError('BUSINESS', 'msg' in body && typeof body.msg === 'string' ? body.msg : '业务请求失败');
+    }
+    return body;
   } catch (error) {
     if (error instanceof ApiError) throw error;
     const message = String(error);
@@ -73,13 +86,14 @@ export function parseProducts(payload: ProductPayload, limit = 50): readonly Pro
     ? data.list : data && typeof data === 'object' ? [data] : Array.isArray(payload.list) ? payload.list : [];
   return candidates.flatMap((item): Product[] => {
     if (typeof item !== 'object' || item === null) return [];
-    const record = item as Record<string, unknown>;
+    const record: Readonly<Record<string, unknown>> = Object.fromEntries(Object.entries(item));
     const id = typeof record['id'] === 'number' ? record['id'] : Number(record['id']);
     const name = typeof record['name'] === 'string' ? record['name'] : record['store_name'];
     const image = typeof record['image'] === 'string' ? record['image'] : record['image_input'];
     const price = typeof record['price'] === 'number' ? record['price'] : Number(record['price']);
     if (!Number.isSafeInteger(id) || id <= 0 || typeof name !== 'string' || !name.trim() || typeof image !== 'string' || !image || !Number.isFinite(price)) return [];
-    return [{ id, name, price, image } satisfies Product];
+    const stock = Number(record['stock']);
+    return [{ id, name, price, image, ...(record['stock'] !== undefined && record['stock'] !== null && Number.isSafeInteger(stock) && stock >= 0 ? { stock } : {}) } satisfies Product];
   }).slice(0, limit);
 }
 
@@ -99,48 +113,15 @@ export async function queryProducts(query: ProductQuery): Promise<readonly Produ
   return value;
 }
 
-export async function getProduct(id: number): Promise<Product> {
-  const payload = await request<ProductPayload>(`/product/detail/${encodeURIComponent(String(id))}`, { method: 'GET' });
-  const product = parseProducts(payload, 1)[0];
-  if (!product) throw new ApiError('BUSINESS', '商品不存在');
-  return product;
-}
+export { getProduct } from './product-detail';
 
-export type OrderStatus = 'pending' | 'unpaid' | 'paid' | 'shipping' | 'completed' | 'cancelled' | 'refunding' | 'refunded';
-export type OrderItem = Readonly<{ id: number; name: string; image?: string; price: number; quantity: number }>;
-export type Order = Readonly<{ id: string; status: OrderStatus; statusText?: string; total: number; items: readonly OrderItem[]; createdAt?: string; address?: Readonly<{ name: string; phone: string; detail: string }> }>;
-export type PaymentParams = Readonly<{ orderId: string; method: 'wechat' | 'alipay' | 'balance' }>;
-
-function dataOf<T>(payload: T | Readonly<{ data?: T }>): T {
-  if (typeof payload === 'object' && payload !== null && 'data' in payload) return (payload as { data?: T }).data as T;
-  return payload as T;
-}
+export type OrderStatus = 'pending' | 'unpaid' | 'paid' | 'shipping' | 'review' | 'completed' | 'cancelled' | 'refunding' | 'refunded';
+export type OrderItem = Readonly<{ id: number; cartId?: string; reviewUnique?: string; reviewed?: boolean; spec?: string; name: string; image?: string; price: number; quantity: number }>;
+export type Order = Readonly<{ id: string; internalId?: number; canRefund?: boolean; canBuyAgain?: boolean; deliveryType?: string; status: OrderStatus; statusText?: string; total: number; items: readonly OrderItem[]; createdAt?: string; address?: Readonly<{ name: string; phone: string; detail: string }> }>;
+export type { PaymentParams } from './payment';
 
 export type ActivityOrder = Readonly<{ kind: string; id: number; productId?: number }>;
 export type Fulfillment = Readonly<{ type: 'delivery' | 'pickup'; storeId?: number; address?: Order['address'] }>;
-export async function createOrder(items: readonly OrderItem[], address?: Order['address'], activity?: ActivityOrder, fulfillment?: Fulfillment): Promise<Order> {
-  const payload = await request<Order | { data: Order }>('/orders', { method: 'POST', data: { items, address: fulfillment?.address ?? address, activity, activity_type: activity?.kind, activity_id: activity?.id, product_id: activity?.productId, shipping_type: fulfillment?.type === 'pickup' ? 2 : 1, store_id: fulfillment?.storeId } });
-  return dataOf(payload);
-}
-export async function getOrders(status?: OrderStatus): Promise<readonly Order[]> {
-  const payload = await request<readonly Order[] | { data: readonly Order[] }>(`/orders${status ? `?status=${encodeURIComponent(status)}` : ''}`, { method: 'GET' });
-  return dataOf(payload) ?? [];
-}
-export async function getOrder(orderId: string): Promise<Order> {
-  const payload = await request<Order | { data: Order }>(`/orders/${encodeURIComponent(orderId)}`, { method: 'GET' });
-  return dataOf(payload);
-}
-export async function cancelOrder(orderId: string): Promise<void> { await request(`/orders/${encodeURIComponent(orderId)}/cancel`, { method: 'POST' }); }
-export async function requestPayment(params: PaymentParams): Promise<Readonly<{ paymentId?: string; payParams?: Record<string, unknown> }>> {
-  const payload = await request<Readonly<{ data?: Readonly<{ paymentId?: string; payParams?: Record<string, unknown> }> }>>('/payments', { method: 'POST', data: params });
-  return payload.data ?? {};
-}
-export async function queryPayment(orderId: string): Promise<Readonly<{ status: 'pending' | 'paid' | 'failed' | 'cancelled' }>> {
-  const payload = await request<Readonly<{ data?: Readonly<{ status: 'pending' | 'paid' | 'failed' | 'cancelled' }> }>>(`/payments/${encodeURIComponent(orderId)}/status`, { method: 'GET' });
-  return payload.data ?? { status: 'pending' };
-}
-export async function getLogistics(orderId: string): Promise<readonly Readonly<{ time: string; description: string }>[] > {
-  const payload = await request<Readonly<{ data?: readonly Readonly<{ time: string; description: string }>[] }>>(`/orders/${encodeURIComponent(orderId)}/logistics`, { method: 'GET' });
-  return payload.data ?? [];
-}
-export async function requestRefund(orderId: string, reason: string): Promise<void> { await request(`/orders/${encodeURIComponent(orderId)}/refund`, { method: 'POST', data: { reason } }); }
+export { createOrder } from './checkout';
+export { getOrders, getOrder, cancelOrder, getLogistics } from './orders';
+export { requestPayment, queryPayment } from './payment';

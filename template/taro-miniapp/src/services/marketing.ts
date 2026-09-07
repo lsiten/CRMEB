@@ -1,7 +1,7 @@
 import { ApiError, request } from './api';
 
 export type MarketingKind = 'seckill' | 'combination' | 'bargain' | 'advance' | 'lottery' | 'coupon' | 'member' | 'red-packet' | 'sign' | 'gift';
-export type MarketingItem = Readonly<{ id: number; productId?: number; title: string; image?: string; price?: number; originalPrice?: number; stock?: number; endsAt?: string; kind: MarketingKind }>;
+export type MarketingItem = Readonly<{ id: number; productId?: number; title: string; image?: string; price?: number; originalPrice?: number; stock?: number; endsAt?: string; kind: MarketingKind; factor?: 1 | 2 | 3 | 4 | 5 }>;
 type MarketingPayload = Readonly<{ data?: unknown; list?: unknown }>;
 
 const endpoints: Readonly<Record<MarketingKind, string>> = {
@@ -28,12 +28,13 @@ function normalize(record: Record<string, unknown>, kind: MarketingKind): Market
   const priceValue = Number(record['price'] ?? record['activity_price'] ?? record['price_start']);
   const originalValue = Number(record['ot_price'] ?? record['original_price'] ?? record['product_price']);
   const stockValue = Number(record['stock'] ?? record['stock_num']);
-  const item: { id: number; title: string; kind: MarketingKind; image?: string; price?: number; originalPrice?: number; stock?: number; productId?: number; endsAt?: string } = { id, title, kind };
+  const item: { id: number; title: string; kind: MarketingKind; factor?: 1 | 2 | 3 | 4 | 5; image?: string; price?: number; originalPrice?: number; stock?: number; productId?: number; endsAt?: string } = { id, title, kind };
   if (typeof imageValue === 'string' && imageValue) item.image = imageValue;
   if (Number.isFinite(priceValue)) item.price = priceValue;
   if (Number.isFinite(originalValue)) item.originalPrice = originalValue;
   if (Number.isFinite(stockValue)) item.stock = stockValue;
   if (Number.isSafeInteger(productId) && productId > 0) item.productId = productId;
+  const factor = Number(record['factor'] ?? record['lottery_factor']); if (kind === 'lottery' && [1,2,3,4,5].includes(factor)) item.factor = factor as 1 | 2 | 3 | 4 | 5;
   const end = record['end_time'] ?? record['stop_time'] ?? record['end_at'] ?? record['endTime'];
   if (typeof end === 'string' && end) item.endsAt = end;
   return item;

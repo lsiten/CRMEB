@@ -1,0 +1,33 @@
+.lottery-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8PX;margin:16PX 0}
+.lottery-page .lottery-draw{grid-area:2 / 2;margin:0;width:100%;min-height:120PX;padding:8PX}
+.lottery-prize{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4PX;padding:8PX;min-height:120PX;box-sizing:border-box;border:2PX solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);overflow-wrap:anywhere;font-size:14PX}
+.lottery-prize .commerce-image{width:64PX;height:64PX}
+.lottery-winner{border-color:var(--color-brand);background:var(--color-brand-soft)}
+.lottery-result{display:flex;flex-direction:column;gap:12PX}
+.lottery-share-link{display:block;font-size:12PX;overflow-wrap:anywhere;padding:12PX;background:var(--color-page);border:1PX solid var(--color-border);border-radius:var(--radius-sm)}
+.lottery-result-image{width:100PX;height:100PX;align-self:center}
+.prize-claim{display:flex;flex-direction:column;gap:8PX;margin-top:16PX}
+.prize-claim .order-field{margin:0}
+.lottery-page .order-between > :first-child{min-width:0;overflow-wrap:anywhere}
+.lottery-page .order-between button{flex-shrink:0;width:auto}
+.lottery-banner{width:100%;height:180PX;border-radius:var(--radius-md)}
+.lottery-summary{display:flex;flex-direction:column;gap:8PX}
+.lottery-notices{height:44PX;padding:0 12PX;background:var(--color-brand-soft);color:var(--color-brand);border-radius:var(--radius-sm);font-size:12PX}
+.lottery-notices swiper-item,.lottery-notices taro-swiper-item-core{display:flex;align-items:center;overflow:hidden}
+.lottery-notices text,.lottery-notices taro-text-core{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:100%}
+.lottery-winner-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) minmax(0,2fr);gap:8PX;padding:12PX 0;border-bottom:1PX solid var(--color-border);overflow-wrap:anywhere}
+.lottery-rules img{max-width:100%;height:auto}
+.lottery-general .ui-modal{max-width:600PX;max-height:85vh;display:flex;flex-direction:column;font-size:14PX;animation:lottery-reveal 160ms ease-out}
+.lottery-general .ui-modal__body{overflow-y:auto;min-height:0;padding:16PX}
+.lottery-general .ui-modal__title{font-size:18PX;white-space:normal}
+.lottery-general .ui-modal__header{flex-shrink:0;padding:12PX 16PX}
+.lottery-general .ui-modal__mask{padding:16PX}
+.lottery-subscribe-code{width:200PX;height:200PX;max-width:100%;align-self:center}
+@keyframes lottery-reveal{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.lottery-general .ui-modal{animation:none}}
+.lottery-rules p,.lottery-winner-row text,.lottery-winner-row taro-text-core{text-wrap:balance}
+.lottery-skin{background:#e74435;max-width:750PX;margin:0 auto;min-height:100dvh;padding:0 16PX 32PX;color:#fff;box-sizing:border-box}.lottery-skin .order-heading{color:#fff;text-align:center;padding-top:16PX}.lottery-skin .order-actions{justify-content:center}.lottery-skin .lottery-summary,.lottery-skin .lottery-rules,.lottery-skin .lottery-winners{background:#fff;color:var(--color-text)}.lottery-skin .lottery-notices{color:#fff;background:linear-gradient(90deg,transparent,rgba(255,255,255,.25),transparent)}.lottery-skin .lottery-grid{padding:18PX;background:#ed4437;border:10PX solid #ffd68e;border-radius:16PX;box-sizing:border-box}.lottery-skin .lottery-prize{border:1PX dashed #ff7f5f;background:linear-gradient(#fff,#fff2f2);color:#e74435}.lottery-skin .lottery-winner{background:#ffd18d;color:#0e62ff;border-color:#ffd18d}.lottery-skin .lottery-draw{background:transparent;color:#e74435;padding:0}.lottery-skin .lottery-draw-image{width:100%;height:100%;display:block}.lottery-skin .lottery-banner{height:180PX;max-height:580rpx}.lottery-skin .order-actions button{background:#ffd68e;color:#e74435;border-radius:999PX;font-weight:600}.lottery-skin .order-alert{background:#fff;color:var(--color-text)}
+.lottery-review-skin{background:#e74435;color:#fff;min-height:100dvh;max-width:750PX;margin:0 auto;padding:0 16PX 32PX;box-sizing:border-box}.review-complete{display:flex;align-items:center;justify-content:center;gap:14PX;padding:32PX 0 16PX}.review-check{width:44PX;height:44PX;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.1);font-size:30PX}.review-complete-title{display:block;font-size:20PX;font-weight:700}.review-date{display:block;font-size:12PX;opacity:.8;margin-top:4PX}.review-jump{display:flex;justify-content:center;gap:12PX;margin-bottom:12PX}.review-jump button{background:transparent;border:1PX solid rgba(255,255,255,.85);color:#fff;border-radius:999PX}.lottery-review-skin .order-heading{text-align:center;color:#fff}.lottery-review-skin .order-panel{color:var(--color-text)}.lottery-review-skin .lottery-grid{padding:18PX;background:#ed4437;border:10PX solid #ffd68e;border-radius:16PX}
+.lottery-record-panel{background:#fffefe;color:#282828;margin:16PX 0;padding:8PX 6PX;border-radius:12PX;box-shadow:0 3PX 0 #fcf5c8;border:1PX dashed #ff7f5f}.lottery-record-title{display:flex;align-items:center;justify-content:center;gap:10PX;padding:10PX 0 8PX}.lottery-record-title .order-section-title{margin:0;color:#e74435}.lottery-record-decor{font-size:10PX;color:#e74435}.lottery-record-head,.lottery-winner-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr);gap:8PX;padding:8PX 10PX}.lottery-record-head{color:#a57e7e;font-size:12PX}.lottery-record-scroll{max-height:140PX;overflow-y:auto}.lottery-winner-row{border-bottom:1PX solid #f2e6e2;font-size:12PX}.lottery-winner-row:last-child{border-bottom:0}.lottery-record-panel text{overflow-wrap:anywhere;min-width:0}
+.lottery-record-decor-image{width:40PX;height:20PX;flex:0 0 40PX}
+.gift-receive{min-height:100dvh;background:linear-gradient(180deg,#fff6ed,#f7f7f7)}.gift-receive .order-panel{max-width:670PX;margin:24PX auto;border-radius:12PX;text-align:center}.gift-receive .order-primary{background:linear-gradient(90deg,#ff7931,#e93323)}

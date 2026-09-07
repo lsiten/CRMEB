@@ -7,13 +7,23 @@ vi.mock('@tarojs/taro', () => ({ default: {
   removeStorageSync: (key: string) => storage.delete(key),
   request,
 } }));
-import { addToCart, cartItemKey, cartTotal, readCart, readCheckoutItems, updateCartQuantity } from '../src/services/cart';
+import { addToCart, cartItemKey, cartTotal, createDirectCheckout, readCart, readCheckoutItems, updateCartQuantity } from '../src/services/cart';
 import { getCategoryProducts, parseCategories } from '../src/services/catalog';
 const product = { id: 7, name: '旅行杯', price: 29.9, image: '/cup.png', stock: 3 };
 
 beforeEach(() => { storage.clear(); request.mockReset(); });
 
 describe('购物车到确认订单', () => {
+  it('立即购买独立于购物车，重复购买不会累加数量或读取旧草稿', () => {
+    addToCart(product, '白色');
+    updateCartQuantity(7, 2, '白色');
+    const first = createDirectCheckout(product, '白色');
+    expect(readCheckoutItems(first)).toEqual([expect.objectContaining({ quantity: 1, spec: '白色' })]);
+    const second = createDirectCheckout(product, '黑色');
+    expect(readCheckoutItems(second)).toEqual([expect.objectContaining({ quantity: 1, spec: '黑色' })]);
+    expect(readCheckoutItems(first)).toEqual([]);
+    expect(readCart()).toEqual([expect.objectContaining({ quantity: 2, spec: '白色' })]);
+  });
   it('只结算勾选规格，未选中商品继续保留在购物车', () => {
     addToCart(product, '白色');
     addToCart(product, '黑色');

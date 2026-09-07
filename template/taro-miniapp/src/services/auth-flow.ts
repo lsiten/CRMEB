@@ -1,6 +1,7 @@
 import Taro from '@tarojs/taro';
 import { getToken } from './api';
 import { normalizeReturnUrl } from './account-contracts';
+import { syncPendingReferral } from './referral-sync';
 
 const tabRoutes = new Set(['/pages/index/index', '/pages/goods/index', '/pages/cart/index', '/pages/user/index']);
 
@@ -15,6 +16,7 @@ export function requireLogin(returnUrl: string): boolean {
 }
 
 export async function completeLogin(encodedReturnUrl?: string): Promise<void> {
+  void syncPendingReferral();
   const returnUrl = normalizeReturnUrl(encodedReturnUrl);
   const route = returnUrl.split('?')[0] ?? returnUrl;
   if (tabRoutes.has(route) && route === returnUrl) {

@@ -33,3 +33,4 @@
 .cart-quantity button, .cart-select-all { color: var(--color-text); }
 .cart-quantity button[disabled]:not([disabled='false']) { color: var(--color-text-muted); }
 .cart-submit[disabled='false'] { background: var(--color-brand); color: var(--color-surface); }
+.cart-page .cart-remove { min-width: 44PX; color: var(--color-text-secondary); }

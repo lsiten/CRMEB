@@ -1,5 +1,6 @@
 import Taro from '@tarojs/taro';
 import { ApiError, clearToken, request, setToken } from './api';
+import { parseStoredReferral } from './platform';
 
 export type UserProfile = Readonly<{ uid: number; nickname: string; avatar: string; phone: string; integral: number }>;
 export type Address = Readonly<{ id: number; real_name: string; phone: string; province: string; city: string; district: string; detail: string; is_default: boolean }>;
@@ -25,20 +26,33 @@ function persistLogin(payload: ApiEnvelope<LoginPayload>): void {
   setToken(token);
 }
 
+function loginReferral(): Readonly<{ spread?: string; agent_id?: string }> {
+  const referral = parseStoredReferral(Taro.getStorageSync<unknown>('crmeb_referral'));
+  const spread = referral.spid ?? referral.spread;
+  return { ...(spread ? { spread } : {}), ...(referral.agent_id ? { agent_id: referral.agent_id } : {}) };
+}
+
+function routineReferral(): Readonly<{ spread_spid?: string; spread_code?: string }> {
+  const referral = parseStoredReferral(Taro.getStorageSync<unknown>('crmeb_referral'));
+  const spread = referral.spid ?? referral.spread;
+  return { ...(spread ? { spread_spid: spread } : {}), ...(referral.code ? { spread_code: referral.code } : {}) };
+}
+
 export async function loginByPassword(account: string, password: string): Promise<UserProfile | null> {
-  const payload = await request<ApiEnvelope<LoginPayload>>('/login', { method: 'POST', data: { account, password } });
+  const payload = await request<ApiEnvelope<LoginPayload>>('/login', { method: 'POST', data: { account, password, ...loginReferral() } });
   persistLogin(payload);
   return getUserProfile();
 }
 
 export async function loginBySms(phone: string, captcha: string): Promise<UserProfile | null> {
-  const payload = await request<ApiEnvelope<LoginPayload>>('/login/mobile', { method: 'POST', data: { phone, captcha } });
+  const payload = await request<ApiEnvelope<LoginPayload>>('/login/mobile', { method: 'POST', data: { phone, captcha, ...loginReferral() } });
   persistLogin(payload);
   return getUserProfile();
 }
 
 export async function registerUser(phone: string, captcha: string, password: string): Promise<void> {
-  await request('/register', { method: 'POST', data: { account: phone, captcha, password } });
+  const { spread } = loginReferral();
+  await request('/register', { method: 'POST', data: { account: phone, captcha, password, ...(spread ? { spread } : {}) } });
 }
 
 export async function requestSmsCode(phone: string, type: 'login' | 'register' | 'reset'): Promise<void> {
@@ -58,7 +72,7 @@ export async function loginByWechat(): Promise<UserProfile | null> {
   }
   const login = await Taro.login();
   const authType = await request<ApiEnvelope<Readonly<{ key?: string; bindPhone?: boolean }>>>('/v2/routine/auth_type', {
-    method: 'GET', data: { code: login.code },
+    method: 'GET', data: { code: login.code, ...routineReferral() },
   });
   const key = authType.data?.key;
   if (!key) throw new ApiError('BUSINESS', '授权信息无效');
@@ -107,7 +121,7 @@ export async function bindWechatPhone(detail: Readonly<{ code?: string; encrypte
   }
   const login = await Taro.login();
   await request('/v2/routine/auth_binding_phone', {
-    method: 'POST', data: { code: detail.code ?? login.code, iv: detail.iv ?? '', encryptedData: detail.encryptedData ?? '' },
+    method: 'POST', data: { code: detail.code ?? login.code, iv: detail.iv ?? '', encryptedData: detail.encryptedData ?? '', ...routineReferral() },
   });
 }
 

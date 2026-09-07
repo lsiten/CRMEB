@@ -26,14 +26,24 @@ describe('DIY commerce interactions', () => {
     await act(async () => { TestRenderer.create(<MarketingPage />); });
     expect(getMarketingItems).toHaveBeenCalledWith('bargain');
   });
-  it.each(['sign', 'coupon', 'lottery'] as const)('does not open a product detail for a %s reward', async (kind) => {
+  it.each(['sign', 'coupon'] as const)('handles a %s reward without opening product detail', async (kind) => {
     vi.mocked(getMarketingItems).mockResolvedValueOnce([{ id: 1, kind, title: 'Reward' }]);
     let renderer: TestRenderer.ReactTestRenderer | undefined;
     await act(async () => { renderer = TestRenderer.create(<MarketingPage />); });
     if (!renderer) throw new Error('Renderer was not created');
     await renderer.root.findByProps({ className: 'card activity' }).props.onClick();
-    expect(navigation.navigateTo).not.toHaveBeenCalled();
-    expect(navigation.showToast).toHaveBeenCalledWith({ title: '该活动暂不支持在线参与', icon: 'none' });
+    if (kind === 'coupon') expect(navigation.navigateTo).toHaveBeenCalledWith({ url: '/pages-extra/coupon/index' });
+    else expect(navigation.navigateTo).not.toHaveBeenCalled();
+    expect(navigation.showToast).not.toHaveBeenCalled();
+  });
+  it('opens the dedicated lottery with its activity identity when a lottery is clicked', async () => {
+    vi.mocked(getMarketingItems).mockResolvedValueOnce([{ id: 72, kind: 'lottery', title: 'Reward' }]);
+    let renderer: TestRenderer.ReactTestRenderer | undefined;
+    await act(async () => { renderer = TestRenderer.create(<MarketingPage />); });
+    if (!renderer) throw new Error('Renderer was not created');
+    await renderer.root.findByProps({ className: 'card activity' }).props.onClick();
+    expect(navigation.navigateTo).toHaveBeenCalledWith({ url: '/pages/marketing/lottery?type=1&lottery_id=72' });
+    expect(navigation.showToast).not.toHaveBeenCalled();
   });
   it('opens the product detail when a product is clicked', async () => {
     const root = TestRenderer.create(<ProductList item={{ name: 'goodList', goodsList: { list: [{ id: 42 }] } }} />).root;

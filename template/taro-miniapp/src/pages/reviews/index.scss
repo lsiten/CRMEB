@@ -1,1 +1,13 @@
-.review { display: flex; flex-direction: column; gap: 10px; }.review > text:first-child { color: #f5a623; }
+.review-page .review-summary{display:flex;justify-content:space-between;align-items:center;gap:12PX}
+.review-filters{display:flex;flex-wrap:wrap;gap:8PX;margin-bottom:16PX}
+.review-page .review-filters button{width:auto}
+.review-identity{display:flex;align-items:center;gap:12PX;margin-bottom:8PX}
+.review-avatar{width:40PX;height:40PX;flex:0 0 40PX;border-radius:var(--radius-pill)}
+.review-member{font-size:12PX;color:var(--color-brand);margin-left:8PX}
+.review-content{display:block;white-space:pre-wrap;margin:12PX 0;overflow-wrap:anywhere}
+.review-photos{display:flex;flex-wrap:wrap;gap:8PX;margin-bottom:12PX}
+.review-page .review-photos button{width:88PX;height:88PX;padding:0;overflow:hidden}
+.review-photos .commerce-image{width:88PX;height:88PX}
+.review-merchant{display:flex;flex-direction:column;gap:8PX;background:var(--color-page);border-radius:var(--radius-sm);padding:16PX;white-space:pre-wrap}
+.review-merchant > :first-child{font-weight:600}
+.review-end{display:block;text-align:center;margin:16PX 0}

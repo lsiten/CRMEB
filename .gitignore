@@ -51,6 +51,9 @@ crmeb/php-fpm.conf
 # 本机运行记录（不纳入 Git）
 .local/
 
+# Codex 工作状态与证据（不纳入 Git）
+.omo/
+
 # 代码助手规则文件
 .codebuddy/rules/dockerfile-buid.mdc
 .codebuddy/rules/docker-compose-buid.mdc

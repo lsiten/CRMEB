@@ -24,7 +24,7 @@ export async function getStores(query: StoreQuery = {}): Promise<readonly Store[
   if (query.latitude !== undefined) params.set('latitude', String(query.latitude));
   if (query.longitude !== undefined) params.set('longitude', String(query.longitude));
   if (query.keyword) params.set('keyword', query.keyword);
-  const payload = await request<Readonly<{ data?: unknown; list?: unknown }>>(`/v1/store/list?${params.toString()}`, { method: 'GET' });
+  const payload = await request<Readonly<{ data?: unknown; list?: unknown }>>(`/store_list?${params.toString()}`, { method: 'GET' });
   const raw = Array.isArray(payload.data) ? payload.data : Array.isArray(payload.list) ? payload.list : payload.data && typeof payload.data === 'object' && Array.isArray((payload.data as { list?: unknown }).list) ? (payload.data as { list: unknown[] }).list : [];
   return raw.flatMap((item) => { const store = parseStore(item); return store ? [store] : []; });
 }

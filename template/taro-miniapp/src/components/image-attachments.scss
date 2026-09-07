@@ -1,0 +1,7 @@
+.image-attachments{margin-top:16PX;font-size:14PX}
+.image-attachments-label{display:block;margin-bottom:12PX;color:var(--color-text-secondary);font-size:12PX}
+.image-attachments-grid{display:flex;flex-wrap:wrap;gap:8PX}
+.image-attachment{width:120PX;min-width:0}
+.image-attachment-preview{height:100PX;width:120PX;border-radius:8PX;overflow:hidden}
+.image-attachments button{min-height:44PX;font-size:14PX;color:var(--color-text);background:var(--color-surface)}
+.image-attachment-error{display:block;color:var(--color-brand);font-size:12PX;margin:8PX 0}

@@ -3,6 +3,13 @@ import type { Product } from './api';
 
 export type CartItem = Readonly<Product & { quantity: number; spec?: string }>;
 const storageKey = 'crmeb.cart';
+const directCheckoutKey = 'crmeb.directCheckout';
+
+export function createDirectCheckout(product: Product, spec: string): string {
+  const selection = `direct-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  Taro.setStorageSync(directCheckoutKey, { selection, item: { ...product, spec, quantity: 1 } });
+  return selection;
+}
 
 export function readCart(): readonly CartItem[] {
   const stored = Taro.getStorageSync<readonly CartItem[]>(storageKey);
@@ -46,6 +53,10 @@ export function cartItemKey(item: Pick<CartItem, 'id' | 'spec'>): string {
 }
 
 export function readCheckoutItems(selection?: string): readonly CartItem[] {
+  if (selection?.startsWith('direct-')) {
+    const draft = Taro.getStorageSync<Readonly<{ selection: string; item: CartItem }> | undefined>(directCheckoutKey);
+    return draft?.selection === selection && draft.item.stock !== 0 ? [draft.item] : [];
+  }
   const items = readCart();
   if (selection === undefined) return items;
   try {

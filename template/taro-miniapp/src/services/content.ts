@@ -45,5 +45,18 @@ export async function getMessages(page = 1): Promise<readonly Message[]> { const
 export async function markMessageRead(id: number): Promise<void> { await request('/user/message_system/edit_message', { method: 'GET', data: { id, key: 'look', value: 1 } }); }
 export async function markAllMessagesRead(): Promise<void> { await request('/user/message_system/edit_message', { method: 'GET', data: { id: 0, key: 'look', value: 1, all: 1 } }); }
 export async function getChatMessages(params: Readonly<{ toUid?: number; page?: number; limit?: number }>): Promise<readonly ChatMessage[]> { const payload = await request(`/v2/user/service/record?page=${params.page ?? 1}&limit=${params.limit ?? 20}&toUid=${params.toUid ?? 0}`, { method: 'GET' }); const data = unwrap(payload); const rows = data && typeof data === 'object' && 'serviceList' in data && Array.isArray(data.serviceList) ? data.serviceList : Array.isArray(data) ? data : []; return rows.flatMap((item) => { if (!item || typeof item !== 'object') return []; const row = item as Record<string, unknown>; const kind = number(row['msn_type'] ?? row['message_type']); return [{ id: number(row['id']), text: text(row['msn'] ?? row['message']), type: kind === 3 ? 'image' : kind === 5 ? 'product' : kind === 6 ? 'order' : 'text', mine: Boolean(row['is_send'] ?? (row['uid'] && row['uid'] === row['my_uid'])), createdAt: text(row['add_time']) } satisfies ChatMessage]; }); }
-export async function sendChatMessage(_textValue: string, _toUid: number): Promise<void> { throw new ApiError('BUSINESS', '当前客服通道仅支持查看记录，请使用在线客服端发送消息'); }
+/**
+ * The public API does not expose a REST chat-send endpoint (chat messages are
+ * delivered over the native websocket).  Keep the Taro fallback useful by
+ * recording the user's message as a support request instead of silently
+ * throwing from the composer.
+ */
+export async function sendChatMessage(textValue: string, _toUid: number): Promise<void> {
+  const content = textValue.trim();
+  if (!content) throw new ApiError('BUSINESS', '请输入内容');
+  await request('/user/service/feedback', {
+    method: 'POST',
+    data: { rela_name: '', phone: '', content },
+  });
+}
 export type ContentApiError = ApiError;
