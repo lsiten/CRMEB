@@ -40,7 +40,8 @@ class AdminAuthTokenMiddleware implements MiddlewareInterface
     public function handle(Request $request, \Closure $next)
     {
         TenantContext::clear();
-        $token = trim(ltrim($request->header(Config::get('cookie.token_name', 'Authori-zation')), 'Bearer'));
+        $header = $request->header(Config::get('cookie.token_name', 'Authori-zation')) ?: $request->header('Authorization', '');
+        $token = trim(preg_replace('/^Bearer\s+/i', '', $header));
         if (!$token) {
             $token = trim(ltrim($request->get('token')));
         }
@@ -48,9 +49,9 @@ class AdminAuthTokenMiddleware implements MiddlewareInterface
         $service = app()->make(AdminAuthServices::class);
         $adminInfo = $service->parseToken($token);
         $tenantId = (int)($adminInfo['tenant_id'] ?? 0);
-        // level=0 is the platform administrator and may explicitly cross tenant boundaries.
-        // Keep tenant_id=0 as an explicit tenant so TenantScope still adds tenant_id=0
-        // for non-platform administrators instead of silently disabling the scope.
+        if ($tenantId <= 0 && !\crmeb\services\TenantAccess::platform($adminInfo)) {
+            throw new \crmeb\exceptions\AuthException('管理员未绑定租户', [], 403);
+        }
         TenantContext::set($tenantId, false);
         $request->macro('isAdminLogin', function () use (&$adminInfo) {
             return !is_null($adminInfo);
@@ -62,8 +63,8 @@ class AdminAuthTokenMiddleware implements MiddlewareInterface
         $request->macro('adminInfo', function () use (&$adminInfo) {
             return $adminInfo;
         });
-        $request->macro('tenantId', static fn () => TenantContext::id());
-        $request->macro('isCrossTenant', static fn () => TenantContext::isCrossTenant());
+        $request->macro('tenantId', fn () => TenantContext::id());
+        $request->macro('isCrossTenant', fn () => TenantContext::isCrossTenant());
 
         return $next($request);
     }

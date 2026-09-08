@@ -46,7 +46,8 @@ class UserAuthServices extends BaseServices
      */
     public function parseToken($token): array
     {
-        TenantContext::clear();
+        $clientTenantId = TenantContext::clientId();
+        if ($clientTenantId === null) TenantContext::clear();
         $md5Token = is_null($token) ? '' : md5($token);
 
         if ($token === 'undefined') {
@@ -63,7 +64,6 @@ class UserAuthServices extends BaseServices
         $jwtAuth = app()->make(JwtAuth::class);
         //设置解析token
         [$id, $type, , $tenantId] = $jwtAuth->parseToken($token);
-        if ($tenantId !== null) TenantContext::set((int)$tenantId);
 
 
         try {
@@ -72,6 +72,11 @@ class UserAuthServices extends BaseServices
             if (!request()->isCli()) CacheService::delete($md5Token);
             throw new AuthException('登录已过期,请重新登录', [], 401);
         }
+
+        if ($clientTenantId !== null && (int)($tenantId ?? TenantContext::DEFAULT_TENANT_ID) !== $clientTenantId) {
+            throw new AuthException('用户与租户不匹配', [], 403);
+        }
+        if ($tenantId !== null) TenantContext::set((int)$tenantId);
 
         $user = $this->dao->get(['uid' => $id, 'is_del' => 0, 'status' => 1]);
 

@@ -45,7 +45,7 @@ class AuthTokenMiddleware implements MiddlewareInterface
             $service = app()->make(UserAuthServices::class);
             $authInfo = $service->parseToken($token);
         } catch (AuthException $e) {
-            if ($force)
+            if ($force || $e->getCode() === 403)
                 return app('json')->make($e->getCode(), $e->getMessage());
         }
 

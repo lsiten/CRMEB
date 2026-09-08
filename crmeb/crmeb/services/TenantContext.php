@@ -9,6 +9,15 @@ final class TenantContext
 
     private static ?int $tenantId = self::DEFAULT_TENANT_ID;
     private static bool $crossTenant = false;
+    private static ?int $clientTenantId = null;
+
+    public static function bindClient(int $id): void
+    {
+        self::$clientTenantId = $id;
+        self::set($id);
+    }
+
+    public static function clientId(): ?int { return self::$clientTenantId; }
 
     public static function set(?int $tenantId, bool $crossTenant = false): void
     {
@@ -20,7 +29,11 @@ final class TenantContext
 
     public static function id(): ?int { return self::$tenantId; }
     public static function isCrossTenant(): bool { return self::$crossTenant; }
-    public static function clear(): void { self::set(self::DEFAULT_TENANT_ID, false); }
+    public static function clear(): void
+    {
+        self::$clientTenantId = null;
+        self::set(self::DEFAULT_TENANT_ID, false);
+    }
     /** 为缓存、队列和导出资源生成租户隔离键。 */
     public static function key(string $name): string
     {

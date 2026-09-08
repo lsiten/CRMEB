@@ -83,7 +83,7 @@ class AdminAuthServices extends BaseServices
         //获取管理员信息
         // 平台管理员属于管理域，不能被切换后的业务租户作用域过滤。
         $adminInfo = SystemAdmin::withoutGlobalScope(['tenant'])->where('id', $id)->find();
-        if (!$adminInfo || !$adminInfo->id) {
+        if (!$adminInfo || !$adminInfo->id || !(int)$adminInfo->status || (int)$adminInfo->is_del) {
             if (!request()->isCli()) {
                 $cacheService->delete($md5Token);
             }
