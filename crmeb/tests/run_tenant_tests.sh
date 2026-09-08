@@ -40,4 +40,5 @@ else
     "$php_bin" "$test_root/user_auth_type_test.php"
     "$php_bin" "$test_root/tenant_credentials_test.php"
     "$php_bin" "$test_root/tenant_public_bootstrap_test.php"
+    "$php_bin" "$test_root/admin_login_test.php"
 fi

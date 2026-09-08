@@ -68,16 +68,27 @@ class SystemAdminServices extends BaseServices
      */
     public function verifyLogin(string $account, string $password)
     {
-        // Authentication must resolve the account before a tenant context exists.
-        $adminInfo = SystemAdmin::where(['account' => $account, 'is_del' => 0])->find();
+        // 登录尚无可信租户；同名账号不能按默认租户或数据库首条猜测身份。
+        $admins = SystemAdmin::withoutGlobalScope(['tenant'])
+            ->where(['account' => $account, 'is_del' => 0])->limit(2)->select();
+        if ($admins->count() !== 1) return false;
+        $adminInfo = $admins[0];
         if (!$adminInfo || !password_verify($password, $adminInfo->pwd)) return false;
         if (!$adminInfo->status) {
             throw new AdminException('您已被禁止登录');
         }
-        $adminInfo->last_time = time();
-        $adminInfo->last_ip = app('request')->ip();
-        $adminInfo->login_count++;
-        $adminInfo->save();
+        $previousTenant = TenantContext::id();
+        $previousCrossTenant = TenantContext::isCrossTenant();
+        try {
+            // 模型写钩子使用当前租户；必须先绑定已验证账号的原租户。
+            TenantContext::set((int)$adminInfo->tenant_id);
+            $adminInfo->last_time = time();
+            $adminInfo->last_ip = app('request')->ip();
+            $adminInfo->login_count++;
+            $adminInfo->save();
+        } finally {
+            TenantContext::set($previousTenant, $previousCrossTenant);
+        }
 
         return $adminInfo;
     }
