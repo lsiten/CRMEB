@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Text, View } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useDidHide } from '@tarojs/taro';
 import { getToken } from '../../services/api';
 import { requireLogin } from '../../services/auth-flow';
 import { commerceError } from '../../services/commerce-contracts';
@@ -13,22 +13,28 @@ export function ActivityCheckout({ item, returnUrl }: Readonly<{ item: Marketing
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const locked = useRef(false);
+  const mounted = useRef(true);
+  const generation = useRef(0);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; generation.current += 1; }; }, []);
+  useDidHide(() => { generation.current += 1; });
   const selected = variants.find((variant) => variant.unique === unique);
   const supported = item.kind === 'seckill' || item.kind === 'combination';
   const available = supported && item.activityStatus === 1 && !!item.productId && !!selected && selected.stock > 0 && (item.stock === undefined || item.stock > 0);
   const submit = async (): Promise<void> => {
     if (locked.current || !available || !selected || !item.productId || !requireLogin(returnUrl)) return;
     const token = getToken();
+    const request = generation.current;
     locked.current = true; setBusy(true); setError('');
     try {
       const cartId = await addServerCart({
         product: { id: item.productId, name: item.title, price: selected.price, image: item.image ?? '', unique: selected.unique, stock: selected.stock },
         quantity: 1, direct: true, activity: { kind: item.kind, id: item.id },
       });
+      if (!mounted.current || generation.current !== request) return;
       if (getToken() !== token) { setError('登录状态已变化，请重新进入活动'); return; }
       await Taro.navigateTo({ url: `/pages/order/confirm?cartIds=${encodeURIComponent(cartId)}&new=1` });
-    } catch (cause) { setError(commerceError(cause)); }
-    finally { locked.current = false; setBusy(false); }
+    } catch (cause) { if (mounted.current && generation.current === request) setError(commerceError(cause)); }
+    finally { locked.current = false; if (mounted.current) setBusy(false); }
   };
   if (!supported) return <View className='order-panel'>此活动暂不支持在此页购买</View>;
   return <View className='order-panel'>

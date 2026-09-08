@@ -34,7 +34,7 @@ it('reads seckill storeInfo and sends the selected time_id for detail', async ()
 
 it('retains activity SKU identity and status for direct checkout', async () => {
   // Given activity-specific variants, when loading detail, then do not substitute ordinary product SKUs.
-  platform.request.mockResolvedValue(ok({ storeInfo: { id: 12, product_id: 6, title: '拼团', price: '19.90', is_show: 1 }, productValue: { '红色': { unique: 'activity-red', price: '18.90', stock: 3 } } }));
+  platform.request.mockResolvedValue(ok({ storeInfo: { id: 12, product_id: 6, title: '拼团', price: '19.90', is_show: 1, start_time: 1, stop_time: 4102444800 }, productValue: { '红色': { unique: 'activity-red', price: '18.90', stock: 3 } } }));
   await expect(getMarketingDetail('combination', 12)).resolves.toMatchObject({ activityStatus: 1, variants: [{ unique: 'activity-red', label: '红色', price: 18.9, stock: 3 }] });
 });
 
@@ -42,4 +42,23 @@ it('rejects malformed seckill configuration instead of reporting no activity', a
   // Given an invalid success payload, when loading, then expose a recoverable error.
   platform.request.mockResolvedValueOnce(ok({}));
   await expect(getMarketingItems('seckill')).rejects.toThrow();
+});
+
+it.each([{ quota: 0, product_stock: 3 }, { quota: 3, product_stock: 0 }])('treats exhausted activity/root SKU inventory as unavailable: %s', async (inventory) => {
+  // Given an unavailable activity SKU, when loading, then stock is zero despite total stock.
+  platform.request.mockResolvedValue(ok({ storeInfo: { id: 12, stock: 8, quota: 8, status: 1 }, productValue: { '默认': { unique: 'sku', price: 10, stock: 8, ...inventory } } }));
+  await expect(getMarketingDetail('seckill', 12, 7)).resolves.toMatchObject({ variants: [{ stock: 0 }] });
+});
+
+it('allows an active campaign even when the regular product is hidden', async () => {
+  // Given independent activity availability, when loading, then product_is_show does not disable it.
+  platform.request.mockResolvedValue(ok({ storeInfo: { id: 12, status: 1, product_is_show: 0 }, productValue: {} }));
+  await expect(getMarketingDetail('seckill', 12, 7)).resolves.toMatchObject({ activityStatus: 1 });
+});
+
+it.each([{ start_time: 4102444800, stop_time: 4133980800, is_del: 0 }, { start_time: 1, stop_time: 2, is_del: 0 }, { start_time: 1, stop_time: 4102444800, is_del: 1 }])('prevents direct group purchases outside campaign availability: %s', async (availability) => {
+  // Given an invalid campaign window, when opening an old URL, then it is not purchasable.
+  platform.request.mockResolvedValue(ok({ storeInfo: { id: 12, is_show: 1, ...availability }, productValue: {} }));
+  const item = await getMarketingDetail('combination', 12);
+  expect(item.activityStatus).not.toBe(1);
 });

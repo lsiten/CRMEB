@@ -94,11 +94,14 @@ export async function getMarketingDetail(kind: MarketingKind, id: number, period
   if (kind !== 'seckill' && kind !== 'combination') return activity;
   const variants = Object.entries(apiRecord(detail['productValue'])).map(([label, value]): ProductVariant => {
     const row = apiRecord(value);
-    const stock = Number(row['stock']);
+    const stock = Math.min(Number(row['stock']), Number(row['quota'] ?? row['stock']), Number(row['product_stock'] ?? row['stock']));
     if (!Number.isSafeInteger(stock) || stock < 0) throw new ApiError('BUSINESS', '活动库存数据不完整，请重试');
     return { unique: apiId(row['unique']), label, price: apiAmount(row['price']), stock };
   });
-  const activityStatus = kind === 'seckill' ? Number(item['status']) : Number(item['is_show']);
+  const now = Math.floor(Date.now() / 1000);
+  const start = Number(item['start_time']);
+  const stop = Number(item['stop_time']);
+  const activityStatus = kind === 'seckill' ? Number(item['status']) : Number(item['is_show']) !== 1 || Number(item['is_del']) === 1 ? 0 : start > now ? 2 : start <= now && stop >= now ? 1 : 0;
   const quota = Number(item['quota']);
-  return { ...activity, ...(Number.isFinite(quota) && quota >= 0 ? { stock: Math.min(activity.stock ?? quota, quota) } : {}), activityStatus: Number(item['product_is_show']) === 0 ? 0 : activityStatus, variants };
+  return { ...activity, ...(Number.isFinite(quota) && quota >= 0 ? { stock: Math.min(activity.stock ?? quota, quota) } : {}), activityStatus, variants };
 }

@@ -36,6 +36,7 @@ export default function DetailPage({ activityKind }: Readonly<{ activityKind?: M
   if (process.env.TARO_ENV !== 'h5') Taro.useShareAppMessage(() => ({ title: item?.title ?? '营销活动', path: returnUrl }));
   return <View className='order-management'>
     <Text className='order-heading'>活动详情</Text>
+    {item && !error && <Button onClick={() => setRetry((value) => value + 1)}>刷新活动</Button>}
     {error ? <View className='order-alert' role='alert'><Text>{error}</Text><Button onClick={() => setRetry((value) => value + 1)}>重试</Button>{!getToken() && <Button onClick={() => requireLogin(returnUrl)}>去登录</Button>}</View>
       : !item ? <View className='order-panel'>正在加载活动详情…</View> : <>
         <View className='order-panel'><View className='order-product'>

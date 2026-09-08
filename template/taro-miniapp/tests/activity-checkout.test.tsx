@@ -4,7 +4,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import type { MarketingItem } from '../src/services/marketing';
 const platform = vi.hoisted(() => ({ navigateTo: vi.fn(), token: 'session', addServerCart: vi.fn(), requireLogin: vi.fn() }));
 vi.mock('@tarojs/components', () => ({ Button: 'button', Text: 'span', View: 'div' }));
-vi.mock('@tarojs/taro', () => ({ default: platform }));
+vi.mock('@tarojs/taro', () => ({ default: platform, useDidHide: vi.fn() }));
 vi.mock('../src/services/api', () => ({ getToken: () => platform.token, ApiError: Error }));
 vi.mock('../src/services/auth-flow', () => ({ requireLogin: platform.requireLogin }));
 vi.mock('../src/services/server-cart', () => ({ addServerCart: platform.addServerCart }));
@@ -55,4 +55,16 @@ it.each([0, 2])('prevents purchases when activity status is %s', async (activity
   await act(async () => { await page.root.findByProps({ children: '立即购买' }).props.onClick(); });
   expect(platform.addServerCart).not.toHaveBeenCalled();
   page.unmount();
+});
+
+it('ignores a pending purchase response after leaving the detail page', async () => {
+  // Given a pending request, when leaving before its completion, then no late navigation occurs.
+  let resolve: (value: string) => void = () => undefined;
+  platform.addServerCart.mockReturnValue(new Promise<string>((done) => { resolve = done; }));
+  const page = TestRenderer.create(<ActivityCheckout item={item} returnUrl={returnUrl} />);
+  let submission: Promise<void>;
+  await act(async () => { submission = page.root.findByProps({ children: '立即购买' }).props.onClick(); });
+  act(() => page.unmount());
+  await act(async () => { resolve('cart-20'); await submission; });
+  expect(platform.navigateTo).not.toHaveBeenCalled();
 });
