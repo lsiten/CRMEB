@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Taro, { useDidHide } from '@tarojs/taro';
-import { ApiError, cancelOrder, captureAuthSession, getOrder, isCurrentAuthSession } from '../services/api';
+import { ApiError, cancelOrder, captureAuthSession, getOrder, isCurrentAuthSession, subscribeAuthSession } from '../services/api';
 import { buyOrderAgain, deleteOrder, receiveOrder } from '../services/order-actions';
 import { commerceError } from '../services/commerce-contracts';
 import { useOrderResource } from './order-resource';
@@ -20,6 +20,7 @@ export function useOrderDetail(id: string) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
+  useEffect(() => subscribeAuthSession(() => { setError(''); setFeedback(''); }), []);
   const locked = useRef(false);
   const generation = useRef(0);
   const mounted = useRef(true);
