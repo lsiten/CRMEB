@@ -146,7 +146,7 @@ export { getProduct } from './product-detail';
 
 export type OrderStatus = 'pending' | 'unpaid' | 'paid' | 'shipping' | 'review' | 'completed' | 'cancelled' | 'refunding' | 'refunded';
 export type OrderItem = Readonly<{ id: number; cartId?: string; reviewUnique?: string; reviewed?: boolean; spec?: string; name: string; image?: string; price: number; quantity: number }>;
-export type Order = Readonly<{ id: string; internalId?: number; canRefund?: boolean; canBuyAgain?: boolean; deliveryType?: string; status: OrderStatus; statusText?: string; total: number; items: readonly OrderItem[]; createdAt?: string; address?: Readonly<{ name: string; phone: string; detail: string }> }>;
+export type Order = Readonly<{ id: string; internalId?: number; canRefund?: boolean; canBuyAgain?: boolean; canPay?: boolean; canCancel?: boolean; canReceive?: boolean; canDelete?: boolean; splitOrderIds?: readonly string[]; statusMessage?: string; deliveryType?: string; status: OrderStatus; statusText?: string; total: number; items: readonly OrderItem[]; createdAt?: string; address?: Readonly<{ name: string; phone: string; detail: string }> }>;
 export type { PaymentParams } from './payment';
 
 export type ActivityOrder = Readonly<{ kind: string; id: number; productId?: number }>;

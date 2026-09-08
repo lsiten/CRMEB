@@ -36,8 +36,20 @@ function parseOrder(value: unknown): Order {
     throw new ApiError('BUSINESS', '订单数据不完整，请重试');
   }
   const detail = text(row['user_address']);
+  const split = row['split'];
+  if (split !== undefined && !Array.isArray(split)) throw new ApiError('BUSINESS', '拆单数据不完整，请重试');
+  const splitOrderIds = Array.isArray(split) ? split.map((child: unknown) => text(rowOf(child)['order_id'])) : [];
+  if (splitOrderIds.some((child) => !child || child === id)) throw new ApiError('BUSINESS', '拆单数据不完整，请重试');
+  const splitParent = splitOrderIds.length > 0 || row['delivery_type'] === 'split';
+  const type = text(state['_type']);
+  const cancelled = status === 'cancelled';
   return {
     id, total, status, statusText: status === 'cancelled' ? '已取消' : text(state['_title']),
+    statusMessage: text(state['_msg']), splitOrderIds,
+    canPay: !cancelled && type === '0' && Number(row['paid']) === 0,
+    canCancel: !cancelled && ['0', '9'].includes(type) && Number(row['paid']) === 0,
+    canReceive: !cancelled && type === '2' && !splitParent,
+    canDelete: (type === '4' && !splitParent) || type === '-2',
     ...(Number.isSafeInteger(Number(row['id'])) && Number(row['id']) > 0 ? { internalId: Number(row['id']) } : {}),
     canRefund: (row['is_apply_refund'] === true || Number(row['is_apply_refund']) === 1) && (row['is_refund_available'] === true || Number(row['is_refund_available']) === 1) && Number(row['refund_status']) === 0,
     canBuyAgain: Number(row['paid']) === 1 && Number(row['is_gift'] ?? 0) === 0 && status !== 'cancelled' && !['combination_id', 'bargain_id', 'seckill_id', 'advance_id'].some((key) => Number(row[key]) > 0),
