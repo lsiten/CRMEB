@@ -18,7 +18,10 @@ export async function getCategories(): Promise<readonly Category[]> {
   return parseCategories(payload.data);
 }
 
-export async function getCategoryProducts(query: Readonly<{ categoryId: number; keyword: string; page: number }>): Promise<readonly Product[]> {
-  const payload = await request<Readonly<{ data?: unknown }>>(`/products?selectId=${query.categoryId}&keyword=${encodeURIComponent(query.keyword)}&page=${query.page}&limit=20`, { method: 'GET' });
+export type CatalogSort = 'default' | 'sales' | 'price-asc' | 'price-desc';
+
+export async function getCategoryProducts(query: Readonly<{ categoryId: number; keyword: string; page: number; sort?: CatalogSort }>): Promise<readonly Product[]> {
+  const sorting = { default: '', sales: '&salesOrder=desc', 'price-asc': '&priceOrder=asc', 'price-desc': '&priceOrder=desc' };
+  const payload = await request<Readonly<{ data?: unknown }>>(`/products?selectId=${query.categoryId}&keyword=${encodeURIComponent(query.keyword)}&page=${query.page}&limit=20${sorting[query.sort ?? 'default']}`, { method: 'GET' });
   return parseProducts(payload, 20);
 }
