@@ -43,6 +43,7 @@ export function ensureTenant() {
   return tenantSession.ensure();
 }
 export async function switchTenant(entry) {
+  initializeTenantState();
   tenantSession.select(entry);
   uni.setStorageSync('tenantEntry', entry);
   uni.reLaunch({ url: '/pages/index/index' });

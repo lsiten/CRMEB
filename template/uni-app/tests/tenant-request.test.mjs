@@ -10,7 +10,7 @@ async function harness(responses, settings = {}) {
   const app = { globalData: { spid: 10, pid: 10, code: 'old', agent_id: 10 } };
   let logins = 0;
   const context = vm.createContext({ console, setTimeout, getApp: () => app, uni: {
-    getStorageSync: key => storage.get(key), setStorageSync: (key,value) => storage.set(key,value),
+    reLaunch: () => undefined, getStorageSync: key => storage.get(key), setStorageSync: (key,value) => storage.set(key,value),
     clearStorageSync: () => storage.clear(), uploadFile: options => queueMicrotask(() => options.success(settings.uploadRaw)), showModal: () => {},
     request: options => { calls.push(options);
       if (settings.base) {
@@ -121,4 +121,11 @@ test('upload preserves non-JSON HTTP403 for original callback', async () => {
   const response = await new Promise((resolve,reject) => h.upload({ success: resolve, fail: reject }));
   assert.equal(response.statusCode, 403);
   assert.equal(response.data, 'denied');
+});
+
+test('switch before first request persists the actual selected entry', async () => {
+  const h = await harness([boot('tenant-b')]);
+  await h.tenant.switchTenant('store-b');
+  assert.equal(h.storage.get('tenantEntry'), 'store-b');
+  assert.equal(h.calls[0].data.entry, 'store-b');
 });
