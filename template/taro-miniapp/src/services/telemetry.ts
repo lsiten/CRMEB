@@ -1,3 +1,4 @@
+import { tenantSession, subscribeTenant } from './tenant';
 import Taro from '@tarojs/taro';
 
 export type TelemetryName =
@@ -24,6 +25,7 @@ const configuredEndpoint = process.env.TARO_TELEMETRY_URL;
 const endpoint = (configuredEndpoint ?? '').replace(/\/$/, '');
 const tokenKey = 'crmeb_token';
 const queue: TelemetryEvent[] = [];
+subscribeTenant(() => { queue.length = 0; });
 const MAX_QUEUE_SIZE = 200;
 let flushScheduled = false;
 let flushInFlight = false;
@@ -38,6 +40,8 @@ function scheduleFlush(delayMs = 0): void {
 }
 
 function flush(): void {
+  // Tenant mode does not forward queued analytics through the legacy transport.
+  if (tenantSession.enabled()) { queue.length = 0; return; }
   if (queue.length === 0 || !endpoint || flushInFlight) return;
   flushInFlight = true;
   const events = queue.slice();
