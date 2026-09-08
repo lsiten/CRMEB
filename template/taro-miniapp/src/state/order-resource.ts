@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useDidHide, useDidShow } from '@tarojs/taro';
-import { captureAuthSession, getToken, isCurrentAuthSession } from '../services/api';
+import { captureAuthSession, getAuthRevision, getToken, isCurrentAuthSession, subscribeAuthSession } from '../services/api';
 import { commerceError } from '../services/commerce-contracts';
 
 export function useOrderResource<T extends Readonly<{ id: string }>>(key: string, fetcher: (page: number) => Promise<readonly T[]>) {
+  useSyncExternalStore(subscribeAuthSession, getAuthRevision, getAuthRevision);
   const [items, setItems] = useState<readonly T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

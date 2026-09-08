@@ -15,6 +15,12 @@ export class ApiError extends Error {
 const baseUrl = (process.env.TARO_API_BASE_URL ?? 'http://127.0.0.1:8080/api').replace(/\/$/, '');
 const tokenKey = 'crmeb_token';
 let authRevision = 0;
+const authListeners = new Set<() => void>();
+export function getAuthRevision(): number { return authRevision; }
+export function subscribeAuthSession(listener: () => void): () => void {
+  authListeners.add(listener);
+  return () => { authListeners.delete(listener); };
+}
 type AuthSession = Readonly<{ token: string | null; revision: number }>;
 type AuthExpiry = Readonly<{ session: AuthSession; revision: number }>;
 let authExpiry: AuthExpiry | undefined;
@@ -24,6 +30,7 @@ export function setToken(token: string | null): void {
   authRevision += 1;
   authExpiry = undefined;
   if (token) Taro.setStorageSync(tokenKey, token); else Taro.removeStorageSync(tokenKey);
+  for (const listener of authListeners) listener();
 }
 export function getToken(): string | null { return Taro.getStorageSync<string>(tokenKey) || null; }
 

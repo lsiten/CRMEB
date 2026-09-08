@@ -1,6 +1,6 @@
 import { act } from 'react-test-renderer';
 import { expect, it } from 'vitest';
-import { platform, serverOrder, response, deferred, render, textOf, press, rendered } from './order-page-fixture';
+import { platform, serverOrder, response, deferred, render, textOf, press, button, rendered } from './order-page-fixture';
 import List from '../src/pages/order/list';
 import Detail from '../src/pages/order/detail';
 import { setToken } from '../src/services/api';
@@ -17,6 +17,18 @@ function change(kind: typeof changes[number]) {
   }
 }
 for (const Page of [List, Detail]) {
+  for (const kind of ['switch', 'logout', 'same-token'] as const) {
+    it(`clears idle ${Page.name} content immediately after ${kind}`, async () => {
+      // Given displayed private data with no request in flight.
+      platform.request.mockResolvedValueOnce(response(Page === List ? [serverOrder] : serverOrder));
+      await render(Page);
+      expect(textOf()).toContain('wx1');
+      // When authentication changes without any page interaction or lifecycle event.
+      await act(async () => { change(kind); });
+      // Then old private data is absent from the rendered page.
+      expect(textOf()).not.toContain('wx1');
+    });
+  }
   for (const kind of changes) {
     it(`isolates pending ${Page.name} data after ${kind}`, async () => {
       // Given a request owned by the old page/session.
@@ -55,9 +67,9 @@ for (const kind of changes) {
 it('does not submit an order displayed before an idle account change', async () => {
   // Given an already displayed account A order.
   await render(Detail);
+  const click = button('取消订单').props['onClick'];
   // When account B signs in before the old button is clicked.
-  setToken('account-b');
-  await press('取消订单');
+  await act(async () => { setToken('account-b'); click(); });
   // Then the click must reload before it can open a confirmation or mutate.
   expect(platform.showModal).not.toHaveBeenCalled();
   expect(platform.request.mock.calls.some(([input]) => input.method === 'POST')).toBe(false);
@@ -67,9 +79,10 @@ it('restarts pagination instead of mixing orders across an idle account change',
   // Given a full first page belonging to account A.
   platform.request.mockResolvedValueOnce(response(Array.from({ length: 20 }, (_, index) => ({ ...serverOrder, order_id: `old-${index}` }))));
   await render(List);
+  const click = button('加载更多').props['onClick'];
   // When account B clicks the still-rendered pagination button.
-  setToken('account-b'); platform.request.mockResolvedValueOnce(response([{ ...serverOrder, order_id: 'new-order' }]));
-  await press('加载更多');
+  platform.request.mockResolvedValueOnce(response([{ ...serverOrder, order_id: 'new-order' }]));
+  await act(async () => { setToken('account-b'); click(); });
   // Then a fresh page one replaces the old account's data.
   expect(platform.request).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ page: 1 }) }));
   expect(textOf()).not.toContain('old-');
