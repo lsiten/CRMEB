@@ -4,7 +4,7 @@ import { apiAmount, apiId, apiItems, apiRecord, apiText } from './commerce-contr
 export type RefundSelection = Readonly<{ cartId: string; quantity: number }>;
 export type RefundProduct = Readonly<{ cartId: string; name: string; image: string; spec: string; remaining: number }>;
 export type RefundApplication = Readonly<{ orderId: number; selection: readonly RefundSelection[]; reason: string; explanation: string; images: readonly string[]; type: 1 | 2 }>;
-export type Refund = Readonly<{ id: string; internalId: number; orderId: string; type: number; title: string; message: string; amount: number; reason: string; explanation: string; images: readonly string[]; createdAt: string; products: readonly RefundProduct[]; returnAddress: string; returnName: string; returnPhone: string; express: string; expressName: string; expressOptions: readonly string[] }>;
+export type Refund = Readonly<{ id: string; internalId: number; orderId: string; type: number; cancelled: boolean; title: string; message: string; amount: number; reason: string; explanation: string; images: readonly string[]; createdAt: string; products: readonly (RefundProduct & Readonly<{ quantity: number }>)[]; returnAddress: string; returnName: string; returnPhone: string; express: string; expressName: string; expressOptions: readonly string[] }>;
 
 function internalId(value: number): number {
   if (!Number.isSafeInteger(value) || value < 1) throw new ApiError('BUSINESS', '订单标识无效，请重新打开订单');
@@ -47,8 +47,13 @@ function parseRefund(value: unknown): Refund {
   const images = row['refund_img'];
   const type = Number(row['refund_type']);
   if (!Number.isSafeInteger(type) || type < 1 || type > 6) throw new ApiError('BUSINESS', '售后状态不完整，请重试');
+  const cancelled = Number(row['is_cancel']) === 1;
   const titles: Readonly<Record<number, string>> = { 1: '退款审核中', 2: '退货审核中', 3: '退款被拒绝', 4: '请寄回商品', 5: '等待商家收货退款', 6: '已退款' };
-  return { id: apiId(row['order_id']), internalId: internalId(Number(row['id'])), orderId: apiText(row['store_order_sn'] ?? row['store_order_order_id']), type, title: titles[type] ?? apiText(status['_title']), message: apiText(row['refuse_reason']) || apiText(status['_msg']), amount: apiAmount(row['refund_price'] ?? row['pay_price']), reason: apiText(row['refund_reason']), explanation: apiText(row['refund_explain']), images: Array.isArray(images) ? images.map(apiText).filter(Boolean) : [], createdAt: apiText(row['_add_time'] ?? row['add_time']), products: apiItems(products).map(parseProduct), returnAddress: apiText(status['refund_address']), returnName: apiText(status['refund_name']), returnPhone: apiText(status['refund_phone']), express: apiText(row['refund_express']), expressName: apiText(row['refund_express_name']), expressOptions: Array.isArray(row['express_list']) ? row['express_list'].map((entry: unknown) => apiText(apiRecord(entry)['name'])).filter(Boolean) : [] };
+  return { id: apiId(row['order_id']), internalId: internalId(Number(row['id'])), orderId: apiText(row['store_order_sn'] ?? row['store_order_order_id']), type, cancelled, title: cancelled ? '已撤销售后' : titles[type] ?? apiText(status['_title']), message: cancelled ? '本次售后申请已撤销。' : type === 3 ? apiText(row['refuse_reason']) || '商家拒绝退款，请联系商家' : type === 4 ? '请按商家提供的信息寄回商品。' : type === 5 ? '商品已寄回，等待商家收货处理。' : apiText(status['_msg']), amount: apiAmount(row['refund_price'] ?? row['pay_price']), reason: apiText(row['refund_reason']), explanation: apiText(row['refund_explain']), images: Array.isArray(images) ? images.map(apiText).filter(Boolean) : [], createdAt: apiText(row['_add_time'] ?? row['add_time']), products: apiItems(products).map((value) => {
+    const quantity = Number(apiRecord(value)['cart_num']);
+    if (!Number.isSafeInteger(quantity) || quantity < 1) throw new ApiError('BUSINESS', '售后商品数量不完整，请重试');
+    return { ...parseProduct(value), quantity };
+  }), returnAddress: apiText(status['refund_address']), returnName: apiText(status['refund_name']), returnPhone: apiText(status['refund_phone']), express: apiText(row['refund_express']), expressName: apiText(row['refund_express_name']), expressOptions: Array.isArray(row['express_list']) ? row['express_list'].map((entry: unknown) => apiText(apiRecord(entry)['name'])).filter(Boolean) : [] };
 }
 export async function getRefunds(page = 1): Promise<readonly Refund[]> {
   const payload = apiRecord(await request<unknown>('/order/refund/list', { method: 'GET', data: { page, limit: 20 } }));
@@ -56,7 +61,9 @@ export async function getRefunds(page = 1): Promise<readonly Refund[]> {
 }
 export async function getRefund(refundId: string): Promise<Refund> {
   const payload = apiRecord(await request<unknown>(`/order/refund/detail/${apiId(refundId)}`, { method: 'GET' }));
-  return parseRefund(payload['data']);
+  const refund = parseRefund(payload['data']);
+  if (refund.id !== refundId) throw new ApiError('BUSINESS', '售后单号不匹配，请返回列表重新打开');
+  return refund;
 }
 export async function cancelRefund(refundId: string): Promise<void> { await request(`/order/refund/cancel/${apiId(refundId)}`, { method: 'POST' }); }
 export async function deleteRefund(refundId: string): Promise<void> { await request(`/order/refund/del/${apiId(refundId)}`, { method: 'GET' }); }
