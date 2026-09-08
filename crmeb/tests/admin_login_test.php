@@ -68,6 +68,43 @@ try {
     check($login('shared')['status'] === 400 && $login('shared', 'another-password')['status'] === 400,
         'ambiguous name never selects an account by first row or matching password');
     check(array_column(Db::name('system_admin')->where('account', 'shared')->select()->toArray(), 'login_count') === array_column($before, 'login_count'), 'ambiguous attempts do not save either account');
+    foreach ([1 => ['a', $password], 2 => ['b', 'another-password']] as $tenantId => $input) {
+        $prior = Db::name('system_admin')->where(['account' => 'shared', 'tenant_id' => $tenantId])->find();
+        $result = adminHttp($base, 'login', ['account' => 'shared', 'pwd' => $input[1], 'tenant_code' => $input[0]]);
+        check($result['status'] === 200 && $result['data']['user_info']['tenant_id'] === $tenantId,
+            'shared account logs in to explicit tenant ' . $tenantId);
+        $after = Db::name('system_admin')->where('id', $prior['id'])->find();
+        check((int)$after['tenant_id'] === $tenantId && (int)$after['login_count'] === (int)$prior['login_count'] + 1
+            && (int)$after['last_time'] > 0 && $after['last_ip'] === '127.0.0.1', 'explicit login preserves ownership and metadata');
+    }
+    $stable = Db::name('system_admin')->where('account', 'shared')->select()->toArray();
+    foreach (['missing', 'a', ''] as $code) {
+        $result = adminHttp($base, 'login', ['account' => 'shared', 'pwd' => 'another-password', 'tenant_code' => $code]);
+        check($result['status'] === 400 && $result['msg'] === '账号或密码错误', 'wrong tenant/password or omitted selector rejects');
+    }
+    check(Db::name('system_admin')->where('account', 'shared')->select()->toArray() === $stable, 'selector failures do not update either account');
+    foreach ([[], 1, null, str_repeat('x', 65)] as $code) {
+        $result = adminHttp($base, 'login', ['account' => 'bravo', 'pwd' => $password, 'tenant_code' => $code]);
+        check($result['status'] === 400, 'invalid tenant code input rejected');
+    }
+    foreach (['', '  ', ' b '] as $code) {
+        check(adminHttp($base, 'login', ['account' => 'bravo', 'pwd' => $password, 'tenant_code' => $code])['status'] === 200,
+            'empty or trimmed code stays compatible');
+    }
+    Db::name('tenant')->where('id', 2)->update(['status' => 0]);
+    check(adminHttp($base, 'login', ['account' => 'shared', 'pwd' => 'another-password', 'tenant_code' => 'b'])['status'] === 400,
+        'disabled selected tenant rejected');
+    Db::name('tenant')->where('id', 2)->update(['status' => 1]);
+    $duplicate = Db::name('system_admin')->where(['account' => 'shared', 'tenant_id' => 2])->find();
+    unset($duplicate['id']);
+    $duplicateId = Db::name('system_admin')->insertGetId($duplicate);
+    check(adminHttp($base, 'login', ['account' => 'shared', 'pwd' => 'another-password', 'tenant_code' => 'b'])['status'] === 400,
+        'same tenant duplicate rejected');
+    Db::name('system_admin')->where('id', $duplicateId)->delete();
+    Db::name('tenant')->insert(['id' => 3, 'name' => 'drift', 'code' => 'b', 'status' => 0]);
+    check(adminHttp($base, 'login', ['account' => 'shared', 'pwd' => 'another-password', 'tenant_code' => 'b'])['status'] === 400,
+        'duplicate tenant code under schema drift rejected');
+    Db::name('tenant')->where('id', 3)->delete();
     Db::name('system_admin')->where(['account' => 'shared', 'tenant_id' => 1])->update(['is_del' => 1]);
     check($login('shared', 'another-password')['status'] === 200, 'deleted duplicate does not block unique B account');
     check(SystemAdmin::where('account', 'bravo')->find() === null && TenantContext::id() === 1,

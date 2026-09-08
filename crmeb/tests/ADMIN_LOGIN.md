@@ -1,5 +1,7 @@
 # 非默认租户管理员登录回归（LSIT-21）
 
+后续 `tenant_code` 扩展已替代下文同名账号的限制，现行请求契约见 `ADMIN_TENANT_CODE.md`；下文保留前一阶段的回归记录。
+
 基准为 PR #45 的 `92e81035cf502685c07224656cde7fc254002e49`。本次只修复 `SystemAdminServices::verifyLogin()`；不修改全局模型作用域、客户端、部署配置或现有数据库。
 
 ## 契约与兼容性
