@@ -11,15 +11,17 @@ async function harness(responses, settings = {}) {
   let logins = 0;
   const context = vm.createContext({ console, setTimeout, getApp: () => app, uni: {
     reLaunch: () => undefined, getStorageSync: key => storage.get(key), setStorageSync: (key,value) => storage.set(key,value),
-    clearStorageSync: () => storage.clear(), uploadFile: options => queueMicrotask(() => options.success(settings.uploadRaw)), showModal: () => {},
+    clearStorageSync: () => storage.clear(), uploadFile: options => { uploads.push(options); queueMicrotask(() => options.success(settings.uploadRaw ?? { statusCode: 200, data: '{"status":200}' })); }, showModal: () => {},
     request: options => { calls.push(options);
-      if (settings.base) {
+      if (settings.onRequest) { settings.onRequest(options); }
+      else if (settings.base) {
         fetch(options.url, { method: options.method.toUpperCase(), headers: options.header,
           ...(options.method.toUpperCase() === 'POST' ? { body: JSON.stringify(options.data) } : {}) })
           .then(async response => options.success({ statusCode: response.status, data: await response.json() })).catch(options.fail);
       } else queueMicrotask(() => { const next = responses.shift(); options.success({ statusCode: 200, data: typeof next === 'function' ? next() : next }); });
     },
   } });
+  const uploads = [];
   const cache = new Map();
   const fixtures = {
     config: { HTTP_REQUEST_URL: settings.base || 'http://localhost', TENANT_ENTRY: settings.entry ?? 'store-a', HEADER: {}, TOKENNAME: 'Authori-zation', TIMEOUT: 1000 },
@@ -44,7 +46,7 @@ async function harness(responses, settings = {}) {
   }
   const module = await load('request.js'); await module.evaluate();
   const upload = await load('tenant-upload.js'); await upload.evaluate();
-  return { request: module.namespace.default, calls, logins: () => logins, state, storage, app, upload: upload.namespace.uploadWithTenant, tenant: cache.get('tenant.js').namespace };
+  return { request: module.namespace.default, calls, uploads, logins: () => logins, state, storage, app, upload: upload.namespace.uploadWithTenant, tenant: cache.get('tenant.js').namespace };
 }
 const boot = token => ({ status: 200, data: { tenant: { id: 1,name: 'A',code: 'a' },tenant_token: token,expires_in: 3600 } });
 const invalid = { status: 401,data: { code: 'tenant_token_invalid' } };
@@ -128,4 +130,60 @@ test('switch before first request persists the actual selected entry', async () 
   await h.tenant.switchTenant('store-b');
   assert.equal(h.storage.get('tenantEntry'), 'store-b');
   assert.equal(h.calls[0].data.entry, 'store-b');
+});
+
+for (const operation of ['post', 'upload']) {
+  test(`${operation} waiting for bootstrap cannot send with a newer user session`, async () => {
+    const h = await harness([], { onRequest: options => {
+      if (!options.url.endsWith('/tenant/bootstrap')) options.success({ statusCode: 200, data: { status: 200 } });
+    } });
+    const pending = operation === 'post' ? h.request.post('order/create')
+      : new Promise((resolve, reject) => h.upload({ filePath: '/a.png', success: resolve, fail: reject }));
+    const rejected = assert.rejects(pending, { code: 'TENANT_CHANGED' });
+    h.state.app.token = 'user-b';
+    h.state.app.sessionRevision++;
+    h.calls[0].success({ statusCode: 200, data: boot('tenant-a') });
+    await rejected;
+    assert.equal(h.calls.length, 1, 'only bootstrap may reach request');
+    assert.equal(h.uploads.length, 0, 'stale file must never reach uploadFile');
+  });
+
+  test(`${operation} after resolved ensure cannot send across a tenant switch`, async () => {
+    const h = await harness([boot('tenant-a'), { status: 200 }]);
+    await h.tenant.ensureTenant();
+    const before = h.calls.length;
+    const pending = operation === 'post' ? h.request.post('order/create', {}, { noAuth: true })
+      : new Promise((resolve, reject) => h.upload({ filePath: '/a.png', success: resolve, fail: reject }));
+    const rejected = assert.rejects(pending, { code: 'TENANT_CHANGED' });
+    h.tenant.tenantSession.select('store-b');
+    await rejected;
+    assert.equal(h.calls.length, before, 'switch must block the old POST before transport');
+    assert.equal(h.uploads.length, 0, 'switch must block the old upload before transport');
+  });
+}
+
+test('same-session renewal preserves user and sends one allowed GET replay', async () => {
+  const h = await harness([boot('old'), invalid, boot('fresh'), { status: 200 }]);
+  await h.request.get('products');
+  assert.equal(h.calls.length, 4);
+  assert.equal(h.calls[3].header['X-Tenant-Token'], 'fresh');
+  assert.equal(h.calls[3].header['Authori-zation'], 'Bearer user-a');
+  assert.equal(h.state.app.sessionRevision, 0);
+});
+
+test('switch after renewal resolves blocks GET replay before transport', async () => {
+  const h = await harness([boot('old'), invalid, boot('fresh'), { status: 200 }]);
+  const renew = h.tenant.tenantSession.renew;
+  h.tenant.tenantSession.renew = snapshot => renew(snapshot).then(result => {
+    h.tenant.tenantSession.select('store-b');
+    return result;
+  });
+  await assert.rejects(h.request.get('products'), { code: 'TENANT_CHANGED' });
+  assert.equal(h.calls.filter(call => call.url.endsWith('/products')).length, 1);
+});
+
+test('same-token new login during bootstrap cannot send an old POST', async () => {
+  const h = await harness([() => { h.state.app.sessionRevision++; return boot('tenant'); }, { status: 200 }]);
+  await assert.rejects(h.request.post('user/edit'), { code: 'TENANT_CHANGED' });
+  assert.equal(h.calls.length, 1);
 });

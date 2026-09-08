@@ -21,7 +21,7 @@ import {
 } from '../libs/login';
 import store from '../store';
 import i18n from './lang.js';
-import { ensureTenant, tenantSession, isTenantInvalid, TenantError } from './tenant';
+import { ensureTenant, initializeTenantState, tenantSession, isTenantInvalid, TenantError } from './tenant';
 
 /**
  * 发送请求
@@ -31,11 +31,7 @@ async function baseRequest(url, method, data, {
 	noVerify = false,
 	tenantRetry = false
 }) {
-	const tenant = await ensureTenant();
-	let Url = HTTP_REQUEST_URL,
-		header = { ...HEADER };
-	if (tenant.token) header['X-Tenant-Token'] = tenant.token;
-
+	initializeTenantState();
 	if (!noAuth) {
 		//登录过期自动登录
 		if (!store.state.app.token && !checkLogin()) {
@@ -47,12 +43,23 @@ async function baseRequest(url, method, data, {
 	}
 	const userToken = store.state.app.token;
 	const userRevision = store.state.app.sessionRevision;
-	if (store.state.app.token) header[TOKENNAME] = 'Bearer ' + store.state.app.token;
+	const operation = { revision: tenantSession.revision() };
+	const assertOperation = () => {
+		tenantSession.assertCurrent(operation);
+		if (store.state.app.sessionRevision !== userRevision || store.state.app.token !== userToken) throw new TenantError('TENANT_CHANGED');
+	};
+	const tenant = await ensureTenant();
+	assertOperation();
+	let Url = HTTP_REQUEST_URL,
+		header = { ...HEADER };
+	if (tenant.token) header['X-Tenant-Token'] = tenant.token;
+	if (userToken) header[TOKENNAME] = 'Bearer ' + userToken;
 
 	return new Promise((reslove, reject) => {
 		if (uni.getStorageSync('locale')) {
 			header['Cb-lang'] = uni.getStorageSync('locale')
 		}
+		assertOperation();
 		uni.request({
 			url: Url + '/api/' + url,
 			method: method || 'GET',
@@ -61,14 +68,13 @@ async function baseRequest(url, method, data, {
 			timeout: TIMEOUT,
 			success: async (res) => {
         try {
-          tenantSession.assertCurrent(tenant);
-          if (store.state.app.sessionRevision !== userRevision || store.state.app.token !== userToken) throw new TenantError('TENANT_CHANGED');
+          assertOperation();
         } catch (error) { reject(error); return; }
         if (isTenantInvalid(res.data)) {
           if (tenantRetry) { reject(new TenantError('TENANT_UNAVAILABLE')); return; }
           try {
             await tenantSession.renew(tenant);
-            if (store.state.app.token !== userToken || store.state.app.sessionRevision !== userRevision) throw new TenantError('TENANT_CHANGED');
+            assertOperation();
             if (!canReplayTenantRead(url, method)) throw new TenantError('TENANT_UNAVAILABLE');
             reslove(await baseRequest(url, method, data, { noAuth, noVerify, tenantRetry: true }));
           } catch (error) { reject(error); }

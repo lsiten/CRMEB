@@ -10,6 +10,10 @@
 
 ## 验证与边界
 
+本轮 P1 修复：同步完成入口初始化及本地登录恢复后，在首个 await 前固定租户代际、用户令牌和登录代际。引导等待结束、业务发包前及续期重放前均校验原操作归属；上传同样先固定身份，旧操作不进入 `uni.request` / `uni.uploadFile`。同租户令牌续期不改变操作代际，正常允许列表 GET 仍可重放一次。首段 SHA 为原接入契约基准，本轮不重验真实服务端，也不沿用旧 HTTP 记录作为修复验收。
+
+`tests/tenant-request.test.mjs` 固化审查的等待中换用户、ensure 完成后切店探针，并补充上传两种窗口、同令牌重新登录及续期完成后切店；断言实际平台传输函数未被调用，而非仅检查响应拒绝。测试中平台和身份为替身，不能外推真实 HTTP、页面切店或设备结果。旧统计脚本限制继续保留。
+
 - `node --experimental-vm-modules --test tests/*.test.mjs` 执行纯会话及真实请求模块的平台替身测试，VM Modules 有 Node 实验性提示。
 - 启动服务端隔离脚本后，在本目录设置 `TENANT_HTTP_BASE`、独立 `TENANT_TEST_PORT`、`TENANT_TEST_PHP` 执行同一命令；增加两租户实际 HTTP、用户401、调用真实服务类重置后恢复的验证。未设环境则显式跳过 HTTP 项。脚本只接受独立实例中的唯一 lsit21_test_* 库，不输出凭据。完成后按服务端提示 Enter 清理。
 - package.json 没有平台构建 scripts；H5/微信/App 应由当前 HBuilderX 配置分别构建。Node 请求适配测试不能代替 UniApp 编译和浏览器/真机。
