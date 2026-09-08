@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useDidShow } from '@tarojs/taro';
 import { commerceError } from '../services/commerce-contracts';
 
-export function usePagedResource<T extends Readonly<{ id: string }>>(key: string, fetcher: (page: number) => Promise<readonly T[]>) {
+type ResourcePage<T> = Readonly<{ items: readonly T[]; hasMore: boolean }>;
+
+export function usePagedResource<T extends Readonly<{ id: string }>>(key: string, fetcher: (page: number) => Promise<readonly T[] | ResourcePage<T>>) {
   const [items, setItems] = useState<readonly T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,8 +23,9 @@ export function usePagedResource<T extends Readonly<{ id: string }>>(key: string
     try {
       const next = await current.current(nextPage);
       if (request !== generation.current) return;
-      setItems((previous) => [...new Map([...(reset ? [] : previous), ...next].map((item) => [item.id, item])).values()]);
-      page.current = nextPage; setEnd(next.length < 20);
+      const values = 'items' in next ? next.items : next;
+      setItems((previous) => [...new Map([...(reset ? [] : previous), ...values].map((item) => [item.id, item])).values()]);
+      page.current = nextPage; setEnd('items' in next ? !next.hasMore : next.length < 20);
     } catch (cause) { if (request === generation.current) setError(commerceError(cause)); }
     finally { if (request === generation.current) { busy.current = false; setLoading(false); } }
   };

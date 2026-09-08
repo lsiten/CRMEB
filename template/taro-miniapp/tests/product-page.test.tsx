@@ -49,3 +49,31 @@ describe('product detail shopping flow', () => {
     expect(button('加入购物车')?.props.disabled).toBe(true);
   });
 });
+
+it('keeps server favorite state after a failed removal and blocks duplicate submits', async () => {
+  platform.request.mockResolvedValue({ ...response, data: { ...response.data, data: {
+    ...response.data.data, storeInfo: { ...response.data.data.storeInfo, userCollect: true },
+  } } });
+  await act(async () => { page = TestRenderer.create(<DetailPage />); });
+  expect(button('已收藏')).toBeDefined();
+  let finish: ((value: unknown) => void) | undefined;
+  platform.request.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  await act(async () => { button('已收藏')?.props.onClick(); button('已收藏')?.props.onClick(); });
+  expect(platform.request).toHaveBeenCalledTimes(2);
+  expect(button('已收藏')?.props.disabled).toBe(true);
+  await act(async () => { finish?.({ statusCode: 200, data: { status: 400, msg: '取消失败' } }); });
+  expect(button('已收藏')?.props.disabled).toBe(false);
+  expect(platform.showToast).toHaveBeenCalledWith({ title: '取消失败', icon: 'none' });
+  platform.request.mockResolvedValueOnce({ statusCode: 200, data: { status: 200 } });
+  await act(async () => { await button('已收藏')?.props.onClick(); });
+  expect(button('收藏')).toBeDefined();
+});
+
+it('sends guests to login before collecting', async () => {
+  platform.storage.clear();
+  platform.request.mockResolvedValue(response);
+  await act(async () => { page = TestRenderer.create(<DetailPage />); });
+  await act(async () => { button('收藏')?.props.onClick(); });
+  expect(platform.request).toHaveBeenCalledTimes(1);
+  expect(platform.navigateTo).toHaveBeenCalledWith({ url: expect.stringContaining('/pages-extra/login/index?returnUrl=') });
+});

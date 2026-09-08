@@ -2,7 +2,7 @@ import Taro from '@tarojs/taro';
 import { track } from './telemetry';
 
 export type ProductVariant = Readonly<{ unique: string; label: string; price: number; stock: number; image?: string }>;
-export type Product = Readonly<{ id: number; name: string; price: number; image: string; description?: string; stock?: number; specs?: readonly string[]; variants?: readonly ProductVariant[]; unique?: string; category?: string; status?: number }>;
+export type Product = Readonly<{ id: number; name: string; price: number; image: string; description?: string; stock?: number; specs?: readonly string[]; variants?: readonly ProductVariant[]; unique?: string; category?: string; status?: number; collected?: boolean }>;
 export type ApiErrorCode = 'UNAUTHORIZED' | 'TIMEOUT' | 'NETWORK' | 'BUSINESS' | 'HTTP';
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
