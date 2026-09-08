@@ -58,4 +58,4 @@ ADMIN_LOGIN_SERVER=<上述准确SHA的干净checkout> node tests/serve-login.cjs
 
 仅管理后台 Web 本次 loading 场景和错误toast增量验证。完整安装商城、验证码拖动通过、375px租户列表、订单支付库存、队列、双客户端/真机、PHP8.1、全站性能/WCAG和线上均未验收。此前暂停的独立服务端审查及后台同步未重试、不计完成。
 
-收尾通过启动器Enter正常停止并删除独立数据库/datadir/cache/ready文件，关闭专属ego空间，核对端口无监听；保留脱敏日志和截图附件。不合并、不部署、不迁移既有环境。构建有既有包体积警告。
+收尾时标准输入通道已关闭，Enter未能发送；核对启动器及子进程PID均不等于Multica daemon后，向本轮启动器精确PID发送SIGTERM，触发其原有finally清理，输出CLEANED并退出0。独立数据库/datadir/cache/ready文件已删除，专属ego空间关闭，端口无监听；保留脱敏日志和截图附件。不合并、不部署、不迁移既有环境。构建有既有包体积警告。
