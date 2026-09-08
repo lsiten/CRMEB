@@ -26,7 +26,7 @@ $server = null;
 if (getenv('TENANT_TEST_INTERACTIVE') === '1') {
     if (!function_exists('pcntl_async_signals')) throw new RuntimeException('Interactive mode requires pcntl');
     pcntl_async_signals(true);
-    foreach ([SIGINT, SIGTERM] as $signal) pcntl_signal($signal, function () { throw new RuntimeException('Interactive test stopped'); });
+    foreach ([SIGINT, SIGTERM] as $signal) pcntl_signal($signal, function () { throw new RuntimeException('Interactive test stopped'); }, false);
 }
 $pdo->exec('CREATE DATABASE `' . $database . '`');
 try {
@@ -66,7 +66,14 @@ try {
     if (getenv('TENANT_TEST_INTERACTIVE') === '1') {
         echo "Isolated API: " . $base . "\nPOST tenant/bootstrap: {\"entry\":\"store-a\"} or {\"entry\":\"store-b\"}\n";
         echo "GET __test/items with X-Tenant-Token reads that tenant's fixture. No production data or login.\nPress Enter to run reset/revocation checks and shut down.\n";
-        fgets(STDIN);
+        while (true) {
+            $read = [STDIN];
+            $write = $except = [];
+            $inputReady = @stream_select($read, $write, $except, 0, 200000);
+            pcntl_signal_dispatch();
+            if ($inputReady === false) throw new RuntimeException('Interactive input interrupted');
+            if ($inputReady > 0) { fgets(STDIN); break; }
+        }
     }
     [$tokenA, $headers, $httpStatus] = httpCall($base, 'tenant/bootstrap', ['entry' => 'store-a']);
     check($httpStatus === 200 && $tokenA['status'] === 200 && $tokenA['data']['tenant']['id'] === 1, 'HTTP anonymous cold bootstrap binds A');
