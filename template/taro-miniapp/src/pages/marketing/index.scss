@@ -12,4 +12,5 @@
 .marketing .original { color:var(--color-text-muted); text-decoration:line-through; font-size:12PX; }
 .marketing .stock { color:var(--color-text-secondary); font-size:12PX; }
 .marketing .state { min-height:120PX; display:flex; align-items:center; justify-content:center; gap:12PX; flex-direction:column; }
+.marketing .state button { min-height:44PX; min-width:44PX; font-size:14PX; line-height:44PX; }
 @media (max-width:640px) { .marketing .activity-grid { grid-template-columns:1fr; } }
