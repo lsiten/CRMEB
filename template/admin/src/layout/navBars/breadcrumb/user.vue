@@ -38,12 +38,7 @@
     <div class="layout-navbars-breadcrumb-user-icon mr10" v-db-click @click="openMobelPage">
       <i title="商城页面" class="el-icon-mobile-phone"></i>
     </div>
-    <el-dropdown
-      v-if="canSwitchTenant"
-      class="tenant-switch"
-      :show-timeout="70"
-      @command="onTenantCommand"
-    >
+    <el-dropdown v-if="canSwitchTenant" class="tenant-switch" :show-timeout="70" @command="onTenantCommand">
       <span class="tenant-switch-link">
         <i class="el-icon-office-building"></i>
         <span class="tenant-switch-name">{{ currentTenantLabel }}</span>
@@ -69,13 +64,19 @@
       </span>
       <el-dropdown-menu slot="dropdown">
         <el-dropdown-item command="user">{{ $t('message.user.dropdown6') }}</el-dropdown-item>
+        <el-dropdown-item v-if="credentialsTenantId > 0" command="credentials">租户接口凭据</el-dropdown-item>
         <el-dropdown-item divided command="logOut">{{ $t('message.user.dropdown5') }}</el-dropdown-item>
       </el-dropdown-menu>
     </el-dropdown>
     <div class="layout-navbars-breadcrumb-user-icon" v-db-click @click="onLayoutSetingClick">
       <i class="el-icon-setting" :title="$t('message.user.title3')"></i>
     </div>
-    <!-- <Search ref="searchRef" /> -->
+    <TenantCredentials
+      v-if="credentialsVisible && credentialsTenantId > 0"
+      :key="credentialsTenantId"
+      :tenant-id="credentialsTenantId"
+      @close="credentialsVisible = false"
+    />
 
     <el-dialog
       title="切换租户"
@@ -132,9 +133,10 @@ import { Session, Local } from '@/utils/storage.js';
 import { formatFlatteningRoutes } from '@/libs/system';
 import UserNews from '@/layout/navBars/breadcrumb/userNews.vue';
 import Search from '@/layout/navBars/breadcrumb/search.vue';
+import TenantCredentials from '@/components/tenantCredentials';
 export default {
   name: 'layoutBreadcrumbUser',
-  components: { UserNews, Search },
+  components: { UserNews, Search, TenantCredentials },
   data() {
     return {
       isScreenfull: false,
@@ -146,6 +148,7 @@ export default {
       tenantSwitching: false,
       tenantListLoading: false,
       selectedTenantId: '',
+      credentialsVisible: false,
     };
   },
   computed: {
@@ -157,19 +160,16 @@ export default {
       return this.$store.state.tenant.list || [];
     },
     isSuperAdmin() {
-      const userInfo = this.$store.state.userInfo.userInfo || {};
-      const uniqueAuth = this.$store.state.userInfo.uniqueAuth;
+      return [0, '0'].includes(this.getUserInfos.level);
+    },
+    credentialsTenantId() {
       return (
-        userInfo.level === 0 ||
-        userInfo.is_super_admin === true ||
-        userInfo.is_super_admin === 1 ||
-        (Array.isArray(uniqueAuth) && uniqueAuth.includes('super_admin'))
+        Number(this.isSuperAdmin ? this.currentTenantId || this.getUserInfos.tenant_id : this.getUserInfos.tenant_id) ||
+        0
       );
     },
     canSwitchTenant() {
-      return this.isSuperAdmin
-        ? this.tenantList.length > 0 || !!this.$store.state.tenant.current
-        : !!this.$store.state.tenant.current;
+      return this.isSuperAdmin && (this.tenantList.length > 0 || !!this.$store.state.tenant.current);
     },
     currentTenantLabel() {
       const current = this.$store.state.tenant.current || this.tenantList[0] || {};
@@ -189,6 +189,12 @@ export default {
     },
   },
   watch: {
+    credentialsTenantId() {
+      this.credentialsVisible = false;
+    },
+    '$route.fullPath'() {
+      this.credentialsVisible = false;
+    },
     getUserInfos: {
       deep: true,
       handler() {
@@ -358,6 +364,8 @@ export default {
             })
             .catch(() => {});
         }, 150);
+      } else if (path === 'credentials') {
+        this.credentialsVisible = true;
       } else if (path === 'user') {
         this.$router.push({ name: 'systemUser' });
       } else {
@@ -365,7 +373,7 @@ export default {
       }
     },
     onTenantCommand(tenantId) {
-      if (!tenantId || String(tenantId) === String(this.currentTenantId)) return;
+      if (!this.isSuperAdmin || !tenantId || String(tenantId) === String(this.currentTenantId)) return;
       this.selectedTenantId = tenantId;
       this.switchTenant();
     },
@@ -393,7 +401,7 @@ export default {
         });
     },
     switchTenant() {
-      if (!this.selectedTenantId || this.tenantSwitching || this.tenantListLoading) return;
+      if (!this.isSuperAdmin || !this.selectedTenantId || this.tenantSwitching || this.tenantListLoading) return;
       this.tenantSwitching = true;
       switchTenantApi({ tenant_id: this.selectedTenantId })
         .then((res) => {

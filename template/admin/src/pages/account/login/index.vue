@@ -192,8 +192,7 @@ export default {
             current: data.current_tenant || data.tenant || null,
             list: data.tenants || data.tenant_list || [],
           });
-          const isPlatformAdmin =
-            userInfo.level === 0 || userInfo.is_super_admin === true || userInfo.is_super_admin === 1;
+          const isPlatformAdmin = [0, '0'].includes(userInfo.level);
           if (isPlatformAdmin && !data.tenants && !data.tenant_list) {
             tenantListApi()
               .then((tenantRes) => {
@@ -247,7 +246,10 @@ export default {
           } catch (e) {}
           PrevLoading.start();
           this.$router.push({
-            path: menus.length && findFirstNonNullChildren(menus) ? findFirstNonNullChildren(menus).path : this.$routeProStr + '/',
+            path:
+              menus.length && findFirstNonNullChildren(menus)
+                ? findFirstNonNullChildren(menus).path
+                : this.$routeProStr + '/',
           });
         })
         .catch((res) => {

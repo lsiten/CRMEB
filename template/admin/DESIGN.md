@@ -1,0 +1,25 @@
+# 后台租户凭据界面
+
+## 1. 定位
+沿用 CRMEB 的 Element UI 管理界面。面向普通租户管理员与平台超级管理员，先确认租户，再操作凭据，生成后的保存提示优先于其他操作。
+
+## 2. 颜色
+复用 `src/theme/variables.scss` 的 `--prev-color-primary`、`--prev-bg-white`、`--prev-color-text-primary`、`--prev-color-text-regular` 与边框变量；状态色使用 Element UI warning/error/success，新增界面不自定义颜色。
+
+## 3. 字体
+继承后台系统中文字体栈；正文与表单 14px、弹窗标题 18px，凭据内容使用 monospace。现有全局表单 12px 为历史样式，新凭据输入覆盖为正文 14px。
+
+## 4. 间距与布局
+采用 Element UI 表单与弹窗默认间距；新凭据弹窗最大宽度 600px、窄屏宽度 92vw，顶部留白 8vh。区块间距 16px。长 ID 和密钥用可换行的只读文本域；内容随文档滚动，按钮组允许换行。
+
+## 5. 组件
+复用 el-dialog、el-alert、el-form/item、el-input、el-button、el-dropdown/item 与现有 vxe-table。按钮保留默认 hover/focus/active、disabled/loading 状态。凭据弹窗由账户菜单和租户列表复用：加载、失败可重查、未生成、已生成、一次性展示、重置确认、提交中。表单标签关联输入，错误信息使用 role=alert；对话框由 Element UI 管理键盘焦点。
+
+## 6. 交互
+不新增装饰动画。使用组件默认弹窗过渡；局部支持 reduced-motion。首次生成不可重复自动提交，重置先说明旧 secret 与租户令牌立即失效。一次性展示时禁用遮罩/Escape/右上角关闭，明确保存后关闭；关闭、路由变化、租户变化均销毁内存中的密钥。
+
+## 7. 层次
+沿用现有白色卡片、主题背景、Element UI 弹窗阴影和遮罩。无需新图标库或图片资源。
+
+## 8. 可访问性与范围
+新控件使用原生按钮、关联标签、可键盘到达的只读输入与可见焦点；中文说明与长密钥在 375/768/1280px 检查。现有管理外壳并非手机端产品，本次不重做其全局布局或进行全站 Lighthouse 优化；不能据此声称全站性能或 WCAG 验收通过。
