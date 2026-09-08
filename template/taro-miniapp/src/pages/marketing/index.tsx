@@ -7,9 +7,11 @@ import { getMarketingItems, type MarketingItem, type MarketingKind } from '../..
 import { buildSharePath } from '../../services/platform';
 import './index.scss';
 import LotteryPage from './lottery';
+import { CatalogPage } from './catalog';
+import MemberCouponsPage from './member-coupons';
 
 const kinds: readonly { key: MarketingKind; label: string }[] = [
-  { key: 'seckill', label: '秒杀' }, { key: 'combination', label: '拼团' }, { key: 'bargain', label: '砍价' }, { key: 'advance', label: '预售' }, { key: 'lottery', label: '抽奖' }, { key: 'coupon', label: '优惠券' }, { key: 'member', label: '会员' }, { key: 'red-packet', label: '红包' }, { key: 'sign', label: '签到' }, { key: 'gift', label: '赠品' },
+  { key: 'seckill', label: '秒杀' }, { key: 'combination', label: '拼团' }, { key: 'bargain', label: '砍价' }, { key: 'advance', label: '预售' }, { key: 'lottery', label: '抽奖' }, { key: 'coupon', label: '优惠券' }, { key: 'member', label: '会员券' }, { key: 'red-packet', label: '红包' }, { key: 'sign', label: '签到' }, { key: 'gift', label: '赠品' },
 ];
 
 async function openActivity(item: MarketingItem): Promise<void> {
@@ -24,7 +26,7 @@ async function openActivity(item: MarketingItem): Promise<void> {
       await Taro.navigateTo({ url: '/pages-extra/coupon/index' });
       return;
     case 'member':
-      await Taro.switchTab({ url: '/pages/user/index' });
+      await Taro.navigateTo({ url: '/pages-extra/vip-coupon/index' });
       return;
     case 'sign':
       return;
@@ -44,9 +46,13 @@ const MarketingPage = () => {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
-  useEffect(() => { let active = true; setLoading(true); setFailed(false); void getMarketingItems(kind).then((value) => { if (active) setItems(value); }).catch(() => { if (active) { setItems([]); setFailed(true); } }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [kind, retry]);
-  return <View className='page marketing'><Text className='title'>营销活动</Text><View className='kind-tabs'>{kinds.map((item) => <Button key={item.key} className={kind === item.key ? 'active' : ''} onClick={() => item.key === 'lottery' ? Taro.navigateTo({ url: '/pages/marketing/lottery?type=1' }) : setKind(item.key)}>{item.label}</Button>)}</View>{loading && <View className='card state'><Loading label='正在加载活动' /></View>}{!loading && failed && <View className='card state'><Text>活动加载失败</Text><Button size='mini' onClick={() => setRetry((value) => value + 1)}>重试</Button></View>}{!loading && !failed && items.length === 0 && <View className='card state'><Empty title='暂无活动' /></View>}{kind === 'sign' && <View className='card'><RewardAction reward={{ kind: 'sign' }} /></View>}<View className='activity-grid'>{items.map((item) => <View className='card activity' key={`${item.kind}-${item.id}`} onClick={() => openActivity(item)}>{item.image && <Image src={item.image} mode='aspectFill' /> }<Text className='activity-title'>{item.title}</Text>{item.kind === 'coupon' && <RewardAction reward={{ kind: 'coupon', couponId: item.id }} />}{item.price !== undefined && <Text className='price'>¥{item.price.toFixed(2)}</Text>}{item.originalPrice !== undefined && <Text className='original'>¥{item.originalPrice.toFixed(2)}</Text>}{item.stock !== undefined && <Text className='stock'>剩余 {item.stock}</Text>}</View>)}</View></View>;
+  useEffect(() => { let active = true; setLoading(true); setFailed(false); setItems([]); void getMarketingItems(kind).then((value) => { if (active) setItems(value); }).catch(() => { if (active) { setItems([]); setFailed(true); } }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [kind, retry]);
+  return <View className='page marketing'><Text className='title'>营销活动</Text><View className='kind-tabs'>{kinds.map((item) => <Button key={item.key} className={kind === item.key ? 'active' : ''} onClick={() => item.key === 'lottery' ? Taro.navigateTo({ url: '/pages/marketing/lottery?type=1' }) : item.key === 'member' ? Taro.navigateTo({ url: '/pages-extra/vip-coupon/index' }) : item.key === 'seckill' || item.key === 'combination' || item.key === 'bargain' ? Taro.navigateTo({ url: `/pages-extra/goods-${item.key}/index` }) : setKind(item.key)}>{item.label}</Button>)}</View>{loading && <View className='card state'><Loading label='正在加载活动' /></View>}{!loading && failed && <View className='card state'><Text>活动加载失败</Text><Button size='mini' onClick={() => setRetry((value) => value + 1)}>重试</Button></View>}{!loading && !failed && items.length === 0 && <View className='card state'><Empty title='暂无活动' /></View>}{kind === 'sign' && <View className='card'><RewardAction reward={{ kind: 'sign' }} /></View>}<View className='activity-grid'>{items.map((item) => <View className='card activity' key={`${item.kind}-${item.id}`} onClick={() => openActivity(item)}>{item.image && <Image src={item.image} mode='aspectFill' /> }<Text className='activity-title'>{item.title}</Text>{item.kind === 'coupon' && <RewardAction reward={{ kind: 'coupon', couponId: item.id }} />}{item.price !== undefined && <Text className='price'>¥{item.price.toFixed(2)}</Text>}{item.originalPrice !== undefined && <Text className='original'>¥{item.originalPrice.toFixed(2)}</Text>}{item.stock !== undefined && <Text className='stock'>剩余 {item.stock}</Text>}</View>)}</View></View>;
 };
 export default function MarketingEntry() {
-  return Taro.getCurrentInstance().router?.params['kind'] === 'lottery' ? <LotteryPage /> : <MarketingPage />;
+  const kind = Taro.getCurrentInstance().router?.params['kind'];
+  if (kind === 'lottery') return <LotteryPage />;
+  if (kind === 'member') return <MemberCouponsPage />;
+  if (kind === 'seckill' || kind === 'combination' || kind === 'bargain') return <CatalogPage kind={kind} />;
+  return <MarketingPage />;
 }

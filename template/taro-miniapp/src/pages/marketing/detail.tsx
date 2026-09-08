@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Button, Image, Text, View } from '@tarojs/components';
+import { Button, Text, View } from '@tarojs/components';
 import Taro, { useRouter } from '@tarojs/taro';
-import { Loading } from '../../components';
-import { getMarketingDetail, type MarketingItem, type MarketingKind } from '../../services/marketing';
-import { buildSharePath } from '../../services/platform';
+import { CommerceImage } from '../../components/commerce-image';
+import { getToken } from '../../services/api';
+import { requireLogin } from '../../services/auth-flow';
+import { getMarketingDetail } from '../../services/marketing';
+import type { MarketingItem, MarketingKind } from '../../services/marketing';
+import { commerceError } from '../../services/commerce-contracts';
+import { ActivityCheckout } from './activity-checkout';
+import '../order/management.scss';
 
 const parseKind = (value: string | undefined): MarketingKind => {
   switch (value) {
@@ -12,29 +17,32 @@ const parseKind = (value: string | undefined): MarketingKind => {
   }
 };
 
-const DetailPage = () => {
+export default function DetailPage({ activityKind }: Readonly<{ activityKind?: MarketingKind }> = {}) {
   const router = useRouter();
-  const kind = parseKind(router.params['kind']);
+  const kind = activityKind ?? parseKind(router.params['kind']);
   const id = Number(router.params['id'] ?? 0);
+  const periodId = Number(router.params['time_id'] ?? 0);
+  const returnUrl = `/pages/marketing/detail?kind=${kind}&id=${id}${Number.isSafeInteger(periodId) && periodId > 0 ? `&time_id=${periodId}` : ''}`;
   const [item, setItem] = useState<MarketingItem>();
-  const [failed, setFailed] = useState(false);
-  const [remaining, setRemaining] = useState<number>();
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
-    if (!Number.isSafeInteger(id) || id <= 0) { setFailed(true); return undefined; }
+    if (!Number.isSafeInteger(id) || id <= 0) { setError('活动标识无效'); return; }
+    setItem(undefined); setError('');
     let active = true;
-    void getMarketingDetail(kind, id).then((value) => { if (active) setItem(value); }).catch(() => { if (active) setFailed(true); });
+    void getMarketingDetail(kind, id, periodId).then((value) => { if (active) setItem(value); }).catch((cause: unknown) => { if (active) setError(commerceError(cause)); });
     return () => { active = false; };
-  }, [kind, id]);
-  useEffect(() => {
-    if (!item?.endsAt) return undefined;
-    const update = () => setRemaining(Math.max(0, new Date(item.endsAt as string).getTime() - Date.now()));
-    update(); const timer = setInterval(update, 1000); return () => clearInterval(timer);
-  }, [item?.endsAt]);
-  if (process.env.TARO_ENV !== 'h5') Taro.useShareAppMessage(() => ({ title: item?.title ?? '营销活动', path: buildSharePath('/pages/marketing/detail', { kind, id: String(id) }) }));
-  if (failed) return <View className='page card'><Text>活动已结束或不存在</Text></View>;
-  if (!item) return <View className='page card'><Loading label='正在加载活动详情' /></View>;
-  const available = item.stock === undefined || item.stock > 0;
-  const countdown = remaining === undefined ? '' : `剩余 ${Math.floor(remaining / 3600000)}小时${Math.floor(remaining / 60000) % 60}分${Math.floor(remaining / 1000) % 60}秒`;
-  return <View className='page'><View className='card detail'>{item.image && <Image src={item.image} mode='aspectFit' />}<Text className='title'>{item.title}</Text>{item.price !== undefined && <Text className='price'>¥{item.price.toFixed(2)}</Text>}{countdown && <Text className='hint'>{countdown}</Text>}<Text className='hint'>资格、价格和库存由服务端实时校验</Text><Button disabled={!available} className='primary-action' onClick={() => void Taro.navigateTo({ url: buildSharePath('/pages/order/confirm', { activity: kind, activityId: String(id), ...(item.productId ? { productId: String(item.productId) } : {}) }) })}>{available ? '立即参与' : '已售罄'}</Button></View></View>;
-};
-export default DetailPage;
+  }, [kind, id, periodId, retry]);
+  if (process.env.TARO_ENV !== 'h5') Taro.useShareAppMessage(() => ({ title: item?.title ?? '营销活动', path: returnUrl }));
+  return <View className='order-management'>
+    <Text className='order-heading'>活动详情</Text>
+    {error ? <View className='order-alert' role='alert'><Text>{error}</Text><Button onClick={() => setRetry((value) => value + 1)}>重试</Button>{!getToken() && <Button onClick={() => requireLogin(returnUrl)}>去登录</Button>}</View>
+      : !item ? <View className='order-panel'>正在加载活动详情…</View> : <>
+        <View className='order-panel'><View className='order-product'>
+          <CommerceImage className='order-product-image' src={item.image ?? ''} mode='aspectFill' />
+          <View className='order-product-body'><Text className='order-section-title'>{item.title}</Text>{item.price !== undefined && <Text className='order-amount'>¥{item.price.toFixed(2)}</Text>}</View>
+        </View></View>
+        <ActivityCheckout key={`${kind}:${id}:${periodId}:${retry}`} item={item} returnUrl={returnUrl} />
+      </>}
+  </View>;
+}

@@ -1,1 +1,1 @@
-export { default } from '../../pages/marketing';
+export { default } from '../../pages/marketing/member-coupons';

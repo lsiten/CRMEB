@@ -1,7 +1,9 @@
 import { ApiError, request } from './api';
+import type { ProductVariant } from './api';
+import { apiAmount, apiId, apiItems, apiRecord, apiText } from './commerce-contracts';
 
 export type MarketingKind = 'seckill' | 'combination' | 'bargain' | 'advance' | 'lottery' | 'coupon' | 'member' | 'red-packet' | 'sign' | 'gift';
-export type MarketingItem = Readonly<{ id: number; productId?: number; title: string; image?: string; price?: number; originalPrice?: number; stock?: number; endsAt?: string; kind: MarketingKind; factor?: 1 | 2 | 3 | 4 | 5 }>;
+export type MarketingItem = Readonly<{ id: number; productId?: number; title: string; image?: string; price?: number; originalPrice?: number; stock?: number; endsAt?: string; kind: MarketingKind; factor?: 1 | 2 | 3 | 4 | 5; activityStatus?: number; variants?: readonly ProductVariant[] }>;
 type MarketingPayload = Readonly<{ data?: unknown; list?: unknown }>;
 
 const endpoints: Readonly<Record<MarketingKind, string>> = {
@@ -43,19 +45,60 @@ function normalize(record: Record<string, unknown>, kind: MarketingKind): Market
 export async function getMarketingItems(kind: MarketingKind): Promise<readonly MarketingItem[]> {
   let payload: MarketingPayload;
   if (kind === 'seckill') {
-    const periods = await request<MarketingPayload>('/seckill/index', { method: 'GET' });
-    const period = records(periods)[0];
-    const time = period ? Number(period['id'] ?? period['time'] ?? period['time_id']) : NaN;
-    if (!Number.isSafeInteger(time) || time <= 0) return [];
+    const schedule = await getSeckillSchedule();
+    const time = schedule.selectedId;
+    if (time === null) return [];
     payload = await request<MarketingPayload>(`/seckill/list/${time}`, { method: 'GET' });
   } else payload = await request<MarketingPayload>(endpoints[kind], { method: 'GET' });
   return records(payload).flatMap((record) => { try { return [normalize(record, kind)]; } catch { return []; } });
 }
 
-export async function getMarketingDetail(kind: MarketingKind, id: number): Promise<MarketingItem> {
+export type CatalogKind = 'seckill' | 'combination' | 'bargain';
+export type SeckillPeriod = Readonly<{ id: number; time: string; state: string; status: number }>;
+export async function getSeckillSchedule() {
+  const payload = apiRecord(await request<unknown>('/seckill/index', { method: 'GET' }));
+  const data = apiRecord(payload['data']);
+  const periods = apiItems(data['seckillTime']).map((value): SeckillPeriod => {
+    const row = apiRecord(value);
+    const id = Number(row['id']);
+    const status = Number(row['status']);
+    if (!Number.isSafeInteger(id) || id <= 0 || ![0, 1, 2].includes(status)) throw new ApiError('BUSINESS', '秒杀场次数据不完整，请重试');
+    return { id, status, time: apiText(row['time']), state: apiText(row['state']) };
+  });
+  const selected = periods[Number(data['seckillTimeIndex'])] ?? periods[0];
+  return { periods, selectedId: selected?.id ?? null };
+}
+
+export async function getMarketingPage(kind: CatalogKind, page: number, periodId?: number) {
+  if (!Number.isSafeInteger(page) || page < 1) throw new ApiError('BUSINESS', '活动页码无效');
+  if (kind === 'seckill' && (!Number.isSafeInteger(periodId) || !periodId || periodId < 1)) throw new ApiError('BUSINESS', '请选择秒杀场次');
+  const path = kind === 'seckill' ? `/seckill/list/${periodId}` : endpoints[kind];
+  const payload = apiRecord(await request<unknown>(path, { method: 'GET', data: { page, limit: 20 } }));
+  const rows = apiItems(payload['data']);
+  const items = rows.map((value) => {
+    const row = apiRecord(value);
+    const activity = normalize(Object.fromEntries(Object.entries(row)), kind);
+    return { id: String(activity.id), activity };
+  });
+  return { items, hasMore: rows.length >= 20 };
+}
+
+export async function getMarketingDetail(kind: MarketingKind, id: number, periodId?: number): Promise<MarketingItem> {
+  const selectedPeriod = kind === 'seckill' && (!periodId || periodId < 1) ? (await getSeckillSchedule()).selectedId : periodId;
   const path = kind === 'seckill' ? `/seckill/detail/${id}` : kind === 'combination' ? `/combination/detail/${id}` : kind === 'bargain' ? `/bargain/detail/${id}` : kind === 'advance' ? `/advance/detail/${id}` : kind === 'lottery' ? `/lottery/info/0/${id}` : `/product/detail/${id}`;
-  const payload = await request<MarketingPayload>(path, { method: 'GET' });
-  const item = records(payload)[0];
+  const payload = await request<MarketingPayload>(path, { method: 'GET', ...(kind === 'seckill' && selectedPeriod ? { data: { time_id: selectedPeriod } } : {}) });
+  const detail = apiRecord(payload.data);
+  const item = kind === 'seckill' || kind === 'combination' ? apiRecord(detail['storeInfo']) : kind === 'bargain' ? apiRecord(detail['bargain']) : records(payload)[0];
   if (!item) throw new ApiError('BUSINESS', '活动不存在');
-  return normalize(item, kind);
+  const activity = normalize(item, kind);
+  if (kind !== 'seckill' && kind !== 'combination') return activity;
+  const variants = Object.entries(apiRecord(detail['productValue'])).map(([label, value]): ProductVariant => {
+    const row = apiRecord(value);
+    const stock = Number(row['stock']);
+    if (!Number.isSafeInteger(stock) || stock < 0) throw new ApiError('BUSINESS', '活动库存数据不完整，请重试');
+    return { unique: apiId(row['unique']), label, price: apiAmount(row['price']), stock };
+  });
+  const activityStatus = kind === 'seckill' ? Number(item['status']) : Number(item['is_show']);
+  const quota = Number(item['quota']);
+  return { ...activity, ...(Number.isFinite(quota) && quota >= 0 ? { stock: Math.min(activity.stock ?? quota, quota) } : {}), activityStatus: Number(item['product_is_show']) === 0 ? 0 : activityStatus, variants };
 }
