@@ -55,6 +55,14 @@ try {
     check(TenantContext::id() === 1 && TenantContext::clientId() === null, 'context cleared after request');
     $response = $middleware->handle(testRequest([], ['x-tenant-token' => 'invalid']), function () { throw new RuntimeException('Invalid token reached business'); });
     check($response->getData()['status'] === 401, 'invalid explicit token cannot fall back');
+    $app->config->set(require dirname(__DIR__) . '/config/cookie.php', 'cookie');
+    $pipeline = function () { throw new RuntimeException('Invalid token reached route'); };
+    foreach (array_reverse(require dirname(__DIR__) . '/app/api/middleware.php') as $class) {
+        $next = $pipeline;
+        $pipeline = function ($request) use ($class, $next) { return (new $class())->handle($request, $next); };
+    }
+    $response = $pipeline(testRequest([], ['x-tenant-token' => 'invalid', 'origin' => 'https://tenant-client.example']));
+    check($response->getHeader('Access-Control-Allow-Origin') === 'https://tenant-client.example', 'invalid tenant token retains CORS error response');
     $middleware->handle(testRequest(), function () {
         check(TenantContext::id() === 1, 'legacy anonymous default tenant');
         return \think\Response::create('ok');
