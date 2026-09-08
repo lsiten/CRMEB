@@ -33,6 +33,18 @@
               show-password
             />
           </el-form-item>
+          <el-form-item prop="tenant_code" class="tenant-code-field">
+            <el-input
+              v-model="formInline.tenant_code"
+              type="text"
+              maxlength="64"
+              placeholder="租户编码（选填）"
+              aria-label="租户编码（选填）"
+              aria-describedby="tenant-code-hint"
+              size="large"
+            />
+            <div id="tenant-code-hint" class="tenant-code-hint">同名账号请填写所属租户编码</div>
+          </el-form-item>
           <!-- <el-form-item prop="code">
             <div class="code">
               <el-input
@@ -102,6 +114,7 @@ export default {
       formInline: {
         username: '',
         password: '',
+        tenant_code: '',
       },
       ruleInline: {
         username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -166,6 +179,7 @@ export default {
       this.loading = true;
       let sessionAuthenticated = false;
       AccountLogin({
+        ...(this.formInline.tenant_code.trim() ? { tenant_code: this.formInline.tenant_code.trim() } : {}),
         account: this.formInline.username,
         pwd: this.formInline.password,
         key: this.key,
@@ -374,7 +388,9 @@ export default {
   height: 100%;
 }
 .container {
-  height: 400px !important;
+  min-height: 480px;
+  height: auto !important;
+  max-width: calc(100vw - 32px);
   padding: 0 !important;
   border-radius: 12px;
   z-index: 1;
@@ -390,7 +406,7 @@ export default {
 }
 .index_from {
   padding: 32px 40px 32px 40px;
-  height: 400px;
+  min-height: 480px;
   box-sizing: border-box;
 }
 .page-account-top {
@@ -441,6 +457,13 @@ a:active {
 }
 .from-wh {
   width: 400px;
+  max-width: 100%;
+}
+.tenant-code-hint {
+  color: var(--prev-color-text-regular);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-top: 8px;
 }
 .pull-right {
   float: right !important;
