@@ -11,7 +11,7 @@ import { commerceError } from '../services/commerce-contracts';
 import { computeCheckout, confirmCheckout, createOrder } from '../services/checkout';
 import type { CheckoutPreferences, CheckoutPrice, CheckoutSession } from '../services/checkout';
 
-export function useCheckout(input: Readonly<{ cartIds?: string; direct?: boolean; selection?: string; returnUrl: string }>) {
+export function useCheckout(input: Readonly<{ cartIds?: string; direct?: boolean; selection?: string; returnUrl: string; pinkId?: string }>) {
   const [preferences, setPreferences] = useState<CheckoutPreferences>({ addressId: 0, shippingType: 1, couponId: 0, useIntegral: false, mark: '' });
   const [address, setAddress] = useState<Address>();
   const [session, setSession] = useState<CheckoutSession>();
@@ -25,7 +25,7 @@ export function useCheckout(input: Readonly<{ cartIds?: string; direct?: boolean
   const loadGeneration = useRef(0);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; loadGeneration.current += 1; }; }, []);
-  const submission = useMemo(() => session ? { key: session.key, direct: session.direct, preferences, activity: session.activity } : undefined, [session, preferences]);
+  const submission = useMemo(() => session ? { key: session.key, direct: session.direct, preferences, activity: session.activity, ...(session.pinkId ? { pinkId: session.pinkId } : {}) } : undefined, [session, preferences]);
   const price = calculation?.preferences === preferences && calculation.key === session?.key ? calculation.price : undefined;
 
   const load = async (): Promise<void> => {
@@ -34,6 +34,8 @@ export function useCheckout(input: Readonly<{ cartIds?: string; direct?: boolean
     setLoading(true);
     setError('');
     try {
+      const pinkId = input.pinkId === undefined ? undefined : /^[1-9]\d*$/.test(input.pinkId) ? Number(input.pinkId) : NaN;
+      if (pinkId !== undefined && (!Number.isSafeInteger(pinkId) || !input.direct)) throw new ApiError('BUSINESS', '参团信息无效，请返回活动重新选择');
       const addresses = await getAddresses();
       const selectedId = Number(Taro.getStorageSync<number | string>(CHECKOUT_ADDRESS_ID_KEY));
       const selected = addresses.find((item) => item.id === selectedId) ?? addresses.find((item) => item.id === preferences.addressId) ?? addresses.find((item) => item.is_default) ?? addresses[0];
@@ -48,10 +50,11 @@ export function useCheckout(input: Readonly<{ cartIds?: string; direct?: boolean
         }
       }
       const next = await confirmCheckout({ ...source.current, addressId: selected?.id ?? 0, shippingType: preferences.shippingType });
+      if (pinkId !== undefined && !next.activity.combinationId) throw new ApiError('BUSINESS', '参团商品不匹配，请返回活动重新选择');
       if (!mounted.current || generation !== loadGeneration.current) return;
       setAddress(selected);
       setPreferences((current) => ({ ...current, addressId: selected?.id ?? 0 }));
-      setSession(next);
+      setSession({ ...next, ...(pinkId !== undefined ? { pinkId } : {}) });
     } catch (cause) { if (mounted.current && generation === loadGeneration.current) setError(commerceError(cause)); }
     finally { if (mounted.current && generation === loadGeneration.current) setLoading(false); }
   };

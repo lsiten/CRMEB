@@ -8,6 +8,8 @@ import { getMarketingDetail } from '../../services/marketing';
 import type { MarketingItem, MarketingKind } from '../../services/marketing';
 import { commerceError } from '../../services/commerce-contracts';
 import { ActivityCheckout } from './activity-checkout';
+import BargainPage from './bargain';
+import { OpenPinks } from './pink';
 import '../order/management.scss';
 
 const parseKind = (value: string | undefined): MarketingKind => {
@@ -18,6 +20,12 @@ const parseKind = (value: string | undefined): MarketingKind => {
 };
 
 export default function DetailPage({ activityKind }: Readonly<{ activityKind?: MarketingKind }> = {}) {
+  const params = useRouter().params;
+  const kind = activityKind ?? parseKind(params['kind']);
+  return kind === 'bargain' ? <BargainPage /> : <ActivityDetail activityKind={kind} />;
+}
+
+function ActivityDetail({ activityKind }: Readonly<{ activityKind: MarketingKind }>) {
   const router = useRouter();
   const kind = activityKind ?? parseKind(router.params['kind']);
   const id = Number(router.params['id'] ?? 0);
@@ -44,6 +52,7 @@ export default function DetailPage({ activityKind }: Readonly<{ activityKind?: M
           <View className='order-product-body'><Text className='order-section-title'>{item.title}</Text>{item.price !== undefined && <Text className='order-amount'>¥{item.price.toFixed(2)}</Text>}</View>
         </View></View>
         <ActivityCheckout key={`${kind}:${id}:${periodId}:${retry}`} item={item} returnUrl={returnUrl} />
+        {kind === 'combination' && <OpenPinks id={id} returnUrl={returnUrl} />}
       </>}
   </View>;
 }

@@ -8,12 +8,12 @@ export type CheckoutPreferences = Readonly<{
   storeId?: number; recipient?: string; phone?: string; invoiceId?: number;
 }>;
 export type CheckoutSession = Readonly<{
-  key: string; cartIds: string; direct: boolean; items: readonly ServerCartItem[];
+  key: string; cartIds: string; direct: boolean; items: readonly ServerCartItem[]; pinkId?: number;
   pickupEnabled: boolean; integralEnabled: boolean; usableIntegral: number; addressId: number;
   activity: Readonly<{ combinationId: number; seckill_id: number; bargainId: number; advanceId: number }>;
 }>;
 export type CheckoutPrice = Readonly<{ total: number; payable: number; postage: number; coupon: number; integral: number }>;
-export type CheckoutSubmission = Readonly<{ key: string; preferences: CheckoutPreferences; direct: boolean; activity?: CheckoutSession['activity'] }>;
+export type CheckoutSubmission = Readonly<{ key: string; preferences: CheckoutPreferences; direct: boolean; activity?: CheckoutSession['activity']; pinkId?: number }>;
 
 export async function confirmCheckout(input: Readonly<{ cartIds: string; direct: boolean; addressId: number; shippingType: 1 | 2 }>): Promise<CheckoutSession> {
   const cartIds = input.cartIds.split(',').map(apiId).join(',');
@@ -31,11 +31,12 @@ export async function confirmCheckout(input: Readonly<{ cartIds: string; direct:
 }
 
 export function checkoutRequest(input: CheckoutSubmission) {
+  if (input.pinkId !== undefined && (!Number.isSafeInteger(input.pinkId) || input.pinkId <= 0 || !input.activity?.combinationId)) throw new ApiError('BUSINESS', '参团信息无效，请返回活动重新选择');
   const preferences = input.preferences;
   return {
     addressId: preferences.addressId, couponId: preferences.couponId, useIntegral: preferences.useIntegral ? 1 : 0,
     shipping_type: preferences.shippingType, store_id: preferences.storeId ?? 0, real_name: preferences.recipient ?? '', phone: preferences.phone ?? '',
-    mark: preferences.mark, invoice_id: preferences.invoiceId ?? 0, payType: 'weixin', new: input.direct ? 1 : 0, ...input.activity,
+    mark: preferences.mark, invoice_id: preferences.invoiceId ?? 0, payType: 'weixin', new: input.direct ? 1 : 0, ...input.activity, ...(input.pinkId !== undefined ? { pinkId: input.pinkId } : {}),
   };
 }
 

@@ -7,7 +7,7 @@ import { commerceError } from '../../services/commerce-contracts';
 import type { MarketingItem } from '../../services/marketing';
 import { addServerCart } from '../../services/server-cart';
 
-export function ActivityCheckout({ item, returnUrl }: Readonly<{ item: MarketingItem; returnUrl: string }>) {
+export function ActivityCheckout({ item, returnUrl, pinkId, stopTime, sessionToken }: Readonly<{ item: MarketingItem; returnUrl: string; pinkId?: number; stopTime?: number; sessionToken?: string | null }>) {
   const variants = item.variants ?? [];
   const [unique, setUnique] = useState(variants.length === 1 ? variants[0]?.unique ?? '' : '');
   const [busy, setBusy] = useState(false);
@@ -22,6 +22,9 @@ export function ActivityCheckout({ item, returnUrl }: Readonly<{ item: Marketing
   const available = supported && item.activityStatus === 1 && !!item.productId && !!selected && selected.stock > 0 && (item.stock === undefined || item.stock > 0);
   const submit = async (): Promise<void> => {
     if (locked.current || !available || !selected || !item.productId || !requireLogin(returnUrl)) return;
+    if (sessionToken !== undefined && getToken() !== sessionToken) { setError('登录状态已变化，请刷新活动'); return; }
+    if (stopTime !== undefined && stopTime <= Date.now() / 1000) { setError('该团已结束，请刷新活动'); return; }
+    if (pinkId !== undefined && (item.kind !== 'combination' || !Number.isSafeInteger(pinkId) || pinkId <= 0)) { setError('参团信息无效'); return; }
     const token = getToken();
     const request = generation.current;
     locked.current = true; setBusy(true); setError('');
@@ -32,7 +35,7 @@ export function ActivityCheckout({ item, returnUrl }: Readonly<{ item: Marketing
       });
       if (!mounted.current || generation.current !== request) return;
       if (getToken() !== token) { setError('登录状态已变化，请重新进入活动'); return; }
-      await Taro.navigateTo({ url: `/pages/order/confirm?cartIds=${encodeURIComponent(cartId)}&new=1` });
+      await Taro.navigateTo({ url: `/pages/order/confirm?cartIds=${encodeURIComponent(cartId)}&new=1${pinkId ? `&pinkId=${pinkId}` : ''}` });
     } catch (cause) {
       if (mounted.current && generation.current === request && getToken() === token) setError(commerceError(cause));
     }
@@ -47,6 +50,6 @@ export function ActivityCheckout({ item, returnUrl }: Readonly<{ item: Marketing
     {!variants.length && <Text>暂无可购买规格</Text>}
     {item.activityStatus !== 1 && <Text>{item.activityStatus === 2 ? '活动尚未开始' : '活动已结束或不可购买'}</Text>}
     {error && <View className='order-alert' role='alert'>{error}</View>}
-    <Button className='order-primary' disabled={busy || !available} onClick={submit}>{busy ? '正在确认…' : item.kind === 'combination' ? '发起拼团' : '立即购买'}</Button>
+    <Button className='order-primary' disabled={busy || !available} onClick={submit}>{busy ? '正在确认…' : pinkId ? '加入此团' : item.kind === 'combination' ? '发起拼团' : '立即购买'}</Button>
   </View>;
 }

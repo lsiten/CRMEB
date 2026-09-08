@@ -12,6 +12,7 @@ let state: ReturnType<typeof useCheckout> | undefined;
 let page: TestRenderer.ReactTestRenderer | undefined;
 function Probe() { state = useCheckout({ cartIds: 'cart1', returnUrl: '/pages/order/confirm?cartIds=cart1' }); return null; }
 function AgainProbe() { state = useCheckout({ cartIds: 'cart1', direct: true, returnUrl: '/pages/order/confirm?cartIds=cart1&new=1' }); return null; }
+function PinkProbe() { state = useCheckout({ cartIds: 'cart1', direct: true, pinkId: '33', returnUrl: '/pages/order/confirm?cartIds=cart1&new=1&pinkId=33' }); return null; }
 const quote = (payable: number): CheckoutPrice => ({ total: 100, payable, postage: 0, coupon: 0, integral: 0 });
 beforeEach(() => {
   vi.clearAllMocks();
@@ -21,6 +22,14 @@ beforeEach(() => {
   mocks.create.mockResolvedValue({ id: 'wx-order' });
 });
 afterEach(() => { act(() => page?.unmount()); state = undefined; });
+it('retains the chosen group after a delivery refresh and submits it to order creation', async () => {
+  mocks.confirm.mockResolvedValue({ key: 'stable-key', direct: true, items: [], activity: { combinationId: 8 } });
+  await act(async () => { page = TestRenderer.create(<PinkProbe />); });
+  await act(async () => { state?.setPreferences((current) => ({ ...current, mark: '参团' })); });
+  await act(async () => { await state?.submit(); });
+  expect(mocks.compute).toHaveBeenLastCalledWith(expect.objectContaining({ pinkId: 33 }));
+  expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ pinkId: 33 }));
+});
 it('confirms repeat purchases as temporary carts', async () => {
   await act(async () => { page = TestRenderer.create(<AgainProbe />); });
   expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ cartIds: 'cart1', direct: true }));

@@ -10,6 +10,13 @@ vi.mock('../src/services/api', () => ({ getToken: () => platform.token, ApiError
 vi.mock('../src/services/auth-flow', () => ({ requireLogin: platform.requireLogin }));
 vi.mock('../src/services/server-cart', () => ({ addServerCart: platform.addServerCart }));
 import { ActivityCheckout } from '../src/pages/marketing/activity-checkout';
+
+it('preserves the selected existing group in the confirmation URL', async () => {
+  const page = TestRenderer.create(<ActivityCheckout item={{ ...item, kind: 'combination' }} returnUrl={returnUrl} pinkId={33} />);
+  await act(async () => { await page.root.findByProps({ children: '加入此团' }).props.onClick(); });
+  expect(platform.navigateTo).toHaveBeenCalledWith({ url: '/pages/order/confirm?cartIds=cart-20&new=1&pinkId=33' });
+  page.unmount();
+});
 const item: MarketingItem = { id: 12, productId: 6, kind: 'seckill', title: '秒杀商品', activityStatus: 1, variants: [{ unique: 'sku-red', label: '红色', price: 10, stock: 3 }] };
 const returnUrl = '/pages/marketing/detail?kind=seckill&id=12&time_id=7';
 beforeEach(() => { vi.clearAllMocks(); platform.token = 'session'; platform.requireLogin.mockReturnValue(true); platform.addServerCart.mockResolvedValue('cart-20'); });
