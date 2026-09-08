@@ -33,7 +33,9 @@ export function ActivityCheckout({ item, returnUrl }: Readonly<{ item: Marketing
       if (!mounted.current || generation.current !== request) return;
       if (getToken() !== token) { setError('登录状态已变化，请重新进入活动'); return; }
       await Taro.navigateTo({ url: `/pages/order/confirm?cartIds=${encodeURIComponent(cartId)}&new=1` });
-    } catch (cause) { if (mounted.current && generation.current === request) setError(commerceError(cause)); }
+    } catch (cause) {
+      if (mounted.current && generation.current === request && getToken() === token) setError(commerceError(cause));
+    }
     finally { locked.current = false; if (mounted.current) setBusy(false); }
   };
   if (!supported) return <View className='order-panel'>此活动暂不支持在此页购买</View>;

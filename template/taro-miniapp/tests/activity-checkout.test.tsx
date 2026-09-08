@@ -4,7 +4,8 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import type { MarketingItem } from '../src/services/marketing';
 const platform = vi.hoisted(() => ({ navigateTo: vi.fn(), token: 'session', addServerCart: vi.fn(), requireLogin: vi.fn() }));
 vi.mock('@tarojs/components', () => ({ Button: 'button', Text: 'span', View: 'div' }));
-vi.mock('@tarojs/taro', () => ({ default: platform, useDidHide: vi.fn() }));
+const lifecycle = vi.hoisted(() => ({ hide: () => {} }));
+vi.mock('@tarojs/taro', () => ({ default: platform, useDidHide: (callback: () => void) => { lifecycle.hide = callback; } }));
 vi.mock('../src/services/api', () => ({ getToken: () => platform.token, ApiError: Error }));
 vi.mock('../src/services/auth-flow', () => ({ requireLogin: platform.requireLogin }));
 vi.mock('../src/services/server-cart', () => ({ addServerCart: platform.addServerCart }));
@@ -67,4 +68,51 @@ it('ignores a pending purchase response after leaving the detail page', async ()
   act(() => page.unmount());
   await act(async () => { resolve('cart-20'); await submission; });
   expect(platform.navigateTo).not.toHaveBeenCalled();
+});
+
+it.each(['other-account', ''])('discards a late failure after token changes to %s', async (token) => {
+  let reject: (reason: Error) => void = () => undefined;
+  platform.addServerCart.mockReturnValue(new Promise<string>((_resolve, fail) => { reject = fail; }));
+  const page = TestRenderer.create(<ActivityCheckout item={item} returnUrl={returnUrl} />);
+  let submission: Promise<void>;
+  await act(async () => { submission = page.root.findByProps({ children: '立即购买' }).props.onClick(); });
+  platform.token = token;
+  await act(async () => { reject(new Error('旧账号购买失败')); await submission; });
+  expect(page.root.findAllByProps({ role: 'alert' })).toHaveLength(0);
+  expect(platform.navigateTo).not.toHaveBeenCalled();
+  expect(page.root.findByProps({ children: '立即购买' }).props.disabled).toBe(false);
+  act(() => page.unmount());
+});
+
+it.each(['success', 'failure'])('ignores late %s after hiding without unmounting and allows retry', async (outcome) => {
+  let resolve: (value: string) => void = () => undefined;
+  let reject: (reason: Error) => void = () => undefined;
+  platform.addServerCart.mockReturnValue(new Promise<string>((done, fail) => { resolve = done; reject = fail; }));
+  const page = TestRenderer.create(<ActivityCheckout item={item} returnUrl={returnUrl} />);
+  let submission: Promise<void>;
+  await act(async () => { submission = page.root.findByProps({ children: '立即购买' }).props.onClick(); });
+  act(() => lifecycle.hide());
+  await act(async () => {
+    if (outcome === 'success') resolve('stale-cart');
+    else reject(new Error('隐藏页面的旧错误'));
+    await submission;
+  });
+  expect(page.root.findAllByProps({ role: 'alert' })).toHaveLength(0);
+  expect(platform.navigateTo).not.toHaveBeenCalled();
+  platform.addServerCart.mockResolvedValue('fresh-cart');
+  await act(async () => { await page.root.findByProps({ children: '立即购买' }).props.onClick(); });
+  expect(platform.navigateTo).toHaveBeenCalledWith({ url: '/pages/order/confirm?cartIds=fresh-cart&new=1' });
+  act(() => page.unmount());
+});
+
+it('shows a current failure and releases the submit lock for retry', async () => {
+  platform.addServerCart.mockRejectedValue(new Error('库存不足'));
+  const page = TestRenderer.create(<ActivityCheckout item={item} returnUrl={returnUrl} />);
+  await act(async () => { await page.root.findByProps({ children: '立即购买' }).props.onClick(); });
+  expect(page.root.findByProps({ role: 'alert' }).props.children).toBe('库存不足');
+  platform.addServerCart.mockResolvedValue('retry-cart');
+  await act(async () => { await page.root.findByProps({ children: '立即购买' }).props.onClick(); });
+  expect(page.root.findAllByProps({ role: 'alert' })).toHaveLength(0);
+  expect(platform.navigateTo).toHaveBeenCalledWith({ url: '/pages/order/confirm?cartIds=retry-cart&new=1' });
+  act(() => page.unmount());
 });
