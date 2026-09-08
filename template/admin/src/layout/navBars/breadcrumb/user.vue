@@ -237,11 +237,13 @@ export default {
     tenantRequestContext() {
       return { version: this.tenantRequestVersion, account: this.tenantAccountKey, token: getCookies('token') };
     },
+    ownsTenantLoading(context) {
+      return !this._isDestroyed && context.version === this.tenantRequestVersion;
+    },
     isCurrentTenantRequest(context) {
       return (
-        !this._isDestroyed &&
+        this.ownsTenantLoading(context) &&
         this.isSuperAdmin &&
-        context.version === this.tenantRequestVersion &&
         context.account === this.tenantAccountKey &&
         context.token === getCookies('token')
       );
@@ -435,7 +437,7 @@ export default {
           this.$message.error('租户列表加载失败，请刷新重试');
         })
         .finally(() => {
-          if (this.isCurrentTenantRequest(context)) this.tenantListLoading = false;
+          if (this.ownsTenantLoading(context)) this.tenantListLoading = false;
         });
     },
     switchTenant() {
@@ -489,7 +491,7 @@ export default {
           this.$message.error((error && error.msg) || '租户切换失败');
         })
         .finally(() => {
-          if (this.isCurrentTenantRequest(context)) this.tenantSwitching = false;
+          if (this.ownsTenantLoading(context)) this.tenantSwitching = false;
         });
     },
     applyMenus(menus) {

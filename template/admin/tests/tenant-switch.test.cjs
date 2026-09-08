@@ -20,15 +20,18 @@ function setup() {
     .replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '').replace('export default', 'return');
   const reply = deferred();
   const menu = deferred();
+  const listing = deferred();
+  const next = deferred();
+  const calls = { switch: 0, list: 0 };
   const writes = [];
   const cookies = { token: 'session-a' };
   const bindings = {
     UserNews: {}, Search: {}, TenantCredentials: {},
     getCookies: (key) => cookies[key],
     setCookies: (key, value) => { cookies[key] = value; writes.push(['cookie', key]); },
-    switchTenantApi: () => reply.promise,
+    switchTenantApi: () => (++calls.switch === 1 ? reply.promise : next.promise),
     menusApi: () => menu.promise,
-    tenantListApi: async () => ({ data: [] }),
+    tenantListApi: () => (++calls.list === 1 ? listing.promise : next.promise),
     Local: { set: (...args) => writes.push(['local', ...args]) },
     window: { location: { reload: () => writes.push(['reload']) } },
     formatFlatteningRoutes: (value) => value,
@@ -43,9 +46,58 @@ function setup() {
   vm.$message = { success: (...args) => writes.push(['success', ...args]), error: (...args) => writes.push(['error', ...args]) };
   vm.bus = { $emit: (...args) => writes.push(['event', ...args]) };
   vm.selectedTenantId = 2;
-  return { vm, state, cookies, writes, reply, menu };
+  return { vm, state, cookies, writes, reply, menu, listing, next, calls };
 }
 const result = { data: { token: 'old-switch', expires_time: 9999999999, tenant: { id: 2 }, menus: [] } };
+
+for (const operation of ['switch', 'list']) {
+  for (const outcome of ['resolve', 'reject']) {
+    test(`${operation} ${outcome}：跨标签换 cookie 后结束自身 loading，丢弃旧会话并允许新请求`, async () => {
+      const s = setup();
+      const start = () => operation === 'switch' ? s.vm.switchTenant() : s.vm.loadTenantList();
+      const busy = operation === 'switch' ? 'tenantSwitching' : 'tenantListLoading';
+      const pending = operation === 'switch' ? s.reply : s.listing;
+      start();
+      assert.equal(s.vm[busy], true);
+      s.cookies.token = 'session-b';
+      pending[outcome](outcome === 'resolve' ? result : { msg: 'old failure' });
+      await flush();
+      assert.deepEqual(s.writes, []);
+      assert.equal(s.cookies.token, 'session-b');
+      assert.equal(s.vm[busy], false);
+      start();
+      assert.equal(s.calls[operation], 2);
+      assert.equal(s.vm[busy], true);
+      s.next.resolve(operation === 'switch' ? { data: { menus: [] } } : { data: [{ id: 3 }] });
+      await flush();
+      assert.equal(s.vm[busy], false);
+      assert.equal(s.cookies.token, 'session-b');
+      s.vm.$destroy();
+    });
+    test(`${operation} ${outcome}：关闭重开后旧请求不得结束新请求 loading`, async () => {
+      const s = setup();
+      const start = () => operation === 'switch' ? s.vm.switchTenant() : s.vm.loadTenantList();
+      const busy = operation === 'switch' ? 'tenantSwitching' : 'tenantListLoading';
+      s.vm.tenantDialogVisible = true;
+      await flush();
+      start();
+      s.vm.tenantDialogVisible = false;
+      await flush();
+      s.vm.tenantDialogVisible = true;
+      await flush();
+      start();
+      assert.equal(s.calls[operation], 2);
+      (operation === 'switch' ? s.reply : s.listing)[outcome](outcome === 'resolve' ? result : { msg: 'old failure' });
+      await flush();
+      assert.deepEqual(s.writes, []);
+      assert.equal(s.vm[busy], true);
+      s.next.resolve({ data: { menus: [] } });
+      await flush();
+      assert.equal(s.vm[busy], false);
+      s.vm.$destroy();
+    });
+  }
+}
 
 for (const change of ['close', 'account', 'cookie', 'destroy', 'route']) {
   test(`切换响应迟到：${change} 后不写状态、cookie、菜单或刷新`, async () => {
