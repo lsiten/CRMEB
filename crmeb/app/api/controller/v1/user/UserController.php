@@ -247,11 +247,22 @@ class UserController
     public function visitDelete(Request $request, StoreProductLogServices $services)
     {
         $uid = (int)$request->uid();
-        [$ids] = $request->postMore([
-            ['ids', []],
-        ], true);
+        $ids = $request->param('ids', [], null);
+        if ($uid <= 0 || !is_array($ids) || ($ids && array_keys($ids) !== range(0, count($ids) - 1))) {
+            return app('json')->fail('参数错误');
+        }
+        foreach ($ids as $id) {
+            if ((!is_int($id) && !is_string($id)) || !preg_match('/^[1-9][0-9]*$/D', (string)$id)
+                || filter_var($id, FILTER_VALIDATE_INT) === false) {
+                return app('json')->fail('参数错误');
+            }
+        }
         if ($ids) {
-            $where = ['uid' => $uid, 'product_id' => $ids];
+            $where = [
+                ['uid', '=', $uid],
+                ['type', '=', 'visit'],
+                ['product_id', 'in', array_unique(array_map('intval', $ids))],
+            ];
             $services->delete($where);
         }
         return app('json')->success('删除成功');
