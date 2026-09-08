@@ -36,6 +36,7 @@ class TenantConfigServices
             $existingKeys[$key] = true;
             $inserted++;
         }
+        \crmeb\services\SystemConfigService::clear($tenantId);
         return $inserted
             + $this->syncGroupData($tenantId, $sourceTenantId)
             + $this->syncTimers($tenantId, $sourceTenantId)

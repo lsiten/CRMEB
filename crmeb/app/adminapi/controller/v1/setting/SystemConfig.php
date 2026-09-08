@@ -15,7 +15,7 @@ use app\Request;
 use app\services\system\config\SystemConfigServices;
 use app\services\system\config\SystemConfigTabServices;
 use app\services\system\SystemPemServices;
-use crmeb\services\CacheService;
+use crmeb\services\SystemConfigService;
 use crmeb\services\easywechat\orderShipping\MiniOrderService;
 use think\facade\App;
 
@@ -135,7 +135,7 @@ class SystemConfig extends AuthController
         } else {
             $this->services->save($data);
         }
-        CacheService::clear();
+        SystemConfigService::clear();
         return app('json')->success('添加配置成功');
     }
 
@@ -209,7 +209,7 @@ class SystemConfig extends AuthController
         }
         $data['value'] = json_encode($data['value']);
         $this->services->update($id, $data);
-        CacheService::clear();
+        SystemConfigService::clear();
         return app('json')->success('修改成功');
     }
 
@@ -223,7 +223,7 @@ class SystemConfig extends AuthController
         if (!$this->services->delete($id))
             return app('json')->fail('删除失败');
         else {
-            CacheService::clear();
+            SystemConfigService::clear();
             return app('json')->success('删除成功');
         }
     }
@@ -240,7 +240,7 @@ class SystemConfig extends AuthController
             return app('json')->fail('参数错误');
         }
         $this->services->update($id, ['status' => $status]);
-        CacheService::clear();
+        SystemConfigService::clear();
         return app('json')->success('设置成功');
     }
 
@@ -461,7 +461,7 @@ class SystemConfig extends AuthController
                 $this->services->update($k, ['value' => json_encode($v)], 'menu_name');
             }
         }
-        CacheService::clear();
+        SystemConfigService::clear();
         return app('json')->success('修改成功');
     }
 
