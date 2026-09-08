@@ -1182,6 +1182,7 @@ class StoreOrderRefundServices extends BaseServices
     /**
      * 退款订单详情
      * @param $uni
+     * @param int|null $uid 用户端必须传认证 uid；null 保留管理端查询。
      * @return array
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\DbException
@@ -1190,16 +1191,22 @@ class StoreOrderRefundServices extends BaseServices
      * @email 442384644@qq.com
      * @date 2023/02/17
      */
-    public function refundDetail($uni)
+    public function refundDetail($uni, ?int $uid = null)
     {
         if (!strlen(trim($uni))) throw new ApiException('参数错误');
-        $order = $this->dao->get(['order_id' => $uni], ['*']);
+        if ($uid !== null && $uid <= 0) throw new ApiException('订单不存在');
+        $where = ['order_id' => $uni];
+        if ($uid !== null) $where['uid'] = $uid;
+        $order = $this->dao->get($where, ['*']);
         if (!$order) throw new ApiException('订单不存在');
         $order = $order->toArray();
 
         /** @var StoreOrderServices $orderServices */
         $orderServices = app()->make(StoreOrderServices::class);
-        $orderInfo = $orderServices->get($order['store_order_id']);
+        $orderWhere = ['id' => $order['store_order_id']];
+        if ($uid !== null) $orderWhere['uid'] = $uid;
+        $orderInfo = $orderServices->get($orderWhere);
+        if (!$orderInfo) throw new ApiException('订单不存在');
 
         /** @var UserServices $userServices */
         $userServices = app()->make(UserServices::class);

@@ -477,7 +477,7 @@ class StoreOrderController
         if ($type == 'refund') {
             /** @var StoreOrderRefundServices $refundService */
             $refundService = app()->make(StoreOrderRefundServices::class);
-            $order = $refundService->refundDetail($uni);
+            $order = $refundService->refundDetail($uni, (int)$request->uid());
             $express = $order['refund_express'];
             $cacheName = $uni . $express;
             $orderInfo = [];
