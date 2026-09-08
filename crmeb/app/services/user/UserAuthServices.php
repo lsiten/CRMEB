@@ -73,6 +73,10 @@ class UserAuthServices extends BaseServices
             throw new AuthException('登录已过期,请重新登录', [], 401);
         }
 
+        if ($type !== 'api') {
+            throw new AuthException('请使用用户登录令牌', [], 401);
+        }
+
         if ($clientTenantId !== null && (int)($tenantId ?? TenantContext::DEFAULT_TENANT_ID) !== $clientTenantId) {
             throw new AuthException('用户与租户不匹配', [], 403);
         }
