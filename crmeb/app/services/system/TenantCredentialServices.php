@@ -53,8 +53,19 @@ class TenantCredentialServices
         if (!preg_match('/^[a-f0-9]{64}$/D', $secret) || !hash_equals($row['secret_hash'], hash('sha256', $secret))) {
             throw new AuthException('租户凭据无效', [], 401);
         }
+        return $this->issue($row);
+    }
+
+    // Internal issuer for the server-controlled public bootstrap allowlist only.
+    public function issuePublicToken(string $clientId): array
+    {
+        return $this->issue($this->credential($clientId));
+    }
+
+    private function issue(array $row): array
+    {
         $tenant = $this->tenant((int)$row['tenant_id'], true);
-        $payload = $clientId . '.' . (time() + self::TTL) . '.' . bin2hex(random_bytes(16));
+        $payload = $row['client_id'] . '.' . (time() + self::TTL) . '.' . bin2hex(random_bytes(16));
         return ['tenant' => $tenant, 'tenant_token' => $payload . '.' . hash_hmac('sha256', $payload, $row['secret_hash']),
             'expires_in' => self::TTL];
     }

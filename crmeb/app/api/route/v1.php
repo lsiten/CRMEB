@@ -16,6 +16,8 @@ use think\Response;
 
 Route::post('tenant/token', 'v1.TenantController/token')
     ->middleware(\app\http\middleware\AllowOriginMiddleware::class);
+Route::post('tenant/bootstrap', 'v1.TenantController/bootstrap')
+    ->middleware(\app\http\middleware\AllowOriginMiddleware::class);
 
 Route::group(function () {
     Route::any('wechat/serve', 'v1.wechat.WechatController/serve')->option(['real_name' => '公众号服务']);//公众号服务

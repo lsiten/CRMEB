@@ -14,7 +14,12 @@ class TenantTokenMiddleware
         try {
             $token = $request->header('X-Tenant-Token');
             if ($token !== null && !$request->isOptions()) {
-                $id = app()->make(TenantCredentialServices::class)->resolve((string)$token);
+                try {
+                    $id = app()->make(TenantCredentialServices::class)->resolve((string)$token);
+                } catch (AuthException $e) {
+                    return app('json')->make(401, '租户令牌无效', ['code' => 'tenant_token_invalid'])
+                        ->header(['Cache-Control' => 'no-store']);
+                }
                 TenantContext::bindClient($id);
             }
             return $next($request);
