@@ -1,6 +1,24 @@
 import { ApiError, request } from './api';
-import { apiId, apiItems, apiRecord, apiText } from './commerce-contracts';
-export type Visit = Readonly<{ id: string; productId: number; name: string; image: string; price: number; visitedAt: string }>;
-function parse(value: unknown): Visit | undefined { const row=apiRecord(value); const product=apiRecord(row['productInfo']??row['product']); const id=apiId(row['id']); const productId=Number(row['product_id']??product['id']); if(!id||!Number.isSafeInteger(productId)||productId<=0)return; return {id,productId,name:apiText(product['store_name']??row['store_name']??row['name']),image:apiText(product['image']??row['image']),price:Number(product['price']??row['price'])||0,visitedAt:apiText(row['add_time']??row['visit_time'])}; }
-export async function getVisits(page:number):Promise<readonly Visit[]> { if(!Number.isSafeInteger(page)||page<1)throw new ApiError('BUSINESS','记录页码无效'); const payload=await request<unknown>('/user/visit_list',{method:'GET',data:{page,limit:20}}); const root=apiRecord(payload); return apiItems(root['data']).flatMap((v)=>{try{const x=parse(v);return x?[x]:[]}catch{return[]}}); }
-export async function clearVisits():Promise<void>{await request('/user/visit',{method:'DELETE',data:{}});}
+import { apiAmount, apiId, apiItems, apiRecord, apiText } from './commerce-contracts';
+
+export type Visit = Readonly<{ id: string; productId: number; name: string; image: string; price: number | null; visitedAt: string }>;
+
+export async function getVisits(page: number): Promise<readonly Visit[]> {
+  if (!Number.isSafeInteger(page) || page < 1) throw new ApiError('BUSINESS', '记录页码无效');
+  const response = apiRecord(await request<unknown>('/user/visit_list', { method: 'GET', data: { page, limit: 20 } }));
+  const data = apiRecord(response['data']);
+  return apiItems(data['list']).map((value) => {
+    const row = apiRecord(value);
+    const product = apiRecord(row['productInfo'] ?? row['product']);
+    const productId = Number(row['product_id'] ?? product['id']);
+    if (!Number.isSafeInteger(productId) || productId <= 0) throw new ApiError('BUSINESS', '浏览记录商品标识无效');
+    const price = row['product_price'] ?? product['price'] ?? row['price'];
+    return {
+      id: apiId(row['id']), productId,
+      name: apiText(product['store_name'] ?? row['store_name']),
+      image: apiText(product['image'] ?? row['image']),
+      price: price == null ? null : apiAmount(price),
+      visitedAt: apiText(row['add_time'] ?? row['visit_time']),
+    };
+  });
+}
