@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Taro, { useDidHide, useDidShow } from '@tarojs/taro';
-import { ApiError, getToken } from '../services/api';
+import { ApiError, captureAuthSession, isCurrentAuthSession } from '../services/api';
 import { getAddresses } from '../services/account';
 import type { Address } from '../services/account';
 import { CHECKOUT_ADDRESS_ID_KEY, isMobilePhone } from '../services/account-contracts';
@@ -65,17 +65,17 @@ export function useCheckout(input: Readonly<{ cartIds?: string; direct?: boolean
   useEffect(() => {
     if (!submission) return;
     let active = true;
-    const token = getToken();
+    const authSession = captureAuthSession();
     const generation = pageGeneration.current;
     setError('');
     void computeCheckout(submission).then(async (next) => {
-      if (!active || !mounted.current || generation !== pageGeneration.current || getToken() !== token) return;
+      if (!active || !mounted.current || generation !== pageGeneration.current || !isCurrentAuthSession(authSession)) return;
       if ('existingOrderId' in next) {
         setCalculation(undefined);
         await Taro.redirectTo({ url: `/pages/order/pay?orderId=${encodeURIComponent(next.existingOrderId)}` });
       } else setCalculation({ key: submission.key, preferences: submission.preferences, price: next });
     }).catch((cause: unknown) => {
-      if (active && mounted.current && generation === pageGeneration.current && getToken() === token) setError(commerceError(cause));
+      if (active && mounted.current && generation === pageGeneration.current && isCurrentAuthSession(authSession, cause)) setError(commerceError(cause));
     });
     return () => { active = false; };
   }, [submission, revision]);
@@ -84,16 +84,16 @@ export function useCheckout(input: Readonly<{ cartIds?: string; direct?: boolean
     if (!submission || !price || busy.current || loading || error) return;
     if (preferences.shippingType === 1 && !preferences.addressId) { setError('请选择收货地址'); return; }
     if (preferences.shippingType === 2 && (!preferences.storeId || !preferences.recipient?.trim() || !isMobilePhone(preferences.phone ?? ''))) { setError('请选择自提门店，并填写联系人和正确的手机号'); return; }
-    const token = getToken();
+    const authSession = captureAuthSession();
     const generation = pageGeneration.current;
     busy.current = true;
     setSubmitting(true);
     try {
       const order = await createOrder(submission);
-      if (!mounted.current || generation !== pageGeneration.current || getToken() !== token) return;
+      if (!mounted.current || generation !== pageGeneration.current || !isCurrentAuthSession(authSession)) return;
       await Taro.redirectTo({ url: `/pages/order/pay?orderId=${encodeURIComponent(order.id)}` });
     } catch (cause) {
-      if (mounted.current && generation === pageGeneration.current && getToken() === token) setError(commerceError(cause));
+      if (mounted.current && generation === pageGeneration.current && isCurrentAuthSession(authSession, cause)) setError(commerceError(cause));
     }
     finally { busy.current = false; if (mounted.current) setSubmitting(false); }
   };

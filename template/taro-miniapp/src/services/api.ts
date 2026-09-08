@@ -14,26 +14,55 @@ export class ApiError extends Error {
 
 const baseUrl = (process.env.TARO_API_BASE_URL ?? 'http://127.0.0.1:8080/api').replace(/\/$/, '');
 const tokenKey = 'crmeb_token';
+let authRevision = 0;
+type AuthSession = Readonly<{ token: string | null; revision: number }>;
+type AuthExpiry = Readonly<{ session: AuthSession; revision: number }>;
+let authExpiry: AuthExpiry | undefined;
+const expiredRequests = new WeakMap<ApiError, AuthExpiry>();
 
 export function setToken(token: string | null): void {
+  authRevision += 1;
+  authExpiry = undefined;
   if (token) Taro.setStorageSync(tokenKey, token); else Taro.removeStorageSync(tokenKey);
 }
 export function getToken(): string | null { return Taro.getStorageSync<string>(tokenKey) || null; }
 
 export function clearToken(): void { setToken(null); }
 
+export function captureAuthSession(): AuthSession { return { token: getToken(), revision: authRevision }; }
+export function isCurrentAuthSession(session: AuthSession, cause?: unknown): boolean {
+  if (session.revision === authRevision && session.token === getToken()) return true;
+  const expired = cause instanceof ApiError ? expiredRequests.get(cause) : undefined;
+  return expired !== undefined && expired.session.token === session.token && expired.session.revision === session.revision
+    && expired.revision === authRevision && getToken() === null;
+}
+
+function expireAuthSession(session: AuthSession, message: string): ApiError {
+  const error = new ApiError('UNAUTHORIZED', message, 401);
+  if (isCurrentAuthSession(session)) {
+    clearToken();
+    authExpiry = { session, revision: authRevision };
+  }
+  // Concurrent requests share automatic expiry; explicit login/logout ends it.
+  if (authExpiry?.session.token === session.token && authExpiry.session.revision === session.revision
+    && authExpiry.revision === authRevision && getToken() === null) {
+    expiredRequests.set(error, authExpiry);
+  }
+  return error;
+}
+
 export async function request<T>(path: string, options: Omit<Taro.request.Option<T>, 'url'> = {}): Promise<T> {
   const startedAt = Date.now();
-  const token = getToken();
+  const session = captureAuthSession();
+  const token = session.token;
   // CRMEB's API middleware expects the historical `Authori-zation` header.
   const formType = process.env.TARO_ENV === 'h5' ? (typeof navigator !== 'undefined' && /micromessenger/i.test(navigator.userAgent) ? 'wechat' : 'h5') : 'routine';
   const header = { 'content-type': 'application/json', 'Form-type': formType, ...(options.header ?? {}), ...(token ? { 'Authori-zation': `Bearer ${token}` } : {}) };
   try {
     const response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header, timeout: options.timeout ?? 10000 });
     if (response.statusCode === 401) {
-      if (getToken() === token) clearToken();
       track('api_error', { path, code: 'UNAUTHORIZED', status: 401, durationMs: Date.now() - startedAt });
-      throw new ApiError('UNAUTHORIZED', '登录已过期', 401);
+      throw expireAuthSession(session, '登录已过期');
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       track('api_error', { path, code: 'HTTP', status: response.statusCode, durationMs: Date.now() - startedAt });
@@ -43,9 +72,8 @@ export async function request<T>(path: string, options: Omit<Taro.request.Option
     if (typeof body === 'object' && body !== null && 'status' in body && typeof body.status === 'number') {
       const message = 'msg' in body && typeof body.msg === 'string' ? body.msg : '业务请求失败';
       if (body.status === 401) {
-        if (getToken() === token) clearToken();
         track('api_error', { path, code: 'UNAUTHORIZED', status: 401, durationMs: Date.now() - startedAt });
-        throw new ApiError('UNAUTHORIZED', message, 401);
+        throw expireAuthSession(session, message);
       }
       if (body.status !== 200 && body.status !== 0) {
         track('api_error', { path, code: 'BUSINESS', status: body.status, durationMs: Date.now() - startedAt });
