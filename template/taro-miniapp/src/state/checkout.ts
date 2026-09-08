@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Taro, { useDidShow } from '@tarojs/taro';
-import { ApiError } from '../services/api';
+import Taro, { useDidHide, useDidShow } from '@tarojs/taro';
+import { ApiError, getToken } from '../services/api';
 import { getAddresses } from '../services/account';
 import type { Address } from '../services/account';
 import { CHECKOUT_ADDRESS_ID_KEY, isMobilePhone } from '../services/account-contracts';
@@ -23,8 +23,10 @@ export function useCheckout(input: Readonly<{ cartIds?: string; direct?: boolean
   const source = useRef<Readonly<{ cartIds: string; direct: boolean }> | undefined>(undefined);
   const busy = useRef(false);
   const loadGeneration = useRef(0);
+  const pageGeneration = useRef(0);
   const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; loadGeneration.current += 1; }; }, []);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; loadGeneration.current += 1; pageGeneration.current += 1; }; }, []);
+  useDidHide(() => { pageGeneration.current += 1; });
   const submission = useMemo(() => session ? { key: session.key, direct: session.direct, preferences, activity: session.activity, ...(session.pinkId ? { pinkId: session.pinkId } : {}) } : undefined, [session, preferences]);
   const price = calculation?.preferences === preferences && calculation.key === session?.key ? calculation.price : undefined;
 
@@ -63,14 +65,18 @@ export function useCheckout(input: Readonly<{ cartIds?: string; direct?: boolean
   useEffect(() => {
     if (!submission) return;
     let active = true;
+    const token = getToken();
+    const generation = pageGeneration.current;
     setError('');
     void computeCheckout(submission).then(async (next) => {
-      if (!active) return;
+      if (!active || !mounted.current || generation !== pageGeneration.current || getToken() !== token) return;
       if ('existingOrderId' in next) {
         setCalculation(undefined);
         await Taro.redirectTo({ url: `/pages/order/pay?orderId=${encodeURIComponent(next.existingOrderId)}` });
       } else setCalculation({ key: submission.key, preferences: submission.preferences, price: next });
-    }).catch((cause: unknown) => { if (active) setError(commerceError(cause)); });
+    }).catch((cause: unknown) => {
+      if (active && mounted.current && generation === pageGeneration.current && getToken() === token) setError(commerceError(cause));
+    });
     return () => { active = false; };
   }, [submission, revision]);
 
@@ -78,12 +84,17 @@ export function useCheckout(input: Readonly<{ cartIds?: string; direct?: boolean
     if (!submission || !price || busy.current || loading || error) return;
     if (preferences.shippingType === 1 && !preferences.addressId) { setError('请选择收货地址'); return; }
     if (preferences.shippingType === 2 && (!preferences.storeId || !preferences.recipient?.trim() || !isMobilePhone(preferences.phone ?? ''))) { setError('请选择自提门店，并填写联系人和正确的手机号'); return; }
+    const token = getToken();
+    const generation = pageGeneration.current;
     busy.current = true;
     setSubmitting(true);
     try {
       const order = await createOrder(submission);
+      if (!mounted.current || generation !== pageGeneration.current || getToken() !== token) return;
       await Taro.redirectTo({ url: `/pages/order/pay?orderId=${encodeURIComponent(order.id)}` });
-    } catch (cause) { setError(commerceError(cause)); }
+    } catch (cause) {
+      if (mounted.current && generation === pageGeneration.current && getToken() === token) setError(commerceError(cause));
+    }
     finally { busy.current = false; if (mounted.current) setSubmitting(false); }
   };
   const retry = (): void => { if (!session) void load(); else { setCalculation(undefined); setRevision((value) => value + 1); } };
