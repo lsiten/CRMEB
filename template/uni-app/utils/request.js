@@ -1,3 +1,4 @@
+import { canReplayTenantRead } from './tenant-session.mjs';
 // +----------------------------------------------------------------------
 // | CRMEB [ CRMEB赋能开发者，助力企业发展 ]
 // +----------------------------------------------------------------------
@@ -20,16 +21,20 @@ import {
 } from '../libs/login';
 import store from '../store';
 import i18n from './lang.js';
+import { ensureTenant, tenantSession, isTenantInvalid, TenantError } from './tenant';
 
 /**
  * 发送请求
  */
-function baseRequest(url, method, data, {
+async function baseRequest(url, method, data, {
 	noAuth = false,
-	noVerify = false
+	noVerify = false,
+	tenantRetry = false
 }) {
+	const tenant = await ensureTenant();
 	let Url = HTTP_REQUEST_URL,
-		header = HEADER;
+		header = { ...HEADER };
+	if (tenant.token) header['X-Tenant-Token'] = tenant.token;
 
 	if (!noAuth) {
 		//登录过期自动登录
@@ -40,6 +45,8 @@ function baseRequest(url, method, data, {
 			});
 		}
 	}
+	const userToken = store.state.app.token;
+	const userRevision = store.state.app.sessionRevision;
 	if (store.state.app.token) header[TOKENNAME] = 'Bearer ' + store.state.app.token;
 
 	return new Promise((reslove, reject) => {
@@ -52,7 +59,21 @@ function baseRequest(url, method, data, {
 			header: header,
 			data: data || {},
 			timeout: TIMEOUT,
-			success: (res) => {
+			success: async (res) => {
+        try {
+          tenantSession.assertCurrent(tenant);
+          if (store.state.app.sessionRevision !== userRevision || store.state.app.token !== userToken) throw new TenantError('TENANT_CHANGED');
+        } catch (error) { reject(error); return; }
+        if (isTenantInvalid(res.data)) {
+          if (tenantRetry) { reject(new TenantError('TENANT_UNAVAILABLE')); return; }
+          try {
+            await tenantSession.renew(tenant);
+            if (store.state.app.token !== userToken || store.state.app.sessionRevision !== userRevision) throw new TenantError('TENANT_CHANGED');
+            if (!canReplayTenantRead(url, method)) throw new TenantError('TENANT_UNAVAILABLE');
+            reslove(await baseRequest(url, method, data, { noAuth, noVerify, tenantRetry: true }));
+          } catch (error) { reject(error); }
+          return;
+        }
 				if (noVerify)
 					reslove(res.data, res);
 				else if (res.data.status == 200)
