@@ -59,7 +59,7 @@ for (const kind of changes) {
       await act(async () => { pending.resolve(success ? response({}) : { statusCode: 401, data: { status: 401, data: {} } }); });
       // Then stale responses cannot navigate or expose stale action errors.
       expect(platform.redirectTo).not.toHaveBeenCalled();
-      expect(textOf()).not.toContain('请先刷新状态，再决定是否重试');
+      expect(textOf()).not.toContain('请先刷新状态');
     });
   }
 }

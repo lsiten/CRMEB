@@ -60,7 +60,7 @@ export function useOrderDetail(id: string) {
       setFeedback(action === 'cancel' ? '取消成功' : '收货成功');
       await resource.reload();
     } catch (cause) {
-      if (current(cause)) setError(`${commerceError(cause)}；请先刷新状态，再决定是否重试`);
+      if (current(cause)) setError(`${commerceError(cause)}；请先刷新状态`);
     } finally { locked.current = false; if (mounted.current) setBusy(false); }
   };
   return { resource, order, busy, error, feedback, disabled, reload, run };
