@@ -5,3 +5,4 @@
 .coupon-page button { min-height:44PX; font-size:14PX; }
 .coupon-page .coupon-error { display:flex; flex-direction:column; gap:var(--space-4); }
 .coupon-page .ui-loading { font-size:14PX; }
+.coupon-page .coupon button { flex-shrink:0; white-space:nowrap; }
