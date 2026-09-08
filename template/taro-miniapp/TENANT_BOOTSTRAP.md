@@ -12,6 +12,10 @@
 
 ## 验证入口
 
+本轮 P1 修复：上传（包括选图等待）在首个 await 前完成存储初始化并捕获用户会话及租户代际，等待后先校验再发包。普通请求和续期 GET 重放也校验原租户代际；同租户正常续期仍允许一次重放。logout 在调用时固定用户会话，finally 仅清理该会话，不能清掉切店或同令牌重新登录后的新会话。首段 SHA 为原接入契约基准，本轮不重验真实服务端，也不沿用旧 HTTP 记录作为修复验收。
+
+`tests/tenant-request.test.ts` 固化原上传及 logout 探针，并覆盖选图等待、ensure 完成后切店、续期完成后切店、同令牌新登录及正常续期/退出。过期操作断言 `Taro.request` / `Taro.uploadFile` 没有被调用。该层是实际适配器代码加平台替身，不代表真实 HTTP、完整切店 E2E 或原生选图回调真机验收。
+
 - `pnpm typecheck`、`pnpm test:unit`、`node --test tests/tenant-session.node.mjs`。
 - `pnpm build:h5` 与 `pnpm build:weapp`，两者共用 dist，必须分别保存产物。
 - 服务端独立终端：`TMPDIR=/tmp TENANT_TEST_PORT=<独立端口> TENANT_TEST_PHP=<PHP7.4> bash crmeb/tests/run_tenant_tests.sh --serve`。只创建新测试库，不连接商城数据库。

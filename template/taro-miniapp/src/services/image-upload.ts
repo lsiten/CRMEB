@@ -1,14 +1,17 @@
 import { tenantSession, isTenantInvalid, TenantError } from './tenant';
 import Taro from '@tarojs/taro';
-import { ApiError, clearToken, getToken, captureAuthSession, isCurrentAuthSession } from './api';
+import { ApiError, clearToken, captureAuthSession, isCurrentAuthSession } from './api';
 import { apiRecord, apiText } from './commerce-contracts';
 
 export async function uploadImage(filePath: string): Promise<string> {
   if (!filePath) throw new ApiError('BUSINESS', '请选择图片');
-  const tenant = await tenantSession.ensure();
-  const token = getToken();
-  if (!token) throw new ApiError('UNAUTHORIZED', '请先登录再上传图片');
   const session = captureAuthSession();
+  const operation = { revision: tenantSession.revision() };
+  const token = session.token;
+  if (!token) throw new ApiError('UNAUTHORIZED', '请先登录再上传图片');
+  const tenant = await tenantSession.ensure();
+  tenantSession.assertCurrent(operation);
+  if (!isCurrentAuthSession(session)) throw new TenantError('TENANT_CHANGED');
   let response: Taro.uploadFile.SuccessCallbackResult;
   try {
     response = await Taro.uploadFile({
@@ -36,12 +39,16 @@ export async function uploadImage(filePath: string): Promise<string> {
 }
 
 export async function chooseAndUploadImage(): Promise<string | undefined> {
+  const session = captureAuthSession();
+  const operation = { revision: tenantSession.revision() };
   let selection: Taro.chooseImage.SuccessCallbackResult;
   try { selection = await Taro.chooseImage({ count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'] }); }
   catch (cause) {
     if (/cancel/i.test(apiText(apiRecord(cause)['errMsg']))) return undefined;
     throw new ApiError('BUSINESS', '无法选择图片，请检查相册或相机权限');
   }
+  tenantSession.assertCurrent(operation);
+  if (!isCurrentAuthSession(session)) throw new TenantError('TENANT_CHANGED');
   const file = selection.tempFilePaths[0];
   return file ? uploadImage(file) : undefined;
 }

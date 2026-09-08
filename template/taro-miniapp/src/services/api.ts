@@ -65,7 +65,9 @@ function expireAuthSession(session: AuthSession, message: string): ApiError {
 export async function request<T>(path: string, options: Omit<Taro.request.Option<T>, 'url'> = {}): Promise<T> {
   const startedAt = Date.now();
   const session = captureAuthSession();
+  const operation = { revision: tenantSession.revision() };
   const tenant = tenantSession.enabled() ? await tenantSession.ensure() : { revision: tenantSession.revision(), token: '', expiresAt: Infinity };
+  tenantSession.assertCurrent(operation);
   if (!isCurrentAuthSession(session)) throw new TenantError('TENANT_CHANGED');
   const token = session.token;
   // CRMEB's API middleware expects the historical `Authori-zation` header.
@@ -76,6 +78,7 @@ export async function request<T>(path: string, options: Omit<Taro.request.Option
     tenantSession.assertCurrent(tenant);
     if (isTenantInvalid(response.data)) {
       const renewed = await tenantSession.renew(tenant);
+      tenantSession.assertCurrent(operation);
       if (!canReplayTenantRead(path, options.method)) throw new TenantError('TENANT_UNAVAILABLE');
       if (!isCurrentAuthSession(session)) throw new TenantError('TENANT_CHANGED');
       response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header: { ...header, 'X-Tenant-Token': renewed.token }, timeout: options.timeout ?? 10000 });
