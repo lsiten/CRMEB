@@ -2,31 +2,33 @@ import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const navigation = vi.hoisted(() => ({ navigateTo: vi.fn().mockResolvedValue({}), switchTab: vi.fn().mockResolvedValue({}), showToast: vi.fn().mockResolvedValue({}), getCurrentInstance: () => ({ router: { params: { kind: 'bargain' } } }) }));
-vi.mock('@tarojs/taro', () => ({ default: navigation }));
+const route = vi.hoisted(() => ({ kind: 'bargain' }));
+const navigation = vi.hoisted(() => ({ navigateTo: vi.fn().mockResolvedValue({}), switchTab: vi.fn().mockResolvedValue({}), showToast: vi.fn().mockResolvedValue({}), getCurrentInstance: () => ({ router: { params: route } }) }));
+vi.mock('@tarojs/taro', () => ({ default: navigation, useReachBottom: vi.fn(), useDidShow: (callback: () => void) => React.useEffect(callback, []) }));
 vi.mock('@tarojs/components', () => ({ Image: 'image', Text: 'span', View: 'div', Button: 'button' }));
 vi.mock('../src/components', () => ({ Empty: () => null, Loading: () => null }));
-vi.mock('../src/services/marketing', () => ({ getMarketingItems: vi.fn().mockResolvedValue([]) }));
+vi.mock('../src/services/marketing', () => ({ getMarketingItems: vi.fn().mockResolvedValue([]), getMarketingPage: vi.fn().mockResolvedValue({ items: [], hasMore: false }), labels: { bargain: '砍价活动' } }));
 import { ActivityBlock, GenericSection, ProductList, PromotionTabs, SignIn } from '../src/diy/commerce-renderers';
 import MarketingPage from '../src/pages/marketing/index';
-import { getMarketingItems } from '../src/services/marketing';
+import { getMarketingItems, getMarketingPage } from '../src/services/marketing';
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); route.kind = 'bargain'; });
 describe('DIY commerce interactions', () => {
   it('reloads the same category after a failed load when retry is clicked', async () => {
-    vi.mocked(getMarketingItems).mockRejectedValueOnce(new Error('offline'));
+    vi.mocked(getMarketingPage).mockRejectedValueOnce(new Error('offline'));
     let renderer: TestRenderer.ReactTestRenderer | undefined;
     await act(async () => { renderer = TestRenderer.create(<MarketingPage />); });
     if (!renderer) throw new Error('Renderer was not created');
-    await act(async () => { renderer?.root.findByProps({ size: 'mini' }).props.onClick(); });
-    expect(getMarketingItems).toHaveBeenCalledTimes(2);
+    await act(async () => { renderer?.root.findByProps({ children: '重试' }).props.onClick(); });
+    expect(getMarketingPage).toHaveBeenCalledTimes(2);
     expect(renderer.root.findAllByProps({ size: 'mini' })).toHaveLength(0);
   });
   it('loads the requested activity category when opened from DIY', async () => {
     await act(async () => { TestRenderer.create(<MarketingPage />); });
-    expect(getMarketingItems).toHaveBeenCalledWith('bargain');
+    expect(getMarketingPage).toHaveBeenCalledWith('bargain', 1, undefined);
   });
   it.each(['sign', 'coupon'] as const)('handles a %s reward without opening product detail', async (kind) => {
+    route.kind = 'advance';
     vi.mocked(getMarketingItems).mockResolvedValueOnce([{ id: 1, kind, title: 'Reward' }]);
     let renderer: TestRenderer.ReactTestRenderer | undefined;
     await act(async () => { renderer = TestRenderer.create(<MarketingPage />); });
@@ -37,6 +39,7 @@ describe('DIY commerce interactions', () => {
     expect(navigation.showToast).not.toHaveBeenCalled();
   });
   it('opens the dedicated lottery with its activity identity when a lottery is clicked', async () => {
+    route.kind = 'advance';
     vi.mocked(getMarketingItems).mockResolvedValueOnce([{ id: 72, kind: 'lottery', title: 'Reward' }]);
     let renderer: TestRenderer.ReactTestRenderer | undefined;
     await act(async () => { renderer = TestRenderer.create(<MarketingPage />); });

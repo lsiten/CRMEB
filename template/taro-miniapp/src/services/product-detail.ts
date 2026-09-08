@@ -25,6 +25,7 @@ export async function getProduct(id: number): Promise<Product> {
   const unique = detail['spec_unique'];
   return {
     ...product, variants, specs: variants.map((variant) => variant.label),
+    collected: store['userCollect'] === true || Number(store['userCollect']) === 1,
     ...(typeof description === 'string' ? { description } : {}),
     ...(typeof unique === 'string' && unique ? { unique } : {}),
   };

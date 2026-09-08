@@ -40,3 +40,13 @@ it('prevents duplicate load-more and deduplicates overlapping pages', async () =
   await act(async () => { finish?.([{ id: '19' }, { id: '20' }]); });
   expect(state?.items).toHaveLength(21);
 });
+it('continues past an empty filtered page when the server reports more records', async () => {
+  const sparseFetcher = vi.fn().mockResolvedValueOnce({ items: [], hasMore: true }).mockResolvedValueOnce({ items: [{ id: 'later' }], hasMore: false });
+  function SparseProbe() { state = usePagedResource('sparse', sparseFetcher); return null; }
+  await act(async () => { page = TestRenderer.create(<SparseProbe />); });
+  expect(state?.end).toBe(false);
+  await act(async () => { await state?.loadMore(); });
+  expect(sparseFetcher.mock.calls).toEqual([[1], [2]]);
+  expect(state?.items).toEqual([{ id: 'later' }]);
+  expect(state?.end).toBe(true);
+});

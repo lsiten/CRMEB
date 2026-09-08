@@ -1,1 +1,8 @@
 .couponTabs { display:flex; gap:12px; margin:16px 0; overflow-x:auto; }.couponTabs button { flex:0 0 auto; border:1px solid #eee; border-radius:999px; background:#fff; color:#666; }.couponTabs button.active { background:var(--color-brand); color:#fff; border-color:var(--color-brand); }.coupon { display: flex; align-items: center; gap: 24px; }.couponAmount { color: var(--color-brand); font-size: 40rpx; font-weight: 600; }.coupon .hint { display: block; margin-top: 8px; }.coupon button { margin-left:auto; color:var(--color-brand); }
+.coupon-page { max-width:750PX; margin:0 auto; font-size:14PX; }
+.coupon-page .title { font-size:22PX; }
+.coupon-page .hint { font-size:12PX; }
+.coupon-page button { min-height:44PX; font-size:14PX; }
+.coupon-page .coupon-error { display:flex; flex-direction:column; gap:var(--space-4); }
+.coupon-page .ui-loading { font-size:14PX; }
+.coupon-page .coupon button { flex-shrink:0; white-space:nowrap; }

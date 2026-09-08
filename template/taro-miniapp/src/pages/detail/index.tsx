@@ -7,7 +7,7 @@ import { createDirectCheckout } from '../../services/cart';
 import { addServerCart } from '../../services/server-cart';
 import { commerceError } from '../../services/commerce-contracts';
 import { sanitizeRichText } from '../../services/content';
-import { isFavorite, toggleFavorite } from '../../services/favorites';
+import { setFavorite as saveFavorite } from '../../services/favorites';
 import { requireLogin } from '../../services/auth-flow';
 import './index.scss';
 
@@ -17,6 +17,8 @@ const DetailPage = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedSpec, setSelectedSpec] = useState('');
   const [favorite, setFavorite] = useState(false);
+  const [savingFavorite, setSavingFavorite] = useState(false);
+  const favoriteLock = useRef(false);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [retry, setRetry] = useState(0);
@@ -30,7 +32,7 @@ const DetailPage = () => {
     void getProduct(productId).then((found) => {
       if (!active) return;
       setProduct(found);
-      setFavorite(isFavorite(found.id));
+      setFavorite(found.collected === true);
     }).catch(() => { if (active) setError(true); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -43,6 +45,15 @@ const DetailPage = () => {
   const variant = product.variants?.find((item) => item.label === activeSpec);
   const selectedProduct: Product = variant ? { ...product, price: variant.price, stock: variant.stock, unique: variant.unique, image: variant.image || product.image } : product;
   const canBuy = (selectedProduct.stock ?? 0) > 0;
+  const toggleFavorite = async (): Promise<void> => {
+    if (favoriteLock.current || !requireLogin(`/pages/detail/index?id=${product.id}`)) return;
+    favoriteLock.current = true; setSavingFavorite(true);
+    try {
+      await saveFavorite(product.id, !favorite);
+      setFavorite(!favorite);
+    } catch (cause) { await Taro.showToast({ title: commerceError(cause), icon: 'none' }); }
+    finally { favoriteLock.current = false; setSavingFavorite(false); }
+  };
   const buy = (): void => {
     if (!requireLogin(`/pages/detail/index?id=${product.id}`)) return;
     const selection = encodeURIComponent(createDirectCheckout(selectedProduct, activeSpec));
@@ -64,7 +75,7 @@ const DetailPage = () => {
     <View className='card spec-card'><Text className='section-title'>规格</Text><View className='specs'>{specs.map((spec) => <Button key={spec} aria-label={`${spec}${activeSpec === spec ? '，已选中' : ''}`} className={activeSpec === spec ? 'spec active' : 'spec'} onClick={() => setSelectedSpec(spec)}>{spec}</Button>)}</View></View>
     <View className='card'><Button onClick={() => Taro.navigateTo({ url: `/pages-extra/reviews/index?product_id=${product.id}` })}>查看商品评价</Button></View>
     <View className='card description'><Text className='section-title'>商品详情</Text>{product.description ? <RichText nodes={sanitizeRichText(product.description)} /> : <Text>暂无商品详情</Text>}</View>
-    <View className='detail-actions'><Button className={favorite ? 'favorite active' : 'favorite'} onClick={() => setFavorite(toggleFavorite(product))}>{favorite ? '已收藏' : '收藏'}</Button><Button className='cart-action' disabled={!canBuy || adding} loading={adding} onClick={() => void add()}>加入购物车</Button><Button className='buy-action' disabled={!canBuy || adding} onClick={buy}>立即购买</Button></View>
+    <View className='detail-actions'><Button className={favorite ? 'favorite active' : 'favorite'} disabled={savingFavorite} loading={savingFavorite} onClick={() => void toggleFavorite()}>{favorite ? '已收藏' : '收藏'}</Button><Button className='cart-action' disabled={!canBuy || adding} loading={adding} onClick={() => void add()}>加入购物车</Button><Button className='buy-action' disabled={!canBuy || adding} onClick={buy}>立即购买</Button></View>
   </View>;
 };
 

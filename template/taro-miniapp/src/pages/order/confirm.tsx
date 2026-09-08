@@ -15,7 +15,7 @@ import './confirm.scss';
 export default function ConfirmOrderPage() {
   const params = useRouter().params;
   const query = Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value ?? '')}`).join('&');
-  const checkout = useCheckout({ ...(params['cartIds'] ? { cartIds: params['cartIds'] } : {}), direct: params['new'] === '1', ...(params['selection'] ? { selection: params['selection'] } : {}), returnUrl: `/pages/order/confirm?${query}` });
+  const checkout = useCheckout({ ...(params['cartIds'] ? { cartIds: params['cartIds'] } : {}), ...(params['pinkId'] !== undefined ? { pinkId: params['pinkId'] } : {}), direct: params['new'] === '1', ...(params['selection'] ? { selection: params['selection'] } : {}), returnUrl: `/pages/order/confirm?${query}` });
   const { preferences, setPreferences, session, address, price, error, loading, submitting } = checkout;
   const [stores, setStores] = useState<readonly Store[]>([]);
   const [coupons, setCoupons] = useState<readonly CheckoutCoupon[]>([]);
