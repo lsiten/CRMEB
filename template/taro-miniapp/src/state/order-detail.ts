@@ -57,7 +57,7 @@ export function useOrderDetail(id: string) {
       }
       if (!current()) return;
       if (action === 'delete') { await Taro.redirectTo({ url: '/pages/order/list' }); return; }
-      setFeedback(action === 'cancel' ? '取消成功，正在核对最新状态' : '收货成功，正在核对最新状态');
+      setFeedback(action === 'cancel' ? '取消成功' : '收货成功');
       await resource.reload();
     } catch (cause) {
       if (current(cause)) setError(`${commerceError(cause)}；请先刷新状态，再决定是否重试`);
