@@ -39,12 +39,13 @@ export function isCurrentAuthSession(session: AuthSession, cause?: unknown): boo
 
 function expireAuthSession(session: AuthSession, message: string): ApiError {
   const error = new ApiError('UNAUTHORIZED', message, 401);
-  if (isCurrentAuthSession(session)) {
+  if (session.token !== null && isCurrentAuthSession(session)) {
     clearToken();
     authExpiry = { session, revision: authRevision };
   }
-  // Concurrent requests share automatic expiry; explicit login/logout ends it.
-  if (authExpiry?.session.token === session.token && authExpiry.session.revision === session.revision
+  // Anonymous follow-up requests share the original expiry until explicit login/logout.
+  if (authExpiry && ((authExpiry.session.token === session.token && authExpiry.session.revision === session.revision)
+      || (session.token === null && session.revision === authExpiry.revision))
     && authExpiry.revision === authRevision && getToken() === null) {
     expiredRequests.set(error, authExpiry);
   }
