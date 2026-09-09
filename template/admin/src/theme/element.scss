@@ -395,7 +395,17 @@
 
 .el-message {
   min-width: 100px !important;
+  max-width: calc(100vw - 32px);
   padding-right: 25px !important;
+
+  .el-message__content {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .el-message__icon {
+    flex-shrink: 0;
+  }
 }
 
 .el-message-box {
