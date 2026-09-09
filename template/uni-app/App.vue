@@ -1,5 +1,4 @@
 <script>
-import request from "./utils/request";
 import { HTTP_REQUEST_URL } from "./config/app";
 import {
   getShopConfig,
@@ -230,65 +229,8 @@ export default {
     // 		});
     // }
     // #endif
-    // #ifdef H5
-    // 添加crmeb chat 统计
-    // var __s = document.createElement('script');
-    // __s.src = `${HTTP_REQUEST_URL}/api/get_script`;
-    // document.head.appendChild(__s);
-
-    request.get("get_script", {}, { noAuth: true, noVerify: true })
-      .then((content) => {
-        if (typeof content !== "string") return;
-        // 尝试解析是否为HTML（带<script>标签）
-        const isHTML = content.trim().startsWith("<script");
-
-        let externalScripts = [];
-        let inlineScripts = [];
-
-        if (isHTML) {
-          // 情况1：带<script>标签，用DOMParser解析
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(content, "text/html");
-          const scripts = doc.querySelectorAll("script");
-
-          externalScripts = Array.from(scripts).filter((script) => script.src);
-          inlineScripts = Array.from(scripts).filter((script) => !script.src);
-        } else {
-          // 情况2：不带<script>标签，直接当作内联脚本处理
-          inlineScripts = [
-            {
-              textContent: content,
-            },
-          ];
-        }
-
-        // 1. 先加载所有外部脚本（如果有）
-        const loadExternalScripts = externalScripts.map((script) => {
-          return new Promise((resolve, reject) => {
-            const newScript = document.createElement("script");
-            newScript.src = script.src;
-            newScript.onload = resolve;
-            newScript.onerror = reject;
-            document.body.appendChild(newScript);
-          });
-        });
-
-        // 2. 等外部脚本加载完成后，再执行内联脚本
-        Promise.all(loadExternalScripts)
-          .then(() => {
-            inlineScripts.forEach((script) => {
-              const newScript = document.createElement("script");
-              newScript.textContent = script.textContent;
-              document.body.appendChild(newScript);
-            });
-          })
-          .catch((error) =>
-            console.error("Failed to load external scripts:", error)
-          );
-      })
-      .catch((error) => console.error("Error fetching script:", error));
-
-    // #endif
+    // H5 get_script 动态统计入口停用：外链执行早于 onload，无法保证会话失效保护。
+    // 不请求或执行远程外链/内联代码，也不向第三方脚本发送租户凭据。
     getCrmebCopyRight().then((res) => {
       uni.setStorageSync("copyRight", res.data);
     });
