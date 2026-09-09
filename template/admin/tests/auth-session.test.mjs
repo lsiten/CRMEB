@@ -7,7 +7,7 @@ import vm from 'node:vm';
 const require = createRequire(import.meta.url);
 const axios = require('axios');
 const tick = () => new Promise((resolve) => setImmediate(resolve));
-async function fixture() {
+async function fixture(routerReturnsPromise = true) {
   const cookies = { token: 'admin-a', kefu_token: 'staff-a', kefuInfo: 'staff-info' };
   const revisions = { token: 0, kefu_token: 0 };
   const calls = [], pending = [], effects = [];
@@ -33,7 +33,7 @@ async function fixture() {
     '@/utils/tenant': { clearTenantContext: () => effects.push('tenant-clear') },
     '@/store': { default: { commit: (name, value) => effects.push([name, value]) } },
     '@/setting': { default: { apiBaseURL: '/adminapi' } },
-    '@/router': { default: { replace: (value) => { effects.push(value); return Promise.resolve(); } } },
+    '@/router': { default: { replace: (value) => { effects.push(value); return routerReturnsPromise ? Promise.resolve() : undefined; } } },
     'element-ui': { Message: { error: () => effects.push('message') } },
   };
   const cache = new Map();
@@ -57,6 +57,10 @@ async function fixture() {
 for (const kefu of [false, true]) {
   const own = kefu ? 'kefu_token' : 'token';
   const other = kefu ? 'token' : 'kefu_token';
+  test(`${own}: authentication error remains readable when router returns undefined`, async () => {
+    const f = await fixture(false); const p = f.request({ url: '/info', kefu }); await tick();
+    f.pending[0].resolve({ status: 401 }); await assert.rejects(p, (e) => e.msg === '未登录');
+  });
   test(`${own}: requests use only their own token with both sessions present`, async () => {
     const f = await fixture();
     const p = f.request({ url: '/info', kefu }); await tick();

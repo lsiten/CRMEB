@@ -24,7 +24,7 @@ axios.defaults.withCredentials = true; // 携带cookie
 function expireSession(session) {
   if (!clearSession(session)) return;
   if (session.key === 'kefu_token') store.commit('kefu/setInfo', null);
-  router.replace(session.key === 'kefu_token' ? { path: '/kefu' } : { name: 'login' }).catch(() => {});
+  Promise.resolve(router.replace(session.key === 'kefu_token' ? { path: '/kefu' } : { name: 'login' })).catch(() => {});
 }
 
 // 请求拦截器
@@ -78,7 +78,7 @@ service.interceptors.response.use(
     }
     if (code === 200) return obj;
     if (code === 403 && session.key === 'token') {
-      router.replace({ name: 'system_opendir_login' }).catch(() => {});
+      Promise.resolve(router.replace({ name: 'system_opendir_login' })).catch(() => {});
     }
     return Promise.reject(obj || { msg: '未知错误' });
   },
