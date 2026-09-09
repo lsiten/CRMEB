@@ -21,15 +21,8 @@ export default {
       url: "",
     };
   },
-  onLoad(option) {
-    this.url = option.url;
-    try {
-      const res = uni.getWindowInfo();
-      this.windowW = res.windowWidth;
-      this.windowH = res.windowHeight;
-    } catch (e) {
-      // error
-    }
+  onLoad() {
+    uni.showToast({ title: '此入口无法携带商城认证，暂不可用', icon: 'none' });
   },
 };
 </script>

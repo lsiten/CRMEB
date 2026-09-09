@@ -1,7 +1,6 @@
 declare module '*.scss';
 declare namespace NodeJS {
   interface ProcessEnv {
-    TARO_TENANT_ENTRY?: string;
     TARO_API_BASE_URL?: string;
     TARO_TELEMETRY_URL?: string;
     TARO_IMAGE_CDN?: string;
@@ -13,7 +12,6 @@ declare namespace NodeJS {
 
 declare const process: {
   env: {
-    TARO_TENANT_ENTRY?: string;
     TARO_API_BASE_URL?: string;
     TARO_TELEMETRY_URL?: string;
     TARO_IMAGE_CDN?: string;

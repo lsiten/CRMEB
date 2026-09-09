@@ -1,4 +1,5 @@
 <script>
+import request from "./utils/request";
 import { HTTP_REQUEST_URL } from "./config/app";
 import {
   getShopConfig,
@@ -235,9 +236,9 @@ export default {
     // __s.src = `${HTTP_REQUEST_URL}/api/get_script`;
     // document.head.appendChild(__s);
 
-    fetch(`${HTTP_REQUEST_URL}/api/get_script`)
-      .then((response) => response.text())
+    request.get("get_script", {}, { noAuth: true, noVerify: true })
       .then((content) => {
+        if (typeof content !== "string") return;
         // 尝试解析是否为HTML（带<script>标签）
         const isHTML = content.trim().startsWith("<script");
 

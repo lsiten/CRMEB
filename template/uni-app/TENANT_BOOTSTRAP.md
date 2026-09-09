@@ -1,20 +1,12 @@
-# 公开租户引导接入
+# 运行时租户 Header 接入（替代旧 bootstrap）
 
-服务端基准：PR #45，`92e81035cf502685c07224656cde7fc254002e49`。在 `config/app.js` 配置 `TENANT_ENTRY` 为服务端已发布的公开入口，API 根地址沿用 `HTTP_REQUEST_URL + /api/`。空 entry 保留原单租户模式；公开客户端不保存 app_secret。
+普通业务与上传必须由宿主先调用 `utils/tenant.js` 的 `injectTenantCredentials({ appid, screct_id })`。两字段来自运行时接入方，不提供源码字面量、构建变量、URL、storage 或公开 secret 领取接口。尚无生产宿主接入，默认零业务发包，不能直接上线。
 
-普通请求与三个图片上传入口在发送前匿名 POST `tenant/bootstrap`，只发送 `{entry}` 和 JSON 内容头。tenant_token 仅在内存中保存，业务使用 `X-Tenant-Token`，用户 Bearer 独立。到期前30秒续租，并发引导/续期合并。仅租户401错误码 `tenant_token_invalid` 触发续期；用户401仍进入原登录流程。续期失败停止业务，不回落默认租户。
+- `appid` 对应既有 client_id/app_id，`screct_id` 对应 app_secret。注入接口拒绝非字符串、空白、逗号和控制字符；数据只存模块闭包，快照只含 revision。每次注入（包括同值）或 `clearTenantCredentials()` 都清理租户/用户缓存并使在途操作失效。
+- `switchTenant(credentials)` 注入后 reLaunch 首页；宿主必须等待调用完成并重新加载页面状态。用户 Bearer 独立，租户凭据不代表用户已登录。清理保留 locale，其余商城 storage、Vuex、购物车、分销及 WS 状态按原清理接口处理。
+- 普通请求/上传使用规范 `appid`、`screct_id` Header；移除调用者同名/大小写变体、旧 X-Tenant-Token 与用户头，再写入当前身份。缺凭据报 `tenant_auth_required`，不发包。所有业务包括 GET 都不自动重放。
+- `tenant_auth_required`、`tenant_credentials_invalid`、`tenant_auth_unavailable`、`tenant_mismatch`、`tenant_bootstrap_unavailable` 先于用户401分流。旧 `tenant_token_invalid` 只拒绝，不续期、不兼容授权。租户错误固定本地消息，不回显服务端凭据；`TENANT_CHANGED` 表示操作所属商城/账号失效。
+- 两套 WS 入口明确报 `TENANT_TRANSPORT_BLOCKED`；本轮连可带头的平台也暂不打开，待真实SDK握手及服务端消息复核完成。通用外部 WebView 导航阻断，因为无法注入认证头。第三方微信/OAuth/支付导航不携带租户secret，回调映射未联调；直接访问服务器动态首页/短链/支付小票仍由服务器拒绝，不能用静态壳替代认证。
+- 金额、分页、成功信封不变。生产凭据注入来源、JS执行环境信任、HTTPS域名、真实CORS/网关、微信登录/手机号/支付、App/微信SDK、HBuilderX编译均待验。本仓库UniApp package.json无构建scripts，本轮Node VM适配器测试不等同UniApp编译或真机通过。
 
-仅 GET `products`、`user`、`version`（可带查询）最多重放一次。GET 在现有 API 中也可能注销/删除，因此其他请求和所有上传即使续期成功也报错，由用户明确重试；网络错误不重放。
-
-`utils/tenant.js` 导出 `switchTenant(entry)` 供商城入口流程调用；入口切换清除本应用 Storage（保留 locale）、Vuex 用户/首页/购物车/搜索缓存、App 全局推广及用户信息，关闭旧 socket 并重建首页。旧租户/旧用户响应不能恢复新状态，旧 socket 消息有代际保护。没有新增切换 UI。下一次冷启动以配置 entry 为准，含返回空 entry 时清理旧租户数据。
-
-## 验证与边界
-
-本轮 P1 修复：同步完成入口初始化及本地登录恢复后，在首个 await 前固定租户代际、用户令牌和登录代际。引导等待结束、业务发包前及续期重放前均校验原操作归属；上传同样先固定身份，旧操作不进入 `uni.request` / `uni.uploadFile`。同租户令牌续期不改变操作代际，正常允许列表 GET 仍可重放一次。首段 SHA 为原接入契约基准，本轮不重验真实服务端，也不沿用旧 HTTP 记录作为修复验收。
-
-`tests/tenant-request.test.mjs` 固化审查的等待中换用户、ensure 完成后切店探针，并补充上传两种窗口、同令牌重新登录及续期完成后切店；断言实际平台传输函数未被调用，而非仅检查响应拒绝。测试中平台和身份为替身，不能外推真实 HTTP、页面切店或设备结果。旧统计脚本限制继续保留。
-
-- `node --experimental-vm-modules --test tests/*.test.mjs` 执行纯会话及真实请求模块的平台替身测试，VM Modules 有 Node 实验性提示。
-- 启动服务端隔离脚本后，在本目录设置 `TENANT_HTTP_BASE`、独立 `TENANT_TEST_PORT`、`TENANT_TEST_PHP` 执行同一命令；增加两租户实际 HTTP、用户401、调用真实服务类重置后恢复的验证。未设环境则显式跳过 HTTP 项。脚本只接受独立实例中的唯一 lsit21_test_* 库，不输出凭据。完成后按服务端提示 Enter 清理。
-- package.json 没有平台构建 scripts；H5/微信/App 应由当前 HBuilderX 配置分别构建。Node 请求适配测试不能代替 UniApp 编译和浏览器/真机。
-- 微信登录/手机号/支付、原生支付迟到回调、WebSocket 服务端租户协议、完整商城订单库存与页面切换 E2E 尚需对应环境验收。本变更不部署、不迁移现有数据库。
+验证：`node --experimental-vm-modules --test tests/*.test.mjs`。假凭据仅在测试内，测试不打包。旧 bootstrap HTTP 测试契约已替换；本轮不调用旧诊断路由或旧重置脚本。

@@ -1,6 +1,5 @@
-import { canReplayTenantRead } from './tenant-session.mjs';
 import Taro from '@tarojs/taro';
-import { tenantSession, isTenantInvalid, TenantError, subscribeTenant, initializeTenantState } from './tenant';
+import { tenantSession, isTenantInvalid, tenantResponseError, TenantError, subscribeTenant, initializeTenantState } from './tenant';
 import { track } from './telemetry';
 
 export type ProductVariant = Readonly<{ unique: string; label: string; price: number; stock: number; image?: string }>;
@@ -66,25 +65,20 @@ export async function request<T>(path: string, options: Omit<Taro.request.Option
   const startedAt = Date.now();
   const session = captureAuthSession();
   const operation = { revision: tenantSession.revision() };
-  const tenant = tenantSession.enabled() ? await tenantSession.ensure() : { revision: tenantSession.revision(), token: '', expiresAt: Infinity };
+  const tenant = tenantSession.snapshot();
   tenantSession.assertCurrent(operation);
   if (!isCurrentAuthSession(session)) throw new TenantError('TENANT_CHANGED');
   const token = session.token;
   // CRMEB's API middleware expects the historical `Authori-zation` header.
   const formType = process.env.TARO_ENV === 'h5' ? (typeof navigator !== 'undefined' && /micromessenger/i.test(navigator.userAgent) ? 'wechat' : 'h5') : 'routine';
-  const header = { 'content-type': 'application/json', 'Form-type': formType, ...(options.header ?? {}), ...(token ? { 'Authori-zation': `Bearer ${token}` } : {}), ...(tenant.token ? { 'X-Tenant-Token': tenant.token } : {}) };
+  const header = { ...tenantSession.headers(tenant, { 'content-type': 'application/json', 'Form-type': formType, ...options.header }), ...(token ? { 'Authori-zation': `Bearer ${token}` } : {}) };
   try {
-    let response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header, timeout: options.timeout ?? 10000 });
+    const response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header, timeout: options.timeout ?? 10000 });
     tenantSession.assertCurrent(tenant);
-    if (isTenantInvalid(response.data)) {
-      const renewed = await tenantSession.renew(tenant);
-      tenantSession.assertCurrent(operation);
-      if (!canReplayTenantRead(path, options.method)) throw new TenantError('TENANT_UNAVAILABLE');
-      if (!isCurrentAuthSession(session)) throw new TenantError('TENANT_CHANGED');
-      response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header: { ...header, 'X-Tenant-Token': renewed.token }, timeout: options.timeout ?? 10000 });
-      tenantSession.assertCurrent(tenant);
-      if (isTenantInvalid(response.data)) throw new TenantError('TENANT_UNAVAILABLE');
-    }
+    const sameExpiredSession = authExpiry !== undefined && authExpiry.session.token === session.token
+      && authExpiry.session.revision === session.revision && authExpiry.revision === authRevision && getToken() === null;
+    if (!isCurrentAuthSession(session) && !sameExpiredSession) throw new TenantError('TENANT_CHANGED');
+    if (isTenantInvalid(response.data)) throw tenantResponseError(response.data);
     if (response.statusCode === 401) {
       track('api_error', { path, code: 'UNAUTHORIZED', status: 401, durationMs: Date.now() - startedAt });
       throw expireAuthSession(session, '登录已过期');

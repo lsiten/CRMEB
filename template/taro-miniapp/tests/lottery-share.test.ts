@@ -56,7 +56,7 @@ it('does not generate an invitation for an outdated login session', async () => 
   // When
   finish?.({ statusCode: 200, data: { status: 200, data: { uid: 42 } } });
   // Then
-  await expect(pending).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+  await expect(pending).rejects.toMatchObject({ code: 'TENANT_CHANGED' });
 });
 it.each(['javascript:alert(1)', 'not-a-url'])('rejects unsupported H5 locations: %s', async (url) => {
   // Given / When / Then
