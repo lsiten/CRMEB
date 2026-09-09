@@ -5,7 +5,7 @@
 ## Nginx → PHP-FPM
 
 - 正式 `docker/nginx.conf` 和旧开发 `help/docker/nginx/vhost.conf` 均开启 `underscores_in_headers on`。外层 CDN/Ingress/反向代理也必须保留下划线头；多虚拟主机部署应在对应监听端口的默认 server 或 http 层设置，不能只改应用的非默认虚拟主机。
-- Bullseye 的 Nginx 1.18 不能依赖新版 `$http_*` 的重复头合并行为。引入发行版配套 `libnginx-mod-http-js`，通过 njs `rawHeadersIn` 在 FastCGI 归一化前检查原始头。最低 njs 0.4.3，使用 `js_import`、`js_set`，不引入外部 JS 包。
+- Bullseye 的 Nginx 1.18 不能依赖新版 `$http_*` 的重复头合并行为。通过源码编译的 njs `rawHeadersIn` 在 FastCGI 归一化前检查原始头。固定 njs 0.4.3，使用 `js_import`、`js_set`，不引入外部 JS 包。
 - 头名大小写不敏感。单个规范头保持原值；缺头传空值；同名重复（包括同值、大小写变化、空值）及 `screct-id` 变体传固定的逗号 `,`，使服务端按格式错误拒绝，不选择其中一个值。单独的 `screct-id` 也不是凭据别名。两个字段各自处理，若另一头缺失，错误优先级仍由 PHP 契约决定。
 - 显式设置一次 `HTTP_APPID` / `HTTP_SCRECT_ID`，让 FastCGI 模块抑制归一化后同名的原始头；其余 Header（包括用户认证）、请求体、query 不改。服务端必须拒绝逗号等非法凭据，不可只取合并值的首项。
 - `/notice`、`/msg` 同样发送检查后的规范头并删除 `screct-id`。这只保证代理头传输，不实现可信代理，也不解决浏览器原生 WebSocket 无法设置自定义 Header 的阻塞；不注入 secret，不改变 WS 服务端认证职责。
@@ -20,9 +20,24 @@ Nginx 自身的 404/413/502 等错误不伪装为业务错误、不凭空添加�
 
 ## 构建与隔离验证
 
-正式 Dockerfile 从原有固定 Debian 快照安装配套 njs 包，由 Debian 的 `modules-enabled` 配置加载；复制 `docker/tenant-headers.js`。构建时现有 `nginx -t` 会阻止模块缺失或配置错误的镜像交付。
+`20260901T000000Z` 的 Bullseye main/security 索引在 amd64、arm64 上均没有 `libnginx-mod-http-js`，不能直接 apt 安装，也不能混装 Bookworm 或 nginx.org 的模块包。两架构安全源均提供 `nginx-core 1.18.0-6.1+deb11u8`，源码索引也提供该版本。
 
-旧源码开发 Compose 的 Nginx 改用 `help/docker/nginx/Dockerfile` 本地构建，使用相同 Bullseye 快照与 njs 包；不再假设原第三方 Nginx 镜像包含模块。开发配置和共享 JS 通过挂载使用，日志挂到 `/var/log/nginx`。需要重新构建开发 nginx 镜像；MySQL、Redis、PHP 及其数据卷未更改。此方案仍不作为正式部署入口。
+正式和旧开发 Dockerfile 均在目标架构的 Bullseye builder 中执行共享 `docker/build-njs.sh`：从相同冻结源安装 `nginx-core`，按其 `source:Version` 获取并应用 Debian 补丁的源码（包含 Debian 模块签名补丁），以 `--with-compat` 编译 njs 动态 HTTP 模块。njs 来自上游 `nginx/njs` 的 `0.4.3` tag 压缩包，SHA256 固定为 `463df8004ccbc4a7420c7fc501260ff9b273c69f4a8b6a21a39836c9d47f36d4`；下载或摘要校验失败即中止，不回退版本。该版本是本次兼容基线，后续升级需重新构建及回归，不代表当前上游最新版或全面安全审计。
+
+最终镜像只复制模块和来源记录，不带 builder 的编译器/源码。安装时核对 Nginx 源码版本及架构完全相同；通过 `/etc/nginx/modules-enabled/50-mod-http-js.conf` 加载模块，并执行 `nginx -t`，拒绝 ABI/加载不匹配。正式镜像复制站点及 JS 后还会再次检查实际配置。修改快照或 Nginx 来源必须同步两个 builder/runtime 并重新验证，不能只替换 `.so`。
+
+旧源码开发 Compose 以仓库根为构建上下文，使用 `help/docker/nginx/Dockerfile` 及其专用忽略文件，仅传入共享构建脚本。开发配置和共享 JS 通过挂载使用，日志挂到 `/var/log/nginx`。执行 `docker compose -f help/docker/docker-compose.yml build nginx` 重建；MySQL、Redis、PHP 及其数据卷未更改。此方案仍不作为正式部署入口。
+
+CI 的 amd64/arm64 image job 在正式镜像冒烟后，以同一镜像的 Nginx/njs/PHP-FPM 执行下面的测试容器，并构建旧开发镜像检查模块加载；测试容器以 www-data 运行、关闭外部网络，使用随机回环端口，不接数据库：
+
+```sh
+docker build -f docker/test-tenant-headers.Dockerfile --build-arg APP_IMAGE=crmeb:local -t crmeb-header-test .
+docker run --rm --network none crmeb-header-test
+docker build -f help/docker/nginx/Dockerfile -t crmeb-dev-nginx:local .
+docker run --rm --network none crmeb-dev-nginx:local nginx -t
+```
+
+测试镜像另复制固定 Node 22.19.0 Bullseye 二进制，不改变正式运行镜像。两份站点的透传断言保持原样；这仍是接收器验证，不是已安装商城业务验收。CI 结果必须对应本次准确提交，旧版本的 162 项结果不能证明本版本镜像成功。
 
 已具备 Node.js 18+、Nginx+njs、PHP-FPM 的隔离环境可使用普通用户运行（不以 root 运行测试池）：
 

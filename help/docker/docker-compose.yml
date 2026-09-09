@@ -61,7 +61,9 @@ services:
   # nginx 容器
   nginx:
     container_name: crmeb_nginx
-    build: ./nginx
+    build:
+      context: ../..
+      dockerfile: help/docker/nginx/Dockerfile
     image: crmeb-dev-nginx:local
     restart: always
     ports:
