@@ -1,5 +1,6 @@
 import { getCookies, getSessionRevision, removeCookies } from '@/libs/util';
 import { clearTenantContext } from '@/utils/tenant';
+import store from '@/store';
 
 export function captureSession(kefu = false) {
   const key = kefu ? 'kefu_token' : 'token';
@@ -20,6 +21,9 @@ export function clearSession(session) {
     ? ['kefu_token', 'kefu_expires_time', 'kefu_uuid', 'kefuInfo']
     : ['token', 'expires_time', 'uuid'];
   keys.forEach(removeCookies);
-  if (session.key === 'token') clearTenantContext();
+  if (session.key === 'token') {
+    clearTenantContext();
+    store.commit('resetAdminSession');
+  }
   return true;
 }
