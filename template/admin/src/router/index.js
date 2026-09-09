@@ -13,10 +13,10 @@ import Router from 'vue-router';
 import routes from './routers';
 import Setting from '@/setting';
 import store from '@/store';
-import { removeCookies, getCookies, setTitle } from '@/libs/util';
+import { getCookies, setTitle } from '@/libs/util';
+import { captureSession, isCurrentSession, clearSession } from '@/libs/auth-session';
 import { includeArray } from '@/libs/auth';
 import { PrevLoading } from '@/utils/loading.js';
-import { clearTenantContext } from '@/utils/tenant';
 import { menusApi } from '@/api/account';
 import { formatFlatteningRoutes } from '@/libs/system';
 
@@ -141,11 +141,13 @@ router.beforeEach(async (to, from, next) => {
         next();
       } else {
         if (access.length == 0) {
+          const session = captureSession();
           // A full reload (for example after tenant switching) resets Vuex,
           // but the new token is still valid. Restore menus/permissions
           // before treating an empty in-memory permission list as logged out.
           menusApi()
             .then((res) => {
+              if (!isCurrentSession(session)) return next(false);
               const payload = res && res.data ? res.data : res || {};
               const menus = Array.isArray(payload) ? payload : payload.menus || payload.list || [];
               const uniqueAuth = Array.isArray(payload.uniqueAuth)
@@ -179,17 +181,14 @@ router.beforeEach(async (to, from, next) => {
               next();
             })
             .catch(() => {
+              if (!isCurrentSession(session)) return next(false);
+              clearSession(session);
               next({
                 name: 'login',
                 query: {
                   redirect: to.fullPath,
                 },
               });
-              localStorage.clear();
-              removeCookies('token');
-              removeCookies('expires_time');
-              removeCookies('uuid');
-              clearTenantContext();
             });
         } else {
           next({
@@ -199,6 +198,7 @@ router.beforeEach(async (to, from, next) => {
       }
       // next();
     } else {
+      clearSession(captureSession());
       // 没有登录的时候跳转到登录界面
       // 携带上登录成功之后需要跳转的页面完整路径
       next({
@@ -207,11 +207,6 @@ router.beforeEach(async (to, from, next) => {
           redirect: to.fullPath,
         },
       });
-      localStorage.clear();
-      removeCookies('token');
-      removeCookies('expires_time');
-      removeCookies('uuid');
-      clearTenantContext();
     }
   } else {
     // 不需要身份校验 直接通过

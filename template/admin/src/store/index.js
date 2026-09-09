@@ -35,6 +35,7 @@ import tagsViewRoutes from './module/tagsViewRoutes';
 import userInfos from './module/userInfos';
 import keepAliveNames from './module/keepAliveNames';
 import tenant from './module/tenant';
+import { createAdminSessionReset } from './admin-session';
 
 Vue.use(Vuex);
 // 持久化储存
@@ -48,7 +49,10 @@ export default new Vuex.Store({
     //
   },
   mutations: {
-    //
+    resetAdminSession: createAdminSessionReset({
+      user, app, menus, menu, userInfo, userLevel, order, goodSelect, moren, shopping, fresh,
+      integralOrder, mobildConfig, upgrade, routesList, tagsViewRoutes, userInfos, keepAliveNames, tenant,
+    }),
   },
   actions: {
     //
