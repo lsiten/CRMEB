@@ -39,18 +39,72 @@ it('sends independent user and tenant headers without override or persistence', 
   expect(platform.request.mock.calls[0]?.[0].data).toEqual({ amount: 12 });
   expect([...platform.storage.values()]).toEqual(['user-a']);
 });
-for (const code of ['tenant_auth_required','tenant_credentials_invalid','tenant_auth_unavailable','tenant_mismatch','tenant_bootstrap_unavailable','tenant_token_invalid']) {
+for (const code of ['tenant_auth_required','tenant_auth_unavailable','tenant_mismatch','tenant_bootstrap_unavailable','tenant_token_invalid']) {
   it(`${code} preserves user auth and never replays request or upload`, async () => {
     const { api, upload } = await setup();
-    const body = { status: 401, data: { code } };
-    platform.request.mockResolvedValue({ statusCode: 401, data: body });
-    platform.upload.mockResolvedValue({ statusCode: 401, data: JSON.stringify(body) });
+    const body = { status: code === 'tenant_auth_unavailable' ? 503 : 401, data: { code } };
+    platform.request.mockResolvedValue({ statusCode: body.status, data: body });
+    platform.upload.mockResolvedValue({ statusCode: body.status, data: JSON.stringify(body) });
     await expect(api.request('/order/create', { method: 'POST' })).rejects.toMatchObject({ code });
     await expect(upload.uploadImage('/fake.png')).rejects.toMatchObject({ code });
     expect(api.getToken()).toBe('user-a');
     expect(platform.request).toHaveBeenCalledTimes(1); expect(platform.upload).toHaveBeenCalledTimes(1);
   });
 }
+for (const source of ['request', 'upload']) {
+  it(`${source} invalidates the current tenant even when the user changed in flight`, async () => {
+    const { api, upload } = await setup();
+    let finish: (value: unknown) => void = () => undefined;
+    (source === 'request' ? platform.request : platform.upload).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const pending = source === 'request' ? api.request('/products') : upload.uploadImage('/fake.png');
+    await Promise.resolve();
+    api.setToken('new-user');
+    const body = { status: 401, data: { code: 'tenant_credentials_invalid' } };
+    finish({ statusCode: 200, data: source === 'request' ? body : JSON.stringify(body) });
+    await expect(pending).rejects.toMatchObject({ code: 'tenant_credentials_invalid' });
+    await expect(api.request('/products')).rejects.toMatchObject({ code: 'tenant_auth_required' });
+    expect(platform.request.mock.calls.length + platform.upload.mock.calls.length).toBe(1);
+  });
+  it(`${source} invalid credentials block subsequent traffic and allow reinjection`, async () => {
+    const { api, tenant, upload } = await setup();
+    const body = { status: 401, data: { code: 'tenant_credentials_invalid' } };
+    platform.request.mockResolvedValue({ statusCode: 200, data: body });
+    platform.upload.mockResolvedValue({ statusCode: 200, data: JSON.stringify(body) });
+    await expect(source === 'request' ? api.request('/order/create', { method: 'POST' }) : upload.uploadImage('/fake.png'))
+      .rejects.toMatchObject({ code: 'tenant_credentials_invalid' });
+    await expect(api.request('/products')).rejects.toMatchObject({ code: 'tenant_auth_required' });
+    await expect(upload.uploadImage('/fake.png')).rejects.toMatchObject({ code: 'tenant_auth_required' });
+    expect(platform.request.mock.calls.length + platform.upload.mock.calls.length).toBe(1);
+    tenant.injectTenantCredentials({ appid: 'fake-a', screct_id: 'new-secret' });
+    api.setToken('new-user');
+    platform.request.mockResolvedValue({ statusCode: 200, data: { status: 200 } });
+    await expect(api.request('/products')).resolves.toEqual({ status: 200 });
+  });
+  for (const replacement of ['same', 'reset', 'switch']) {
+    it(`${source} late invalid response preserves ${replacement} injected generation`, async () => {
+      const { api, tenant, upload } = await setup();
+      let finish: (value: unknown) => void = () => undefined;
+      const adapter = source === 'request' ? platform.request : platform.upload;
+      adapter.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+      const pending = source === 'request' ? api.request('/products') : upload.uploadImage('/fake.png');
+      await Promise.resolve();
+      const next = { appid: replacement === 'switch' ? 'fake-b' : 'fake-a', screct_id: replacement === 'same' ? 'fake-secret-a' : 'new-secret' };
+      tenant.injectTenantCredentials(next); api.setToken('new-user');
+      const body = { status: 401, data: { code: 'tenant_credentials_invalid' } };
+      finish({ statusCode: 200, data: source === 'request' ? body : JSON.stringify(body) });
+      await expect(pending).rejects.toMatchObject({ code: 'TENANT_CHANGED' });
+      expect(tenant.tenantSession.headers(tenant.tenantSession.snapshot())).toEqual(next);
+      expect(api.getToken()).toBe('new-user');
+    });
+  }
+}
+it('H5 selection preserves the original File name for SDK upload', async () => {
+  const { upload } = await setup();
+  platform.chooseImage.mockResolvedValue({ tempFilePaths: ['blob:selection'], tempFiles: [{ path: 'blob:selection', originalFileObj: new File(['image'], '相册照片.PNG', { type: 'image/png' }) }] });
+  platform.upload.mockResolvedValue({ statusCode: 200, data: JSON.stringify({ status: 200, data: { url: 'https://example.test/a.png' } }) });
+  await upload.chooseAndUploadImage();
+  expect(platform.upload.mock.calls[0]?.[0]).toMatchObject({ filePath: 'blob:selection', fileName: '相册照片.PNG' });
+});
 it('user401 expires user auth independently', async () => {
   const { api } = await setup();
   platform.request.mockResolvedValue({ statusCode: 200, data: { status: 401 } });

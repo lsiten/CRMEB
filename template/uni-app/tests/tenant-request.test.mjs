@@ -11,7 +11,7 @@ async function harness(responses, settings = {}) {
   let logins = 0;
   const context = vm.createContext({ console, setTimeout, getApp: () => app, uni: {
     reLaunch: () => undefined, getStorageSync: key => storage.get(key), setStorageSync: (key,value) => storage.set(key,value),
-    clearStorageSync: () => storage.clear(), uploadFile: options => { uploads.push(options); queueMicrotask(() => options.success(settings.uploadRaw ?? { statusCode: 200, data: '{"status":200}' })); }, showModal: () => {},
+    clearStorageSync: () => storage.clear(), uploadFile: options => { uploads.push(options); if (settings.onUpload) settings.onUpload(options); else queueMicrotask(() => options.success(settings.uploadRaw ?? { statusCode: 200, data: '{"status":200}' })); }, showModal: () => {},
     request: options => { calls.push(options);
       if (settings.onRequest) { settings.onRequest(options); }
       else if (settings.base) {
@@ -26,7 +26,7 @@ async function harness(responses, settings = {}) {
   const fixtures = {
     config: { HTTP_REQUEST_URL: settings.base || 'http://localhost', TENANT_ENTRY: settings.entry ?? 'store-a', HEADER: {}, TOKENNAME: 'Authori-zation', TIMEOUT: 1000 },
     store: { default: { state, commit: name => { if (name === 'LOGOUT') state.app.token = false; } } },
-    login: { checkLogin: () => true, toLogin: () => { logins++; } },
+    login: { checkLogin: () => Boolean(state.app.token), toLogin: () => { logins++; } },
     lang: { default: { t: text => text } },
   };
   async function load(name) {
@@ -71,16 +71,59 @@ test('request and upload attach credentials only as headers', async () => {
   }
   assert.deepEqual(h.calls[0].data, { amount: 12 });
 });
-for (const code of ['tenant_auth_required','tenant_credentials_invalid','tenant_auth_unavailable','tenant_mismatch','tenant_bootstrap_unavailable','tenant_token_invalid']) {
+for (const code of ['tenant_auth_required','tenant_auth_unavailable','tenant_mismatch','tenant_bootstrap_unavailable','tenant_token_invalid']) {
   test(code + ' does not login or replay POST/upload', async () => {
-    const body = { status: 401, data: { code } };
-    const h = await harness([body], { uploadRaw: { statusCode: 401, data: JSON.stringify(body) } });
+    const body = { status: code === 'tenant_auth_unavailable' ? 503 : 401, data: { code } };
+    const h = await harness([body], { uploadRaw: { statusCode: body.status, data: JSON.stringify(body) } });
     await assert.rejects(h.request.post('order/create'), { code });
     let failure;
     await new Promise(resolve => h.upload({ fail: error => { failure = error; resolve(); } }));
     assert.equal(failure.code, code); assert.equal(h.logins(), 0);
     assert.equal(h.calls.length, 1); assert.equal(h.uploads.length, 1);
   });
+}
+for (const source of ['request', 'upload']) {
+  test(source + ' invalidates current tenant when only user changes in flight', async () => {
+    let finish;
+    const callback = options => { finish = options.success; };
+    const h = await harness([], source === 'request' ? { onRequest: callback } : { onUpload: callback });
+    const pending = source === 'request' ? h.request.get('products') : new Promise((resolve, reject) => h.upload({ success: resolve, fail: reject }));
+    await Promise.resolve(); await Promise.resolve();
+    h.state.app.token = 'new-user'; h.state.app.sessionRevision++;
+    const body = { status: 401, data: { code: 'tenant_credentials_invalid' } };
+    finish({ statusCode: 200, data: source === 'request' ? body : JSON.stringify(body) });
+    await assert.rejects(pending, { code: 'tenant_credentials_invalid' });
+    await assert.rejects(h.request.get('products'), { code: 'tenant_auth_required' });
+    assert.equal(h.calls.length + h.uploads.length, 1); assert.equal(h.logins(), 0);
+  });
+  test(source + ' invalid credentials stop subsequent request/upload and reinjection recovers', async () => {
+    const body = { status: 401, data: { code: 'tenant_credentials_invalid' } };
+    const h = await harness([body], { uploadRaw: { statusCode: 200, data: JSON.stringify(body) } });
+    const upload = () => new Promise((resolve, reject) => h.upload({ success: resolve, fail: reject }));
+    await assert.rejects(source === 'request' ? h.request.post('order/create') : upload(), { code: 'tenant_credentials_invalid' });
+    await assert.rejects(h.request.get('products'), { code: 'tenant_auth_required' });
+    await assert.rejects(upload(), { code: 'tenant_auth_required' });
+    assert.equal(h.calls.length + h.uploads.length, 1);
+    assert.equal(h.logins(), 0);
+    h.tenant.injectTenantCredentials({ appid: 'fake-a', screct_id: 'new-secret' });
+    assert.equal(h.tenant.tenantSession.headers(h.tenant.tenantSession.snapshot()).screct_id, 'new-secret');
+  });
+  for (const replacement of ['same', 'reset', 'switch']) {
+    test(source + ' late invalid error cannot clear ' + replacement + ' generation', async () => {
+      let finish;
+      const callback = options => { finish = options.success; };
+      const h = await harness([], source === 'request' ? { onRequest: callback } : { onUpload: callback });
+      const pending = source === 'request' ? h.request.get('products') : new Promise((resolve, reject) => h.upload({ success: resolve, fail: reject }));
+      await Promise.resolve(); await Promise.resolve();
+      const next = { appid: replacement === 'switch' ? 'fake-b' : 'fake-a', screct_id: replacement === 'same' ? 'fake-secret-a' : 'new-secret' };
+      h.tenant.injectTenantCredentials(next); h.state.app.token = 'new-user';
+      const body = { status: 401, data: { code: 'tenant_credentials_invalid' } };
+      finish({ statusCode: 200, data: source === 'request' ? body : JSON.stringify(body) });
+      await assert.rejects(pending, { code: 'TENANT_CHANGED' });
+      assert.equal(h.tenant.tenantSession.headers(h.tenant.tenantSession.snapshot()).screct_id, next.screct_id);
+      assert.equal(h.state.app.token, 'new-user'); assert.equal(h.logins(), 0);
+    });
+  }
 }
 test('user401 alone invokes login', async () => {
   const h = await harness([{ status: 401 }]);

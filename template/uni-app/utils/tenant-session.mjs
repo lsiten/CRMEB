@@ -24,6 +24,12 @@ export function createTenantSession({ clear: clearState = () => {} } = {}) {
     credentials = undefined;
     clearState();
   }
+  function responseError(snapshot, body) {
+    assertCurrent(snapshot);
+    const error = tenantResponseError(body);
+    if (error.code === 'tenant_credentials_invalid') clear();
+    return error;
+  }
   function inject(value) {
     clear();
     if (!value || typeof value !== 'object' || !['appid', 'screct_id'].every(key =>
@@ -43,5 +49,5 @@ export function createTenantSession({ clear: clearState = () => {} } = {}) {
       !['appid', 'screct_id', 'screct-id', 'x-tenant-token', 'authorization', 'authori-zation'].includes(key.toLowerCase())));
     return { ...safe, ...credentials };
   }
-  return { snapshot, ensure: async () => snapshot(), inject, clear, headers, assertCurrent, enabled: () => true, revision: () => revision };
+  return { responseError, snapshot, ensure: async () => snapshot(), inject, clear, headers, assertCurrent, enabled: () => true, revision: () => revision };
 }

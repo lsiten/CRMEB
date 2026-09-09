@@ -9,6 +9,7 @@ export function createTenantSession(options?: Readonly<{ clear?: () => void }>):
   ensure: () => Promise<TenantSnapshot>;
   inject: (credentials: unknown) => void;
   clear: () => void;
+  responseError: (snapshot: TenantSnapshot, body: unknown) => TenantError;
   headers: (snapshot: TenantSnapshot, extra?: Readonly<Record<string, unknown>>) => Record<string, string>;
   assertCurrent: (snapshot: TenantSnapshot) => void;
   revision: () => number;

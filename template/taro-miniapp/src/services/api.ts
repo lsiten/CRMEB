@@ -1,5 +1,5 @@
 import Taro from '@tarojs/taro';
-import { tenantSession, isTenantInvalid, tenantResponseError, TenantError, subscribeTenant, initializeTenantState } from './tenant';
+import { tenantSession, isTenantInvalid, TenantError, subscribeTenant, initializeTenantState } from './tenant';
 import { track } from './telemetry';
 
 export type ProductVariant = Readonly<{ unique: string; label: string; price: number; stock: number; image?: string }>;
@@ -75,10 +75,10 @@ export async function request<T>(path: string, options: Omit<Taro.request.Option
   try {
     const response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header, timeout: options.timeout ?? 10000 });
     tenantSession.assertCurrent(tenant);
+    if (isTenantInvalid(response.data)) throw tenantSession.responseError(tenant, response.data);
     const sameExpiredSession = authExpiry !== undefined && authExpiry.session.token === session.token
       && authExpiry.session.revision === session.revision && authExpiry.revision === authRevision && getToken() === null;
     if (!isCurrentAuthSession(session) && !sameExpiredSession) throw new TenantError('TENANT_CHANGED');
-    if (isTenantInvalid(response.data)) throw tenantResponseError(response.data);
     if (response.statusCode === 401) {
       track('api_error', { path, code: 'UNAUTHORIZED', status: 401, durationMs: Date.now() - startedAt });
       throw expireAuthSession(session, '登录已过期');

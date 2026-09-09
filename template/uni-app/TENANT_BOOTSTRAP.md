@@ -6,6 +6,7 @@
 - `switchTenant(credentials)` 注入后 reLaunch 首页；宿主必须等待调用完成并重新加载页面状态。用户 Bearer 独立，租户凭据不代表用户已登录。清理保留 locale，其余商城 storage、Vuex、购物车、分销及 WS 状态按原清理接口处理。
 - 普通请求/上传使用规范 `appid`、`screct_id` Header；移除调用者同名/大小写变体、旧 X-Tenant-Token 与用户头，再写入当前身份。缺凭据报 `tenant_auth_required`，不发包。所有业务包括 GET 都不自动重放。
 - `tenant_auth_required`、`tenant_credentials_invalid`、`tenant_auth_unavailable`、`tenant_mismatch`、`tenant_bootstrap_unavailable` 先于用户401分流。旧 `tenant_token_invalid` 只拒绝，不续期、不兼容授权。租户错误固定本地消息，不回显服务端凭据；`TENANT_CHANGED` 表示操作所属商城/账号失效。
+- `tenant_credentials_invalid` 仅使该请求绑定且仍为当前的租户 revision 失效，并清理对应租户/用户缓存；随后普通请求与上传均报 `tenant_auth_required`，零发包，须由宿主重新注入后恢复。响应先校验租户代际，再分流租户错误，最后校验用户会话；同租户期间用户切换不掩盖凭据失效，旧代际错误不能清掉重注入（含同值）或切店后的凭据。用户401独立处理，503/`tenant_auth_unavailable` 不清租户凭据，不自动重放。
 - 两套 WS 入口明确报 `TENANT_TRANSPORT_BLOCKED`；本轮连可带头的平台也暂不打开，待真实SDK握手及服务端消息复核完成。通用外部 WebView 导航阻断，因为无法注入认证头。第三方微信/OAuth/支付导航不携带租户secret，回调映射未联调；直接访问服务器动态首页/短链/支付小票仍由服务器拒绝，不能用静态壳替代认证。
 - 金额、分页、成功信封不变。生产凭据注入来源、JS执行环境信任、HTTPS域名、真实CORS/网关、微信登录/手机号/支付、App/微信SDK、HBuilderX编译均待验。本仓库UniApp package.json无构建scripts，本轮Node VM适配器测试不等同UniApp编译或真机通过。
 

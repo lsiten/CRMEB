@@ -20,7 +20,7 @@ import {
 } from '../libs/login';
 import store from '../store';
 import i18n from './lang.js';
-import { ensureTenant, initializeTenantState, tenantSession, isTenantInvalid, tenantResponseError, TenantError } from './tenant';
+import { ensureTenant, initializeTenantState, tenantSession, isTenantInvalid, TenantError } from './tenant';
 
 /**
  * 发送请求
@@ -30,6 +30,7 @@ async function baseRequest(url, method, data, {
 	noVerify = false
 }) {
 	initializeTenantState();
+	tenantSession.snapshot();
 	if (!noAuth) {
 		//登录过期自动登录
 		if (!store.state.app.token && !checkLogin()) {
@@ -65,9 +66,10 @@ async function baseRequest(url, method, data, {
 			timeout: TIMEOUT,
 			success: async (res) => {
         try {
+          tenantSession.assertCurrent(tenant);
+          if (isTenantInvalid(res.data)) throw tenantSession.responseError(tenant, res.data);
           assertOperation();
         } catch (error) { reject(error); return; }
-        if (isTenantInvalid(res.data)) { reject(tenantResponseError(res.data)); return; }
 				if (noVerify)
 					reslove(res.data, res);
 				else if (res.data.status == 200)

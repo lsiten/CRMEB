@@ -6,7 +6,9 @@
 - `switchTenant(credentials)` 注入后 reLaunch 首页；宿主必须等待调用完成并重新加载页面状态。用户 Bearer 独立，租户凭据不代表用户已登录。清理 crmeb 前缀 storage、guideDate、用户状态、商品缓存及购物车订阅。
 - 普通请求/上传使用规范 `appid`、`screct_id` Header；移除调用者同名/大小写变体、旧 X-Tenant-Token 与用户头，再写入当前身份。缺凭据报 `tenant_auth_required`，不发包。所有业务包括 GET 都不自动重放。
 - `tenant_auth_required`、`tenant_credentials_invalid`、`tenant_auth_unavailable`、`tenant_mismatch`、`tenant_bootstrap_unavailable` 先于用户401分流。旧 `tenant_token_invalid` 只拒绝，不续期、不兼容授权。租户错误固定本地消息，不回显服务端凭据；`TENANT_CHANGED` 表示操作所属商城/账号失效。
+- `tenant_credentials_invalid` 仅使该请求绑定且仍为当前的租户 revision 失效，并清理对应租户/用户缓存；随后普通请求与上传均报 `tenant_auth_required`，零发包，须由宿主重新注入后恢复。响应先校验租户代际，再分流租户错误，最后校验用户会话；同租户期间用户切换不掩盖凭据失效，旧代际错误不能清掉重注入（含同值）或切店后的凭据。用户401独立处理，503/`tenant_auth_unavailable` 不清租户凭据，不自动重放。
 - Taro 无现有WS传输，DIY导航只允许内部白名单，外部地址明确提示不支持。第三方支付/OAuth跳转不注入租户secret；服务器动态首页/短链/支付小票及回调仍需服务端方案，不等于支付已联调。遥测继续关闭，不能借独立endpoint绕过认证。
+- H5 选图上传从 SDK `tempFiles[0].originalFileObj.name` 保留原始文件名，传入 `uploadFile.fileName`；小程序无原始 File 对象时保持原生路径上传，不伪造后缀、不放宽服务端校验。
 - 金额、分页、成功信封不变。生产凭据注入来源、JS执行环境信任、HTTPS域名、真实CORS/网关、微信登录/手机号/支付、App/微信SDK、HBuilderX编译均待验。Taro H5及微信小程序分别构建并留存产物；成功构建不代表SDK或业务已验收。
 
 验证：`pnpm typecheck`、`pnpm test:unit`、`node --test tests/tenant-session.node.mjs`、`pnpm build:h5`、`pnpm build:weapp`。原业务测试通过独立fixture提供已注入租户边界；tenant-request/tenant-http显式取消mock验证真实接入模块，HTTP接收器为隔离合成信封，非LSIT-30认证。
