@@ -14,11 +14,15 @@ namespace app\services\kefu;
 
 use crmeb\exceptions\AuthException;
 use crmeb\services\oauth\OAuth;
-use crmeb\utils\JwtAuth;
 use app\services\BaseServices;
 use crmeb\services\CacheService;
 use app\dao\service\StoreServiceDao;
 use app\services\wechat\WechatUserServices;
+use app\model\system\Tenant;
+use app\model\service\StoreService;
+use crmeb\services\TenantContext;
+use Firebase\JWT\JWT;
+use think\facade\Env;
 
 /**
  * 客服登录
@@ -46,28 +50,55 @@ class LoginServices extends BaseServices
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public function authLogin(string $account, string $password = null)
+    public function authLogin(string $account, string $password = null, string $tenantCode = '')
     {
-        $kefuInfo = $this->dao->get(['account' => $account]);
-        if (!$kefuInfo) {
-            throw new AuthException('没有此用户');
+        $tenantCode = trim($tenantCode);
+        if (mb_strlen($tenantCode) > 64) throw new AuthException('租户编码格式错误');
+        $tenantId = null;
+        if ($tenantCode !== '') {
+            $tenants = Tenant::where('code', $tenantCode)->limit(2)->select();
+            if ($tenants->count() !== 1 || (int)$tenants[0]->status !== 1) {
+                throw new AuthException('账号或密码错误');
+            }
+            $tenantId = (int)$tenants[0]->id;
         }
-        if ($password && !password_verify($password, $kefuInfo->password)) {
+        $candidates = $this->dao->loginCandidates($account, $tenantId);
+        if ($candidates->count() !== 1 || $password === null || !password_verify($password, $candidates[0]->password)) {
             throw new AuthException('账号或密码错误');
         }
-        if (!$kefuInfo->status) {
-            throw new AuthException('您已被禁止登录，请联系管理员');
+        return $this->loginKnownService($candidates[0]);
+    }
+
+    public function loginById(int $id): array
+    {
+        $kefuInfo = $this->dao->get($id);
+        if (!$kefuInfo) throw new AuthException('账号或密码错误');
+        return $this->loginKnownService($kefuInfo);
+    }
+
+    private function loginKnownService(StoreService $kefuInfo): array
+    {
+        $tenantId = (int)$kefuInfo->tenant_id;
+        if ((int)$kefuInfo->status !== 1 || $tenantId <= 0 || !Tenant::where(['id' => $tenantId, 'status' => 1])->count()) {
+            throw new AuthException('账号或密码错误');
         }
-        $token = $this->createToken($kefuInfo->id, 'kefu');
-        $kefuInfo->update_time = time();
-        $kefuInfo->ip = request()->ip();
-        $kefuInfo->online = 1;
-        $kefuInfo->save();
-        return [
-            'token' => $token['token'],
-            'exp_time' => $token['params']['exp'],
-            'kefuInfo' => $kefuInfo->hidden(['password', 'ip', 'update_time', 'add_time', 'status', 'mer_id', 'customer', 'notify'])->toArray()
-        ];
+        $previousTenant = TenantContext::id();
+        $previousCrossTenant = TenantContext::isCrossTenant();
+        try {
+            TenantContext::set($tenantId);
+            $token = $this->createToken($kefuInfo->id, 'kefu');
+            $kefuInfo->update_time = time();
+            $kefuInfo->ip = request()->ip();
+            $kefuInfo->online = 1;
+            $kefuInfo->save();
+            return [
+                'token' => $token['token'],
+                'exp_time' => $token['params']['exp'],
+                'kefuInfo' => $kefuInfo->hidden(['password', 'ip', 'update_time', 'add_time', 'status', 'mer_id', 'customer', 'notify'])->toArray()
+            ];
+        } finally {
+            TenantContext::set($previousTenant, $previousCrossTenant);
+        }
     }
 
     /**
@@ -81,38 +112,39 @@ class LoginServices extends BaseServices
      */
     public function parseToken(string $token)
     {
-        $noCli = !request()->isCli();
-        //检测token是否过期
-        $md5Token = md5($token);
-        if (!$token || !CacheService::has($md5Token) || !(CacheService::get($md5Token, '', NULL, 'kefu'))) {
-            throw new AuthException('请登录', [], 402);
-        }
-        if ($token === 'undefined') {
-            throw new AuthException('请登录', [], 402);
-        }
-
-        /** @var JwtAuth $jwtAuth */
-        $jwtAuth = app()->make(JwtAuth::class);
-        //设置解析token
-        [$id, $type] = $jwtAuth->parseToken($token);
-
-        //验证token
+        $previousTenant = TenantContext::id();
+        $previousCrossTenant = TenantContext::isCrossTenant();
+        $previousLeeway = JWT::$leeway;
         try {
-            $jwtAuth->verifyToken();
+            if ($token === '' || $token === 'undefined') throw new \UnexpectedValueException('Missing token');
+            JWT::$leeway = 60;
+            $claims = JWT::decode($token, Env::get('app.app_key', 'default'), ['HS256']);
+            $id = $claims->jti->id ?? null;
+            $type = $claims->jti->type ?? null;
+            $tenantId = property_exists($claims, 'tenant_id') ? $claims->tenant_id : TenantContext::DEFAULT_TENANT_ID;
+            if ($type !== 'kefu' || !is_int($id) || $id <= 0 || !is_int($tenantId) || $tenantId <= 0 ||
+                !isset($claims->exp) || !is_int($claims->exp)) {
+                throw new \UnexpectedValueException('Invalid service claims');
+            }
+            $cached = CacheService::get(md5($token));
+            if (!is_array($cached) || ($cached['uid'] ?? null) !== $id || ($cached['type'] ?? null) !== 'kefu' ||
+                ($cached['token'] ?? null) !== $token) {
+                throw new \UnexpectedValueException('Invalid service session');
+            }
+            TenantContext::set($tenantId);
+            $kefuInfo = $this->dao->get($id);
+            if (!$kefuInfo || (int)$kefuInfo->tenant_id !== $tenantId || (int)$kefuInfo->status !== 1 ||
+                !Tenant::where(['id' => $tenantId, 'status' => 1])->count()) {
+                throw new \UnexpectedValueException('Invalid service ownership');
+            }
+            $kefuInfo->type = 'kefu';
+            return $kefuInfo->hidden(['password', 'ip', 'status']);
         } catch (\Throwable $e) {
-            $noCli && CacheService::delete($md5Token);
             throw new AuthException('登录已过期,请重新登录', [], 402);
+        } finally {
+            JWT::$leeway = $previousLeeway;
+            TenantContext::set($previousTenant, $previousCrossTenant);
         }
-
-        //获取管理员信息
-        $adminInfo = $this->dao->get($id);
-        if (!$adminInfo || !$adminInfo->id) {
-            $noCli && CacheService::delete($md5Token);
-            throw new AuthException('登录状态有误,请重新登录', [], 402);
-        }
-
-        $adminInfo->type = $type;
-        return $adminInfo->hidden(['password', 'ip', 'status']);
     }
 
     /**
@@ -171,9 +203,9 @@ class LoginServices extends BaseServices
             $keyValue = CacheService::get($key);
             if ($keyValue === '0') {
                 $status = 1;//正在扫描中
-                $kefuInfo = $this->dao->get(['uniqid' => $key], ['account', 'uniqid']);
+                $kefuInfo = $this->dao->get(['uniqid' => $key]);
                 if ($kefuInfo) {
-                    $tokenInfo = $this->authLogin($kefuInfo->account);
+                    $tokenInfo = $this->loginKnownService($kefuInfo);
                     $tokenInfo['status'] = 3;
                     $kefuInfo->uniqid = '';
                     $kefuInfo->save();

@@ -310,7 +310,7 @@ class StoreService extends AuthController
         if (!$serviceInfo->account || !$serviceInfo->password) {
             return app('json')->fail('请先填写客服账号和密码再尝试进入客服平台');
         }
-        return app('json')->success($services->authLogin($serviceInfo->account));
+        return app('json')->success($services->loginById((int)$serviceInfo->id));
     }
 
 }

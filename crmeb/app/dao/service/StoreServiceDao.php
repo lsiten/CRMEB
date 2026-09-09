@@ -21,6 +21,17 @@ use app\model\service\StoreService;
  */
 class StoreServiceDao extends BaseDao
 {
+    public function loginCandidates(string $account, ?int $tenantId = null)
+    {
+        $query = StoreService::withoutGlobalScope(['tenant'])
+            ->where(['account' => $account, 'status' => 1])
+            ->whereIn('tenant_id', function ($query) {
+                $query->name('tenant')->where('status', 1)->field('id');
+            });
+        if ($tenantId !== null) $query->where('tenant_id', $tenantId);
+        return $query->limit(2)->select();
+    }
+
 
     /**
      * 不存在的用户直接禁止掉

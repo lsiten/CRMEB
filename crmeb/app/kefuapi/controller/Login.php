@@ -50,12 +50,17 @@ class Login extends BaseController
      */
     public function login(Request $request)
     {
+        $loginData = $request->post(false);
+        $tenantCode = array_key_exists('tenant_code', $loginData) ? $loginData['tenant_code'] : '';
+        if (!is_string($tenantCode) || mb_strlen(trim($tenantCode)) > 64) {
+            return app('json')->fail('租户编码格式错误');
+        }
         [$account, $password] = $request->postMore([
             ['account', ''],
             ['password', ''],
         ], true);
         validate(LoginValidate::class)->check(['account' => $account, 'password' => $password]);
-        $token = $this->services->authLogin($account, $password);
+        $token = $this->services->authLogin($account, $password, trim($tenantCode));
 
         return app('json')->success('登录成功', $token);
     }
