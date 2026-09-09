@@ -15,10 +15,13 @@ import { forEach, hasOneOf, objEqual } from '@/libs/tools';
 import { cloneDeep } from 'lodash';
 const { title, useI18n } = config;
 import packageConfig from '../../package.json';
+const sessionRevisions = { token: 0, kefu_token: 0 };
+export const getSessionRevision = (key) => sessionRevisions[key];
 // 设置setCookies；
 // setToken
 export const setCookies = (key, val, cookieExpires) => {
   Cookies.set(`${packageConfig.name}:${key}`, val, { expires: cookieExpires || 1 });
+  if (key in sessionRevisions) sessionRevisions[key]++;
 };
 // 获取getCookies；
 // getToken
@@ -27,6 +30,7 @@ export const getCookies = (key) => {
 };
 
 export const removeCookies = (key) => {
+  if (key in sessionRevisions) sessionRevisions[key]++;
   return Cookies.remove(`${packageConfig.name}:${key}`);
 };
 

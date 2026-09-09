@@ -129,6 +129,7 @@ import screenfull from 'screenfull';
 import { AccountLogout, menusApi } from '@/api/account';
 import { tenantListApi, switchTenantApi } from '@/api/tenant';
 import { getCookies, removeCookies, setCookies } from '@/libs/util';
+import { captureSession, isCurrentSession, clearSession } from '@/libs/auth-session';
 import { Session, Local } from '@/utils/storage.js';
 import { formatFlatteningRoutes } from '@/libs/system';
 import UserNews from '@/layout/navBars/breadcrumb/userNews.vue';
@@ -353,6 +354,7 @@ export default {
     // `dropdown 下拉菜单` 当前项点击
     onDropdownCommand(path) {
       if (path === 'logOut') {
+        let clearedSession;
         setTimeout(() => {
           this.$msgbox({
             closeOnClickModal: false,
@@ -364,25 +366,29 @@ export default {
             cancelButtonText: this.$t('message.user.logOutCancel'),
             beforeClose: (action, instance, done) => {
               if (action === 'confirm') {
+                const session = captureSession();
                 this.invalidateTenantRequests();
                 instance.confirmButtonLoading = true;
                 instance.confirmButtonText = this.$t('message.user.logOutExit');
                 AccountLogout()
                   .then((res) => {
+                    if (!clearSession(session)) {
+                      done();
+                      return;
+                    }
+                    clearedSession = captureSession();
                     done();
                     this.$message.success('您已成功退出');
                     this.$store.commit('clearAll');
                     // localStorage.clear();
                     // sessionStorage.clear();
-                    removeCookies('token');
-                    removeCookies('expires_time');
-                    removeCookies('uuid');
                     this.$store.commit('tenant/clear');
                     // this.$router.replace({ path: `${settings.routePre}/login` });
                   })
+                  .catch(() => { done(); })
                   .finally(() => {
                     setTimeout(() => {
-                      this.$router.replace({ name: 'login' });
+                      if (isCurrentSession(clearedSession)) this.$router.replace({ name: 'login' });
                       instance.confirmButtonLoading = false;
                       done();
                     }, 1500);
@@ -393,8 +399,9 @@ export default {
             },
           })
             .then(() => {
+              if (!isCurrentSession(clearedSession)) return;
               // 清除缓存/token等
-              Session.clear();
+              Session.remove('userInfo');
               // 使用 reload 时，不需要调用 resetRoute() 重置路由
               window.location.reload();
             })
