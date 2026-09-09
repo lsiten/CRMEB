@@ -100,6 +100,8 @@ class ChatService
 
     public function onConnect(TcpConnection $connection)
     {
+        $connection->tenantClientRequired = true;
+        $connection->onWebSocketConnect = [TenantHandshake::class, 'authenticate'];
         var_dump('chatConnect');
         $this->connections[$connection->id] = $connection;
         $connection->lastMessageTime = time();
@@ -107,17 +109,26 @@ class ChatService
 
     public function onMessage(TcpConnection $connection, $res)
     {
-        TenantContext::set((int)($connection->tenantId ?? 1));
+        TenantContext::clear();
         try {
             $connection->lastMessageTime = time();
             $res = json_decode($res, true);
             if (!$res || !isset($res['type']) || !$res['type'] || $res['type'] == 'ping') {
                 return $this->response->connection($connection)->success('ping', ['now' => time(), 'datetime' => date('Y-m-d H:i:s')]);
             }
-            var_dump('chatMessage', $res);
+            if ($res['type'] === 'kefu_login') {
+                if (isset($connection->clientTenantIdentity)) {
+                    TenantContext::bindClient(TenantHandshake::tenantId($connection));
+                }
+            } elseif (isset($connection->kefuUser) && !$connection->tenantClientRequired) {
+                TenantContext::set((int)$connection->tenantId);
+            } else {
+                TenantContext::bindClient(TenantHandshake::tenantId($connection));
+            }
             if (!method_exists($this->handle, $res['type'])) return;
             $this->handle->{$res['type']}($connection, $res + ['data' => []], $this->response->connection($connection));
         } catch (\Throwable $e) {
+            $connection->close(json_encode(['type' => 'error', 'data' => ['code' => 'tenant_credentials_invalid', 'msg' => '租户认证失败'], 'close' => true]));
         } finally {
             TenantContext::clear();
         }
@@ -136,6 +147,12 @@ class ChatService
             $fun = $eventData['fun'] ?? false;
             foreach ($ids as $id) {
                 if (isset($this->user[$id])) {
+                    try {
+                        if ($this->user[$id]->tenantClientRequired ?? false) TenantHandshake::tenantId($this->user[$id]);
+                    } catch (\Throwable $e) {
+                        $this->user[$id]->close();
+                        continue;
+                    }
                     if (!($eventData['tenant_cross'] ?? false) && (!isset($eventData['tenant_id']) || (int)$eventData['tenant_id'] !== (int)($this->user[$id]->tenantId ?? 1))) continue;
                     TenantContext::set((int)($this->user[$id]->tenantId ?? 1));
                     if ($fun) {
@@ -151,6 +168,13 @@ class ChatService
         $this->timer = Timer::add(15, function () use (&$worker) {
             $time_now = time();
             foreach ($worker->connections as $connection) {
+                try {
+                    if ($connection->tenantClientRequired ?? true) TenantHandshake::tenantId($connection);
+                    elseif (!isset($connection->kefuUser)) continue;
+                } catch (\Throwable $e) {
+                    $connection->close();
+                    continue;
+                }
                 if ($time_now - $connection->lastMessageTime > 120) {
                     TenantContext::set((int)($connection->tenantId ?? 1));
                     //定时器判断当前用户是否下线
@@ -160,7 +184,6 @@ class ChatService
                         $service->updateRecord(['to_uid' => $connection->user->uid], ['online' => 0]);
                     }
                     $this->response->connection($connection)->close('timeout');
-                    TenantContext::clear();
                     //广播给客服谁下线了
                     foreach ($this->kefuUser as $uid => &$conn) {
                         if (isset($connection->user->uid) && $connection->user->uid != $uid) {
@@ -170,30 +193,35 @@ class ChatService
                             $this->response->connection($conn)->send('user_online', ['to_uid' => $connection->user->uid, 'online' => 0]);
                         }
                     }
+                    TenantContext::clear();
                 }
             }
         });
 
         Timer::add(2, function () use (&$worker) {
-            $uids = [];
+            $tenants = [];
             foreach ($this->user() as $uid => $connection) {
-                TenantContext::set((int)($connection->tenantId ?? 1));
+                try {
+                    if ($connection->tenantClientRequired ?? false) TenantHandshake::tenantId($connection);
+                } catch (\Throwable $e) {
+                    $connection->close();
+                    continue;
+                }
                 if (!isset($connection->isTourist)) {
-                    $uids[] = $uid;
+                    $tenants[(int)$connection->tenantId]['users'][] = $uid;
                 }
             }
-            TenantContext::clear();
-            if ($uids) {
-                //除了当前在线的其他全部都下线
-                /** @var StoreServiceRecordServices $service */
-                $service = app()->make(StoreServiceRecordServices::class);
-                $service->updateOnline(['notUid' => $uids], ['online' => 0]);
+            foreach ($this->kefuUser() as $uid => $connection) {
+                $tenants[(int)$connection->tenantId]['staff'][] = $uid;
             }
-            $kefuUid = array_keys($this->kefuUser());
-            if ($kefuUid) {
-                /** @var StoreServiceServices $kefuService */
-                $kefuService = app()->make(StoreServiceServices::class);
-                $kefuService->updateOnline(['notUid' => $kefuUid], ['online' => 0]);
+            foreach ($tenants as $id => $online) {
+                TenantContext::set($id);
+                try {
+                    if (!empty($online['users'])) app()->make(StoreServiceRecordServices::class)->updateOnline(['notUid' => $online['users']], ['online' => 0]);
+                    if (!empty($online['staff'])) app()->make(StoreServiceServices::class)->updateOnline(['notUid' => $online['staff']], ['online' => 0]);
+                } finally {
+                    TenantContext::clear();
+                }
             }
         });
     }

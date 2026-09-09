@@ -23,6 +23,7 @@ use app\services\wechat\WechatReplyServices;
 use app\services\wechat\WechatUserServices;
 use app\services\user\UserAuthServices;
 use crmeb\exceptions\AuthException;
+use crmeb\services\TenantContext;
 use crmeb\services\app\WechatService;
 use crmeb\services\workerman\Response;
 use crmeb\utils\Arr;
@@ -68,17 +69,35 @@ class ChatHandle
             ]);
         }
         try {
+            $jwt = app()->make(\crmeb\utils\JwtAuth::class);
+            [, $type, , $tenantId] = $jwt->parseToken($token);
+            $jwt->verifyToken();
+            if ($type !== 'kefu' || !is_numeric($tenantId) || (int)$tenantId <= 0 ||
+                (TenantContext::clientId() !== null && TenantContext::clientId() !== (int)$tenantId)) {
+                return $response->close(['msg' => '授权失败']);
+            }
+            TenantContext::set((int)$tenantId);
+            $cached = \crmeb\services\CacheService::get(md5($token));
+            if (!is_array($cached) || ($cached['type'] ?? '') !== 'kefu') return $response->close(['msg' => '授权失败']);
             /** @var LoginServices $services */
             $services = app()->make(LoginServices::class);
             $kefuInfo = $services->parseToken($token);
-        } catch (AuthException $e) {
+            if ((int)($kefuInfo->tenant_id ?? 0) !== (int)$tenantId || !(int)$kefuInfo->status) {
+                return $response->close(['msg' => '授权失败']);
+            }
+        } catch (\Throwable $e) {
             return $response->close([
-                'msg' => $e->getMessage()
+                'msg' => '授权失败'
             ]);
         }
 
+        if (TenantContext::clientId() !== null && TenantContext::clientId() !== (int)($kefuInfo->tenant_id ?? 1)) {
+            return $response->close(['msg' => '租户不匹配']);
+        }
         $connection->kefuUser = $kefuInfo;
         $connection->tenantId = (int)($kefuInfo->tenant_id ?? 1);
+        $connection->tenantClientRequired = false;
+        TenantContext::set($connection->tenantId);
         /** @var UserServices $userService */
         $userService = app()->make(UserServices::class);
         $connection->user = $userService->get($kefuInfo['uid'], ['uid', 'nickname']);

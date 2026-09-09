@@ -25,7 +25,7 @@ return [
         'HttpRun' => [],
         'HttpEnd' => [\app\listener\http\HttpEndListener::class], //HTTP请求结束回调事件
         'LogLevel' => [],
-        'LogWrite' => [],
+        'LogWrite' => [\app\listener\http\RedactLogListener::class],
         'QueueStartListener' => [\app\listener\queue\QueueStartListener::class],
         'UserLoginListener' => [\app\listener\user\LoginListener::class],
         'AdminLoginListener' => [\app\listener\admin\AdminLoginListener::class],//管理员登录
@@ -47,5 +47,4 @@ return [
         'CustomEventListener' => [\app\listener\CustomEventListener::class],//自定义事件
     ],
 ];
-
 

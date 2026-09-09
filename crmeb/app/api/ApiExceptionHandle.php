@@ -58,14 +58,14 @@ class ApiExceptionHandle extends Handle
                 request()->uid(),                                                                     //用户ID
                 request()->ip(),                                                                      //客户ip
                 ceil(msectime() - (request()->time(true) * 1000)),                               //耗时（毫秒）
-                request()->rule()->getMethod(),                                                       //请求类型
+                request()->method(),                                                                  //请求类型
                 str_replace("/", "", request()->rootUrl()),                             //应用
                 request()->baseUrl(),                                                                 //路由
-                json_encode(request()->param(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),//请求参数
+                json_encode(\crmeb\utils\SensitiveData::redact(request()->param()), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),//请求参数
                 json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),             //报错数据
 
             ];
-            Log::write(implode("|", $log), "error");
+            Log::write(implode("|", \crmeb\utils\SensitiveData::redact($log)), "error");
         }
     }
 
@@ -82,10 +82,11 @@ class ApiExceptionHandle extends Handle
             'message' => $e->getMessage(),
             'file' => $e->getFile(),
             'line' => $e->getLine(),
-            'trace' => $e->getTrace(),
-            'previous' => $e->getPrevious(),
+            'trace' => $e->getTraceAsString(),
+            'previous' => null,
         ] : [];
-        $message = $e->getMessage();
+        $massageData = \crmeb\utils\SensitiveData::redact($massageData);
+        $message = \crmeb\utils\SensitiveData::redact($e->getMessage());
         // 添加自定义异常处理机制
         if ($e instanceof ApiStatusException) {
             return app('json')->status($e->getApiStatus(), $message, $e->getApiData());

@@ -44,6 +44,17 @@ class Response
      */
     public function send(string $type, ?array $data = null, bool $close = false, array $other = [])
     {
+        if (($this->connection->tenantClientRequired ?? false) && !$close && $type !== 'ping') {
+            try {
+                $id = \crmeb\services\workerman\chat\TenantHandshake::tenantId($this->connection);
+                if ($id !== \crmeb\services\TenantContext::id()) return false;
+            } catch (\Throwable $e) {
+                return $this->connection->close(json_encode(['type' => 'error', 'close' => true,
+                    'data' => ['code' => 'tenant_credentials_invalid', 'msg' => '租户认证失败']]));
+            }
+        }
+        if (isset($this->connection->kefuUser) && !$close && $type !== 'ping' &&
+            (int)$this->connection->tenantId !== \crmeb\services\TenantContext::id()) return false;
         $this->connection->lastMessageTime = time();
         $res = compact('type');
 

@@ -2,6 +2,7 @@
 namespace app\services\system;
 
 use crmeb\exceptions\AuthException;
+use crmeb\exceptions\TenantAuthException;
 use crmeb\services\TenantAccess;
 use think\facade\Db;
 
@@ -49,17 +50,38 @@ class TenantCredentialServices
             (isset($input['client_id'], $input['app_id']) && $input['client_id'] !== $input['app_id'])) {
             throw new AuthException('凭据参数错误', [], 400);
         }
-        $row = $this->credential($clientId);
-        if (!preg_match('/^[a-f0-9]{64}$/D', $secret) || !hash_equals($row['secret_hash'], hash('sha256', $secret))) {
-            throw new AuthException('租户凭据无效', [], 401);
-        }
+        $row = $this->authenticate($clientId, $secret);
         return $this->issue($row);
     }
 
-    // Internal issuer for the server-controlled public bootstrap allowlist only.
+    public function authenticate(string $clientId, string $secret): array
+    {
+        if (!preg_match('/^[a-f0-9]{32}$/D', $clientId) || !preg_match('/^[a-f0-9]{64}$/D', $secret)) {
+            throw new TenantAuthException(401, '租户凭据无效');
+        }
+        $row = $this->credential($clientId);
+        if (!hash_equals($row['secret_hash'], hash('sha256', $secret))) {
+            throw new TenantAuthException(401, '租户凭据无效');
+        }
+        $this->tenant((int)$row['tenant_id'], true);
+        return $row;
+    }
+
+    // Existing callers must not recreate an anonymous issuer outside the HTTP gate.
     public function issuePublicToken(string $clientId): array
     {
-        return $this->issue($this->credential($clientId));
+        throw new TenantAuthException(403, '租户公开引导已关闭');
+    }
+
+    public function checkConnection(array $identity): int
+    {
+        $row = $this->credential($identity['client_id'] ?? '');
+        if (!hash_equals(hash('sha256', $row['secret_hash']), $identity['revision'] ?? '') ||
+            (int)$row['tenant_id'] !== ($identity['tenant_id'] ?? 0)) {
+            throw new TenantAuthException(401, '租户凭据无效');
+        }
+        $this->tenant((int)$row['tenant_id'], true);
+        return (int)$row['tenant_id'];
     }
 
     private function issue(array $row): array
@@ -73,13 +95,13 @@ class TenantCredentialServices
     public function resolve(string $token): int
     {
         if (!preg_match('/^([a-f0-9]{32})\.([0-9]{10})\.([a-f0-9]{32})\.([a-f0-9]{64})$/D', $token, $parts)) {
-            throw new AuthException('租户令牌无效', [], 401);
+            throw new TenantAuthException(401, '租户令牌无效');
         }
         $row = $this->credential($parts[1]);
         $payload = $parts[1] . '.' . $parts[2] . '.' . $parts[3];
         if ((int)$parts[2] <= time() || (int)$parts[2] > time() + self::TTL ||
             !hash_equals(hash_hmac('sha256', $payload, $row['secret_hash']), $parts[4])) {
-            throw new AuthException('租户令牌无效', [], 401);
+            throw new TenantAuthException(401, '租户令牌无效');
         }
         $this->tenant((int)$row['tenant_id'], true);
         return (int)$row['tenant_id'];
@@ -87,9 +109,9 @@ class TenantCredentialServices
 
     private function credential(string $clientId): array
     {
-        if (!preg_match('/^[a-f0-9]{32}$/D', $clientId)) throw new AuthException('租户凭据无效', [], 401);
+        if (!preg_match('/^[a-f0-9]{32}$/D', $clientId)) throw new TenantAuthException(401, '租户凭据无效');
         $row = Db::name('tenant_credential')->where('client_id', $clientId)->find();
-        if (!$row) throw new AuthException('租户凭据无效', [], 401);
+        if (!$row) throw new TenantAuthException(401, '租户凭据无效');
         return $row;
     }
 
@@ -97,7 +119,8 @@ class TenantCredentialServices
     {
         $tenant = Db::name('tenant')->where('id', $tenantId)->field('id,name,code,status')->find();
         if (!$tenant || ($active && !(int)$tenant['status'])) {
-            throw new AuthException($active ? '租户凭据无效' : '租户不存在', [], $active ? 401 : 404);
+            if ($active) throw new TenantAuthException();
+            throw new AuthException('租户不存在', [], 404);
         }
         unset($tenant['status']);
         return $tenant;
