@@ -10,6 +10,7 @@
 
 import Vue from 'vue'
 import App from './App'
+import { initializeTenantState, subscribeTenant } from './utils/tenant'
 import store from './store'
 import Cache from './utils/cache'
 import util from 'utils/util'
@@ -21,6 +22,7 @@ Vue.prototype.$config = configs;
 Vue.prototype.$Cache = Cache;
 Vue.prototype.$eventHub = new Vue();
 Vue.prototype.$socket = new socket();
+subscribeTenant(() => Vue.prototype.$socket.onClose());
 Vue.config.productionTip = false
 import pageLoading from './components/pageLoading.vue'
 import skeleton from './components/skeleton/index.vue'
@@ -98,6 +100,7 @@ if (typeof window.entryUrl === 'undefined' || window.entryUrl === '') {
 // #endif
 
 
+initializeTenantState();
 App.mpType = 'app'
 
 

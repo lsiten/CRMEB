@@ -1,5 +1,5 @@
 import Taro from '@tarojs/taro';
-import { ApiError, clearToken, request, setToken } from './api';
+import { ApiError, clearToken, request, setToken, captureAuthSession, isCurrentAuthSession } from './api';
 import { parseStoredReferral } from './platform';
 
 export type UserProfile = Readonly<{ uid: number; nickname: string; avatar: string; phone: string; integral: number }>;
@@ -98,7 +98,9 @@ export async function bindUserPhone(phone: string, captcha: string, replace = fa
 }
 
 export async function logout(): Promise<void> {
-  try { await request('/logout', { method: 'GET' }); } finally { clearToken(); }
+  const session = captureAuthSession();
+  try { await request('/logout', { method: 'GET' }); }
+  finally { if (isCurrentAuthSession(session)) clearToken(); }
 }
 
 export async function getAgreement(type: 3 | 4 | 5): Promise<Agreement> {

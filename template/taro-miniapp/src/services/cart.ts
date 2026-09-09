@@ -1,3 +1,4 @@
+import { initializeTenantState } from './tenant';
 import Taro from '@tarojs/taro';
 import type { Product } from './api';
 
@@ -6,12 +7,14 @@ const storageKey = 'crmeb.cart';
 const directCheckoutKey = 'crmeb.directCheckout';
 
 export function createDirectCheckout(product: Product, spec: string): string {
+  initializeTenantState();
   const selection = `direct-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   Taro.setStorageSync(directCheckoutKey, { selection, item: { ...product, spec, quantity: 1 } });
   return selection;
 }
 
 export function readCart(): readonly CartItem[] {
+  initializeTenantState();
   const stored = Taro.getStorageSync<readonly CartItem[]>(storageKey);
   return Array.isArray(stored) ? stored : [];
 }

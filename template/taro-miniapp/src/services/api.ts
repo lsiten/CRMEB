@@ -1,4 +1,6 @@
+import { canReplayTenantRead } from './tenant-session.mjs';
 import Taro from '@tarojs/taro';
+import { tenantSession, isTenantInvalid, TenantError, subscribeTenant, initializeTenantState } from './tenant';
 import { track } from './telemetry';
 
 export type ProductVariant = Readonly<{ unique: string; label: string; price: number; stock: number; image?: string }>;
@@ -27,12 +29,13 @@ let authExpiry: AuthExpiry | undefined;
 const expiredRequests = new WeakMap<ApiError, AuthExpiry>();
 
 export function setToken(token: string | null): void {
+  initializeTenantState();
   authRevision += 1;
   authExpiry = undefined;
   if (token) Taro.setStorageSync(tokenKey, token); else Taro.removeStorageSync(tokenKey);
   for (const listener of authListeners) listener();
 }
-export function getToken(): string | null { return Taro.getStorageSync<string>(tokenKey) || null; }
+export function getToken(): string | null { initializeTenantState(); return Taro.getStorageSync<string>(tokenKey) || null; }
 
 export function clearToken(): void { setToken(null); }
 
@@ -62,12 +65,26 @@ function expireAuthSession(session: AuthSession, message: string): ApiError {
 export async function request<T>(path: string, options: Omit<Taro.request.Option<T>, 'url'> = {}): Promise<T> {
   const startedAt = Date.now();
   const session = captureAuthSession();
+  const operation = { revision: tenantSession.revision() };
+  const tenant = tenantSession.enabled() ? await tenantSession.ensure() : { revision: tenantSession.revision(), token: '', expiresAt: Infinity };
+  tenantSession.assertCurrent(operation);
+  if (!isCurrentAuthSession(session)) throw new TenantError('TENANT_CHANGED');
   const token = session.token;
   // CRMEB's API middleware expects the historical `Authori-zation` header.
   const formType = process.env.TARO_ENV === 'h5' ? (typeof navigator !== 'undefined' && /micromessenger/i.test(navigator.userAgent) ? 'wechat' : 'h5') : 'routine';
-  const header = { 'content-type': 'application/json', 'Form-type': formType, ...(options.header ?? {}), ...(token ? { 'Authori-zation': `Bearer ${token}` } : {}) };
+  const header = { 'content-type': 'application/json', 'Form-type': formType, ...(options.header ?? {}), ...(token ? { 'Authori-zation': `Bearer ${token}` } : {}), ...(tenant.token ? { 'X-Tenant-Token': tenant.token } : {}) };
   try {
-    const response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header, timeout: options.timeout ?? 10000 });
+    let response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header, timeout: options.timeout ?? 10000 });
+    tenantSession.assertCurrent(tenant);
+    if (isTenantInvalid(response.data)) {
+      const renewed = await tenantSession.renew(tenant);
+      tenantSession.assertCurrent(operation);
+      if (!canReplayTenantRead(path, options.method)) throw new TenantError('TENANT_UNAVAILABLE');
+      if (!isCurrentAuthSession(session)) throw new TenantError('TENANT_CHANGED');
+      response = await Taro.request<T>({ ...options, url: `${baseUrl}${path}`, header: { ...header, 'X-Tenant-Token': renewed.token }, timeout: options.timeout ?? 10000 });
+      tenantSession.assertCurrent(tenant);
+      if (isTenantInvalid(response.data)) throw new TenantError('TENANT_UNAVAILABLE');
+    }
     if (response.statusCode === 401) {
       track('api_error', { path, code: 'UNAUTHORIZED', status: 401, durationMs: Date.now() - startedAt });
       throw expireAuthSession(session, '登录已过期');
@@ -94,7 +111,7 @@ export async function request<T>(path: string, options: Omit<Taro.request.Option
     }
     return body;
   } catch (error) {
-    if (error instanceof ApiError) throw error;
+    if (error instanceof ApiError || error instanceof TenantError) throw error;
     const message = String(error);
     const code = message.toLowerCase().includes('timeout') ? 'TIMEOUT' : 'NETWORK';
     track('api_error', { path, code, durationMs: Date.now() - startedAt });
@@ -111,6 +128,7 @@ export type ProductQuery = Readonly<{ keyword?: string; category?: string; ids?:
 type ProductCacheEntry = Readonly<{ expiresAt: number; value: readonly Product[] }>;
 // Builder-owned cache: bounded TTL avoids duplicate list requests during tab switches.
 const productCache = new Map<string, ProductCacheEntry>();
+subscribeTenant(() => { clearToken(); productCache.clear(); });
 const PRODUCT_CACHE_TTL_MS = 30_000;
 
 type ProductPayload = Readonly<{ data?: unknown; list?: unknown }>;
@@ -135,7 +153,7 @@ export function parseProducts(payload: ProductPayload, limit = 50): readonly Pro
 
 export async function queryProducts(query: ProductQuery): Promise<readonly Product[]> {
   const limit = Math.min(Math.max(query.limit ?? 50, 1), 50);
-  const cacheKey = JSON.stringify({ keyword: query.keyword ?? '', category: query.category ?? '', ids: query.ids ?? [], limit });
+  const cacheKey = JSON.stringify({ tenant: tenantSession.revision(), keyword: query.keyword ?? '', category: query.category ?? '', ids: query.ids ?? [], limit });
   const cached = productCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
   if (cached) productCache.delete(cacheKey);

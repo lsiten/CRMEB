@@ -1,5 +1,5 @@
 <template>
-  <div class="tenant-page">
+  <div v-if="isSuperAdmin" class="tenant-page">
     <el-card shadow="never">
       <div slot="header" class="tenant-header">
         <span>租户管理</span>
@@ -15,6 +15,7 @@
         </vxe-table-column>
         <vxe-table-column title="操作" width="180" fixed="right">
           <template v-slot="{ row }">
+            <el-button type="text" @click="credentialsTenant = row">接口凭据</el-button>
             <el-button type="text" @click="openForm(row)">编辑</el-button>
             <el-button type="text" class="danger-text" @click="remove(row)">删除</el-button>
           </template>
@@ -22,10 +23,20 @@
       </vxe-table>
     </el-card>
 
+    <TenantCredentials
+      v-if="credentialsTenant"
+      :key="credentialsTenant.id"
+      :tenant-id="Number(credentialsTenant.id)"
+      :tenant-name="credentialsTenant.name"
+      @close="credentialsTenant = null"
+    />
+
     <el-dialog :visible.sync="dialogVisible" :title="form.id ? '编辑租户' : '新增租户'" width="460px">
       <el-form ref="form" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="租户名称" prop="name"><el-input v-model="form.name" maxlength="100" /></el-form-item>
-        <el-form-item label="租户编码" prop="code"><el-input v-model="form.code" maxlength="64" :disabled="!!form.id" /></el-form-item>
+        <el-form-item label="租户编码" prop="code"
+          ><el-input v-model="form.code" maxlength="64" :disabled="!!form.id"
+        /></el-form-item>
         <el-form-item label="状态">
           <el-switch v-model="form.status" :active-value="1" :inactive-value="0" />
         </el-form-item>
@@ -36,22 +47,42 @@
       </span>
     </el-dialog>
   </div>
+  <el-alert
+    v-else
+    title="仅超级管理员可访问租户管理。请从右上角账户菜单管理自身租户接口凭据。"
+    type="warning"
+    :closable="false"
+  />
 </template>
 
 <script>
-import {
-  tenantAdminListApi,
-  tenantCreateApi,
-  tenantDeleteApi,
-  tenantStatusApi,
-  tenantUpdateApi,
-} from '@/api/tenant';
+import { tenantAdminListApi, tenantCreateApi, tenantDeleteApi, tenantStatusApi, tenantUpdateApi } from '@/api/tenant';
+import TenantCredentials from '@/components/tenantCredentials';
 
 export default {
   name: 'SystemTenant',
+  components: { TenantCredentials },
+  computed: {
+    isSuperAdmin() {
+      return [0, '0'].includes((this.$store.state.userInfo.userInfo || {}).level);
+    },
+  },
+  watch: {
+    isSuperAdmin: {
+      immediate: true,
+      handler(value) {
+        if (value) this.loadList();
+        else {
+          this.list = [];
+          this.credentialsTenant = null;
+        }
+      },
+    },
+  },
   data() {
     return {
       list: [],
+      credentialsTenant: null,
       loading: false,
       saving: false,
       dialogVisible: false,
@@ -67,18 +98,22 @@ export default {
   },
   methods: {
     loadList() {
+      if (!this.isSuperAdmin) return;
       this.loading = true;
       tenantAdminListApi()
         .then((res) => {
           const data = res.data || res;
-          this.list = Array.isArray(data) ? data : data.list || [];
+          if (this.isSuperAdmin) this.list = Array.isArray(data) ? data : data.list || [];
         })
+        .catch((error) => this.$message.error(error.msg || '租户列表加载失败'))
         .finally(() => {
           this.loading = false;
         });
     },
     openForm(row) {
-      this.form = row ? { id: row.id, name: row.name, code: row.code, status: row.status } : { id: 0, name: '', code: '', status: 1 };
+      this.form = row
+        ? { id: row.id, name: row.name, code: row.code, status: row.status }
+        : { id: 0, name: '', code: '', status: 1 };
       this.dialogVisible = true;
       this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate());
     },
@@ -114,13 +149,16 @@ export default {
         });
     },
   },
-  mounted() {
-    this.loadList();
-  },
 };
 </script>
 
 <style scoped>
-.tenant-header { display: flex; align-items: center; justify-content: space-between; }
-.danger-text { color: #f56c6c; }
+.tenant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.danger-text {
+  color: #f56c6c;
+}
 </style>

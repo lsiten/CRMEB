@@ -38,12 +38,7 @@
     <div class="layout-navbars-breadcrumb-user-icon mr10" v-db-click @click="openMobelPage">
       <i title="商城页面" class="el-icon-mobile-phone"></i>
     </div>
-    <el-dropdown
-      v-if="canSwitchTenant"
-      class="tenant-switch"
-      :show-timeout="70"
-      @command="onTenantCommand"
-    >
+    <el-dropdown v-if="canSwitchTenant" class="tenant-switch" :show-timeout="70" @command="onTenantCommand">
       <span class="tenant-switch-link">
         <i class="el-icon-office-building"></i>
         <span class="tenant-switch-name">{{ currentTenantLabel }}</span>
@@ -69,13 +64,19 @@
       </span>
       <el-dropdown-menu slot="dropdown">
         <el-dropdown-item command="user">{{ $t('message.user.dropdown6') }}</el-dropdown-item>
+        <el-dropdown-item v-if="credentialsTenantId > 0" command="credentials">租户接口凭据</el-dropdown-item>
         <el-dropdown-item divided command="logOut">{{ $t('message.user.dropdown5') }}</el-dropdown-item>
       </el-dropdown-menu>
     </el-dropdown>
     <div class="layout-navbars-breadcrumb-user-icon" v-db-click @click="onLayoutSetingClick">
       <i class="el-icon-setting" :title="$t('message.user.title3')"></i>
     </div>
-    <!-- <Search ref="searchRef" /> -->
+    <TenantCredentials
+      v-if="credentialsVisible && credentialsTenantId > 0"
+      :key="credentialsTenantId"
+      :tenant-id="credentialsTenantId"
+      @close="credentialsVisible = false"
+    />
 
     <el-dialog
       title="切换租户"
@@ -127,14 +128,15 @@
 import screenfull from 'screenfull';
 import { AccountLogout, menusApi } from '@/api/account';
 import { tenantListApi, switchTenantApi } from '@/api/tenant';
-import { removeCookies, setCookies } from '@/libs/util';
+import { getCookies, removeCookies, setCookies } from '@/libs/util';
 import { Session, Local } from '@/utils/storage.js';
 import { formatFlatteningRoutes } from '@/libs/system';
 import UserNews from '@/layout/navBars/breadcrumb/userNews.vue';
 import Search from '@/layout/navBars/breadcrumb/search.vue';
+import TenantCredentials from '@/components/tenantCredentials';
 export default {
   name: 'layoutBreadcrumbUser',
-  components: { UserNews, Search },
+  components: { UserNews, Search, TenantCredentials },
   data() {
     return {
       isScreenfull: false,
@@ -146,9 +148,14 @@ export default {
       tenantSwitching: false,
       tenantListLoading: false,
       selectedTenantId: '',
+      credentialsVisible: false,
+      tenantRequestVersion: 0,
     };
   },
   computed: {
+    tenantAccountKey() {
+      return JSON.stringify([this.getUserInfos.id, this.getUserInfos.account]);
+    },
     // 获取用户信息
     getUserInfos() {
       return this.$store.state.userInfo.userInfo || {};
@@ -157,19 +164,16 @@ export default {
       return this.$store.state.tenant.list || [];
     },
     isSuperAdmin() {
-      const userInfo = this.$store.state.userInfo.userInfo || {};
-      const uniqueAuth = this.$store.state.userInfo.uniqueAuth;
+      return [0, '0'].includes(this.getUserInfos.level);
+    },
+    credentialsTenantId() {
       return (
-        userInfo.level === 0 ||
-        userInfo.is_super_admin === true ||
-        userInfo.is_super_admin === 1 ||
-        (Array.isArray(uniqueAuth) && uniqueAuth.includes('super_admin'))
+        Number(this.isSuperAdmin ? this.currentTenantId || this.getUserInfos.tenant_id : this.getUserInfos.tenant_id) ||
+        0
       );
     },
     canSwitchTenant() {
-      return this.isSuperAdmin
-        ? this.tenantList.length > 0 || !!this.$store.state.tenant.current
-        : !!this.$store.state.tenant.current;
+      return this.isSuperAdmin && (this.tenantList.length > 0 || !!this.$store.state.tenant.current);
     },
     currentTenantLabel() {
       const current = this.$store.state.tenant.current || this.tenantList[0] || {};
@@ -189,6 +193,21 @@ export default {
     },
   },
   watch: {
+    tenantDialogVisible(visible) {
+      if (!visible) this.invalidateTenantRequests();
+    },
+    tenantAccountKey() {
+      this.invalidateTenantRequests();
+      this.credentialsVisible = false;
+      this.loadTenantList();
+    },
+    credentialsTenantId() {
+      this.credentialsVisible = false;
+    },
+    '$route.fullPath'() {
+      this.invalidateTenantRequests();
+      this.credentialsVisible = false;
+    },
     getUserInfos: {
       deep: true,
       handler() {
@@ -206,7 +225,29 @@ export default {
     }
     this.loadTenantList();
   },
+  beforeDestroy() {
+    this.invalidateTenantRequests();
+  },
   methods: {
+    invalidateTenantRequests() {
+      this.tenantRequestVersion += 1;
+      this.tenantSwitching = false;
+      this.tenantListLoading = false;
+    },
+    tenantRequestContext() {
+      return { version: this.tenantRequestVersion, account: this.tenantAccountKey, token: getCookies('token') };
+    },
+    ownsTenantLoading(context) {
+      return !this._isDestroyed && context.version === this.tenantRequestVersion;
+    },
+    isCurrentTenantRequest(context) {
+      return (
+        this.ownsTenantLoading(context) &&
+        this.isSuperAdmin &&
+        context.account === this.tenantAccountKey &&
+        context.token === getCookies('token')
+      );
+    },
     getExpiresTime(expiresTime) {
       const nowTimeNum = Math.round(Date.now() / 1000);
       const expiresTimeNum = expiresTime - nowTimeNum;
@@ -323,6 +364,7 @@ export default {
             cancelButtonText: this.$t('message.user.logOutCancel'),
             beforeClose: (action, instance, done) => {
               if (action === 'confirm') {
+                this.invalidateTenantRequests();
                 instance.confirmButtonLoading = true;
                 instance.confirmButtonText = this.$t('message.user.logOutExit');
                 AccountLogout()
@@ -358,6 +400,8 @@ export default {
             })
             .catch(() => {});
         }, 150);
+      } else if (path === 'credentials') {
+        this.credentialsVisible = true;
       } else if (path === 'user') {
         this.$router.push({ name: 'systemUser' });
       } else {
@@ -365,15 +409,18 @@ export default {
       }
     },
     onTenantCommand(tenantId) {
-      if (!tenantId || String(tenantId) === String(this.currentTenantId)) return;
+      if (this.tenantSwitching || this.tenantListLoading) return;
+      if (!this.isSuperAdmin || !tenantId || String(tenantId) === String(this.currentTenantId)) return;
       this.selectedTenantId = tenantId;
       this.switchTenant();
     },
     loadTenantList() {
       if (!this.isSuperAdmin || this.tenantListLoading) return;
+      const context = this.tenantRequestContext();
       this.tenantListLoading = true;
       tenantListApi()
         .then((res) => {
+          if (!this.isCurrentTenantRequest(context)) return;
           const data = res.data || res || {};
           const list = Array.isArray(data) ? data : data.list || data.tenants || data.tenant_list || [];
           if (!Array.isArray(list) || !list.length) return;
@@ -386,27 +433,30 @@ export default {
           this.$store.commit('tenant/setContext', { current, list });
         })
         .catch(() => {
+          if (!this.isCurrentTenantRequest(context)) return;
           this.$message.error('租户列表加载失败，请刷新重试');
         })
         .finally(() => {
-          this.tenantListLoading = false;
+          if (this.ownsTenantLoading(context)) this.tenantListLoading = false;
         });
     },
     switchTenant() {
-      if (!this.selectedTenantId || this.tenantSwitching || this.tenantListLoading) return;
+      if (!this.isSuperAdmin || !this.selectedTenantId || this.tenantSwitching || this.tenantListLoading) return;
+      const context = this.tenantRequestContext();
+      const tenantId = this.selectedTenantId;
       this.tenantSwitching = true;
-      switchTenantApi({ tenant_id: this.selectedTenantId })
+      return switchTenantApi({ tenant_id: tenantId })
         .then((res) => {
+          if (!this.isCurrentTenantRequest(context)) return;
           const data = res.data || res;
           if (data.token) {
             const expires = this.getExpiresTime(data.expires_time);
             setCookies('token', data.token, expires);
             setCookies('expires_time', data.expires_time, expires);
+            context.token = getCookies('token');
           }
           const current =
-            data.current_tenant ||
-            data.tenant ||
-            this.tenantList.find((item) => String(item.id) === String(this.selectedTenantId));
+            data.current_tenant || data.tenant || this.tenantList.find((item) => String(item.id) === String(tenantId));
           const list = Array.isArray(data.tenants || data.tenant_list)
             ? data.tenants || data.tenant_list
             : this.tenantList;
@@ -423,6 +473,7 @@ export default {
             this.applyMenus(menus);
           } else {
             return menusApi().then((menuRes) => {
+              if (!this.isCurrentTenantRequest(context)) return;
               const menuData = menuRes.data || menuRes;
               const menuList = Array.isArray(menuData) ? menuData : menuData.menus || menuData.list;
               if (Array.isArray(menuList)) this.applyMenus(menuList);
@@ -430,15 +481,17 @@ export default {
           }
         })
         .then(() => {
+          if (!this.isCurrentTenantRequest(context)) return;
           this.tenantDialogVisible = false;
           this.$message.success('租户切换成功');
           window.location.reload();
         })
         .catch((error) => {
+          if (!this.isCurrentTenantRequest(context)) return;
           this.$message.error((error && error.msg) || '租户切换失败');
         })
         .finally(() => {
-          this.tenantSwitching = false;
+          if (this.ownsTenantLoading(context)) this.tenantSwitching = false;
         });
     },
     applyMenus(menus) {

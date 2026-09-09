@@ -33,9 +33,7 @@ class Tenant extends BaseController
     {
         $admin = $this->request->adminInfo();
         $tenantId = (int)$this->request->post('tenant_id', 0);
-        if ((int)($admin['level'] ?? 1) !== 0) {
-            $tenantId = (int)($admin['tenant_id'] ?? 0);
-        }
+        if (!$this->isPlatformAdmin()) return app('json')->make(403, '无权操作租户');
         $tenant = TenantModel::where(['id' => $tenantId, 'status' => 1])->find();
         if (!$tenant) {
             return app('json')->fail('租户不存在或已停用');
@@ -59,6 +57,7 @@ class Tenant extends BaseController
     /** 后台租户管理页列表。 */
     public function adminList()
     {
+        if (!$this->isPlatformAdmin()) return app('json')->make(403, '无权操作租户');
         $admin = $this->request->adminInfo();
         $query = TenantModel::field(['id', 'name', 'code', 'status', 'add_time']);
         if ((int)($admin['level'] ?? 1) !== 0) {
@@ -70,7 +69,7 @@ class Tenant extends BaseController
     /** 新增租户（仅平台管理员）。 */
     public function create()
     {
-        if (!$this->isPlatformAdmin()) return app('json')->fail('无权操作租户');
+        if (!$this->isPlatformAdmin()) return app('json')->make(403, '无权操作租户');
         $data = $this->tenantData();
         if (!$data['name'] || !$data['code']) return app('json')->fail('租户名称和编码不能为空');
         if (TenantModel::where('code', $data['code'])->find()) return app('json')->fail('租户编码已存在');
@@ -82,7 +81,7 @@ class Tenant extends BaseController
     /** 修改租户（仅平台管理员）。 */
     public function update($id)
     {
-        if (!$this->isPlatformAdmin()) return app('json')->fail('无权操作租户');
+        if (!$this->isPlatformAdmin()) return app('json')->make(403, '无权操作租户');
         $tenant = TenantModel::find((int)$id);
         if (!$tenant) return app('json')->fail('租户不存在');
         $data = $this->tenantData();
@@ -97,12 +96,12 @@ class Tenant extends BaseController
     /** 删除租户（仅平台管理员）。 */
     public function delete($id)
     {
-        if (!$this->isPlatformAdmin()) return app('json')->fail('无权操作租户');
+        if (!$this->isPlatformAdmin()) return app('json')->make(403, '无权操作租户');
         $id = (int)$id;
         if ($id === 1) return app('json')->fail('默认租户不能删除');
         $tenant = TenantModel::find($id);
         if (!$tenant) return app('json')->fail('租户不存在');
-        if (SystemAdmin::where('tenant_id', $id)->count()) return app('json')->fail('租户存在管理员，不能删除');
+        if (SystemAdmin::withoutGlobalScope(['tenant'])->where('tenant_id', $id)->count()) return app('json')->fail('租户存在管理员，不能删除');
         if (!$tenant->delete()) return app('json')->fail('删除失败');
         return app('json')->success('租户删除成功');
     }
@@ -110,7 +109,7 @@ class Tenant extends BaseController
     /** 修改租户启用状态（仅平台管理员）。 */
     public function setStatus($id, $status)
     {
-        if (!$this->isPlatformAdmin()) return app('json')->fail('无权操作租户');
+        if (!$this->isPlatformAdmin()) return app('json')->make(403, '无权操作租户');
         $status = (int)$status;
         if (!in_array($status, [0, 1], true)) return app('json')->fail('状态参数错误');
         $tenant = TenantModel::find((int)$id);

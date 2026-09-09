@@ -14,6 +14,7 @@ namespace app\services\other;
 
 use app\dao\other\CacheDao;
 use app\services\BaseServices;
+use crmeb\services\TenantContext;
 
 /**
  * 数据库表缓存
@@ -39,7 +40,10 @@ class CacheServices extends BaseServices
     public function getDbCache(string $key, $default, int $expire = 0)
     {
         $this->delectDeOverdueDbCache();
-        $result = $this->dao->value(['key' => $key], 'result');
+        $result = $this->dao->value(['key' => $this->storageKey($key)], 'result');
+        if ($result === null && $key === 'open_adv') {
+            $result = $this->dao->value(['key' => $key], 'result');
+        }
         if ($result) {
             return json_decode($result, true);
         } else {
@@ -69,6 +73,9 @@ class CacheServices extends BaseServices
     {
         $this->delectDeOverdueDbCache();
         $addTime = $expire ? time() + $expire : 0;
+        if ($key === 'open_adv') {
+            return $this->dao->saveOpenAdv($this->storageKey($key), $result, $addTime);
+        }
         if ($this->dao->count(['key' => $key])) {
             return $this->dao->update($key, [
                 'result' => json_encode($result),
@@ -93,6 +100,9 @@ class CacheServices extends BaseServices
      */
     public function delectDbCache(string $key = '')
     {
+        if ($key === 'open_adv') {
+            return $this->dao->deleteOpenAdv($this->storageKey($key));
+        }
         if ($key)
             return $this->dao->delete($key, 'key');
         else
@@ -108,6 +118,10 @@ class CacheServices extends BaseServices
      */
     public function checkDbCache(string $key = '', $result = ''): bool
     {
+        if ($key === 'open_adv') {
+            $value = $this->getDbCache($key, function () { return null; });
+            return $value !== null && (!$result || $value === $result);
+        }
         // 检查缓存是否存在，如果$value存在则检查缓存值是否一致
         if ($key) {
             if ($result) {
@@ -118,5 +132,10 @@ class CacheServices extends BaseServices
         } else {
             return false;
         }
+    }
+
+    private function storageKey(string $key): string
+    {
+        return $key === 'open_adv' ? TenantContext::key($key) : $key;
     }
 }

@@ -95,6 +95,9 @@ class CacheService
      */
     public static function clear(string $tag = 'crmeb')
     {
+        if ($tag === 'crmeb') {
+            SystemConfigService::clear();
+        }
         return Cache::tag($tag)->clear();
     }
 

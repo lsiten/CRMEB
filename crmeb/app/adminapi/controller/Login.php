@@ -90,6 +90,12 @@ class Login extends AuthController
      */
     public function login()
     {
+        $loginData = $this->request->post(false);
+        $tenantCode = array_key_exists('tenant_code', $loginData) ? $loginData['tenant_code'] : '';
+        if (!is_string($tenantCode) || mb_strlen(trim($tenantCode)) > 64) {
+            return app('json')->fail('租户编码格式错误');
+        }
+        $tenantCode = trim($tenantCode);
         [$account, $password, $key, $captchaVerification, $captchaType] = $this->request->postMore([
             'account',
             'pwd',
@@ -111,7 +117,7 @@ class Login extends AuthController
         }
 
         $this->validate(['account' => $account, 'pwd' => $password], \app\adminapi\validate\setting\SystemAdminValidata::class, 'get');
-        $result = $this->services->login($account, $password, 'admin', $key);
+        $result = $this->services->login($account, $password, 'admin', $key, $tenantCode);
         if (!$result) {
             $num = CacheService::get('login_captcha', 1);
             if ($num > 1) {

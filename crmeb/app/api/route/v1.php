@@ -14,6 +14,11 @@ use think\facade\Route;
 use think\facade\Config;
 use think\Response;
 
+Route::post('tenant/token', 'v1.TenantController/token')
+    ->middleware(\app\http\middleware\AllowOriginMiddleware::class);
+Route::post('tenant/bootstrap', 'v1.TenantController/bootstrap')
+    ->middleware(\app\http\middleware\AllowOriginMiddleware::class);
+
 Route::group(function () {
     Route::any('wechat/serve', 'v1.wechat.WechatController/serve')->option(['real_name' => '公众号服务']);//公众号服务
     Route::any('wechat/miniServe', 'v1.wechat.WechatController/miniServe')->option(['real_name' => '小程序服务']);//公众号服务

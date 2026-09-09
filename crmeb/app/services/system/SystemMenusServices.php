@@ -78,7 +78,13 @@ class SystemMenusServices extends BaseServices
         $rulesStr = Arr::unique($rules);
         $menusList = $this->dao->getMenusRoule(['route' => $level ? $rulesStr : '', 'is_show_path' => 1]);
         $unique = $this->dao->getMenusUnique(['unique' => $level ? $rulesStr : '']);
-        return [Arr::getMenuIviewList($this->getMenusData($menusList)), $unique];
+        $menus = \crmeb\services\TenantAccess::menus($this->getMenusData($menusList), $level);
+        if ($level !== 0) {
+            $unique = array_values(array_filter($unique, static function ($value) {
+                return strpos($value, 'admin-tenant-') !== 0;
+            }));
+        }
+        return [Arr::getMenuIviewList($menus), $unique];
     }
 
     /**

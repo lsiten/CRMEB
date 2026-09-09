@@ -1,3 +1,4 @@
+import { uploadWithTenant } from './tenant-upload';
 // +----------------------------------------------------------------------
 // | CRMEB [ CRMEB赋能开发者，助力企业发展 ]
 // +----------------------------------------------------------------------
@@ -533,7 +534,7 @@ export default {
         uni.showLoading({
           title: i18n.t(`图片上传中`),
         });
-        uni.uploadFile({
+        uploadWithTenant({
           url: HTTP_REQUEST_URL + "/api/" + uploadUrl,
           filePath: res.tempFilePaths[0],
           fileType: fileType,
@@ -662,7 +663,7 @@ export default {
     });
 
     function uploadImg(filePath) {
-      uni.uploadFile({
+      uploadWithTenant({
         url: HTTP_REQUEST_URL + "/api/" + uploadUrl,
         filePath,
         fileType: fileType,
@@ -712,7 +713,7 @@ export default {
    */
   uploadImgs(uploadUrl, filePath, successCallback, errorCallback) {
     let that = this;
-    uni.uploadFile({
+    uploadWithTenant({
       url: HTTP_REQUEST_URL + "/api/" + uploadUrl,
       filePath: filePath,
       fileType: "image",

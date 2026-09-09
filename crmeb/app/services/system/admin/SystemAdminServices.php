@@ -21,6 +21,7 @@ use app\services\user\UserExtractServices;
 use crmeb\exceptions\AdminException;
 use app\dao\system\admin\SystemAdminDao;
 use app\model\system\admin\SystemAdmin;
+use app\model\system\Tenant;
 use app\services\system\SystemMenusServices;
 use app\services\other\CacheServices;
 use crmeb\services\CacheService;
@@ -66,18 +67,35 @@ class SystemAdminServices extends BaseServices
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public function verifyLogin(string $account, string $password)
+    public function verifyLogin(string $account, string $password, string $tenantCode = '')
     {
-        // Authentication must resolve the account before a tenant context exists.
-        $adminInfo = SystemAdmin::where(['account' => $account, 'is_del' => 0])->find();
+        $query = SystemAdmin::withoutGlobalScope(['tenant'])
+            ->where(['account' => $account, 'is_del' => 0]);
+        $tenantCode = trim($tenantCode);
+        if ($tenantCode !== '') {
+            $tenants = Tenant::where('code', $tenantCode)->limit(2)->select();
+            if ($tenants->count() !== 1 || (int)$tenants[0]->status !== 1) return false;
+            $query->where('tenant_id', (int)$tenants[0]->id);
+        }
+        $admins = $query->limit(2)->select();
+        if ($admins->count() !== 1) return false;
+        $adminInfo = $admins[0];
         if (!$adminInfo || !password_verify($password, $adminInfo->pwd)) return false;
         if (!$adminInfo->status) {
             throw new AdminException('您已被禁止登录');
         }
-        $adminInfo->last_time = time();
-        $adminInfo->last_ip = app('request')->ip();
-        $adminInfo->login_count++;
-        $adminInfo->save();
+        $previousTenant = TenantContext::id();
+        $previousCrossTenant = TenantContext::isCrossTenant();
+        try {
+            // 模型写钩子使用当前租户；必须先绑定已验证账号的原租户。
+            TenantContext::set((int)$adminInfo->tenant_id);
+            $adminInfo->last_time = time();
+            $adminInfo->last_ip = app('request')->ip();
+            $adminInfo->login_count++;
+            $adminInfo->save();
+        } finally {
+            TenantContext::set($previousTenant, $previousCrossTenant);
+        }
 
         return $adminInfo;
     }
@@ -121,9 +139,9 @@ class SystemAdminServices extends BaseServices
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public function login(string $account, string $password, string $type, string $key = '')
+    public function login(string $account, string $password, string $type, string $key = '', string $tenantCode = '')
     {
-        $adminInfo = $this->verifyLogin($account, $password);
+        $adminInfo = $this->verifyLogin($account, $password, $tenantCode);
         if (!$adminInfo) return false;
         TenantContext::set((int)($adminInfo->tenant_id ?? 0), (int)$adminInfo->level === 0);
         $tokenInfo = $this->createToken($adminInfo->id, $type, $adminInfo->pwd);
