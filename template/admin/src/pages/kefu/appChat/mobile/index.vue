@@ -1,5 +1,8 @@
 <template>
   <div class="chat-box">
+    <el-alert :title="guestAccessMessage" type="warning" :closable="false" show-icon>
+      <el-button type="text" @click="$router.push('/kefu/mobile_feedback')">留言反馈</el-button>
+    </el-alert>
     <div class="head-box">
       <div class="back" v-db-click @click="goBack"><span class="iconfont iconfanhui"></span></div>
       <div class="title">{{ nickname ? nickname + '-' : '' }}对话详情</div>
@@ -92,12 +95,13 @@
       <div class="words" v-if="userToken" v-db-click @click="showWords">
         <el-upload
           :show-file-list="false"
-          :action="fileUrl"
+          action=""
+          :http-request="guestUpload"
           :before-upload="beforeUpload"
           :data="uploadData"
-          :headers="header"
           :multiple="true"
           :on-success="handleSuccess"
+          :on-error="guestRequestError"
           accept="image/*"
           :on-format-error="handleFormatError"
           style="margin-top: 1px; display: inline-block"
@@ -123,13 +127,9 @@
 </template>
 
 <script>
-import Setting from '@/setting';
-import { Socket } from '@/libs/socket';
-import util from '@/libs/util';
+import guestAccess from '@/pages/kefu/appChat/guest-access';
 import emojiList from '@/utils/emoji';
-import { serviceList, serviceListApi, getOrderApi, chatListApi, productApi } from '@/api/kefu';
-import { getCookies, removeCookies, setCookies } from '@/libs/util';
-import { isPicUpload } from '@/utils';
+import { serviceListApi, getOrderApi, chatListApi, productApi } from '@/api/kefu';
 
 const chunk = function (arr, num) {
   num = num * 1 || 1;
@@ -144,6 +144,7 @@ const chunk = function (arr, num) {
 };
 
 export default {
+  mixins: [guestAccess],
   name: 'chat_mobile',
   data() {
     return {
@@ -186,6 +187,7 @@ export default {
       duration: 500,
       emojiGroup: chunk(emojiList, 21),
       con: '',
+      nickname: '',
       toUid: '',
       limit: 15,
       upperId: 0,
@@ -237,7 +239,6 @@ export default {
   },
   created() {
     let token = localStorage.getItem('LOGIN_STATUS_TOKEN') || '';
-    this.fileUrl = Setting.apiBaseURL.replace('adminapi', 'kefuapi') + '/tourist/upload';
     this.userToken = token;
     this.toUid = this.$route.query.toUid || '';
     this.nickname = this.$route.query.nickname || '';
@@ -252,59 +253,6 @@ export default {
       this.getOrderInfo();
       this.getGoodsInfo();
     }
-    // 上传头部token
-    this.header['Authori-zation'] = 'Bearer ' + getCookies('kefu_token');
-    Socket.then((ws) => {
-      if (this.userToken) {
-        ws.send({
-          type: 'login',
-          data: this.userToken,
-        });
-      }
-      // 消息接收
-      ws.$on(['reply', 'chat'], (data) => {
-        if (data.msn_type == 1 || data.msn_type == 2) {
-          data.msn = this.replace_em(data.msn);
-        }
-        this.chatList.push(data);
-        this.$nextTick(() => {
-          this.$refs['scrollBox'].refresh();
-          this.scrollBom();
-        });
-        setTimeout((res) => {
-          this.$refs['scrollBox'].refresh();
-        }, 300);
-      });
-      ws.$on('socket_error', () => {
-        this.$message.error('连接失败');
-      });
-      ws.$on('error', () => {
-        this.$message.error('连接失败');
-      });
-      ws.$on('to_transfer', (data) => {
-        ws.send({
-          data: {
-            id: data.toUid,
-          },
-          type: 'to_chat',
-        });
-      });
-      ws.$on('online', (data) => {
-        if (data.online == 0 && data.uid == that.toUid) {
-          that.$Modal.confirm({
-            title: '提示',
-            content: '客服已离线，是否需要反馈？',
-            okText: '确定',
-            cancelText: '取消',
-            onOk: () => {
-              that.$router.replace({
-                path: '/kefu/mobile_feedback',
-              });
-            },
-          });
-        }
-      });
-    });
     this.$nextTick(() => {});
   },
   methods: {
@@ -322,7 +270,8 @@ export default {
           this.productInfo = res.data;
         })
         .catch((err) => {
-          this.$message.error(err.msg);
+          if (err.data && err.data.code === 'guest_session_changed') return;
+          this.guestRequestError(err);
         });
     },
     // 获取订单信息
@@ -330,18 +279,20 @@ export default {
       if (!this.orderId) return;
       getOrderApi(this.orderId, {
         token: this.userToken,
-      }).then((res) => {
-        this.orderInfo = res.data;
-        if (this.orderInfo.add_time_h) {
-          this.orderInfo.add_time_h = this.orderInfo.add_time_h.substring(
-            0,
-            this.orderInfo.add_time_h.lastIndexOf(':'),
-          );
-        }
-        if (this.orderInfo.cartInfo.length) {
-          this.cartInfo = this.orderInfo.cartInfo[0];
-        }
-      });
+      })
+        .then((res) => {
+          this.orderInfo = res.data;
+          if (this.orderInfo.add_time_h) {
+            this.orderInfo.add_time_h = this.orderInfo.add_time_h.substring(
+              0,
+              this.orderInfo.add_time_h.lastIndexOf(':'),
+            );
+          }
+          if (this.orderInfo.cartInfo.length) {
+            this.cartInfo = this.orderInfo.cartInfo[0];
+          }
+        })
+        .catch(this.guestRequestError);
     },
     // 获取随机客服
     getServiceList() {
@@ -356,31 +307,24 @@ export default {
           if (this.userToken) {
             this.getChatList();
           }
-          let obj = {
-            data: {
-              id: res.data.uid,
-              tourist_uid: this.tourist_uid,
-            },
-            type: 'to_chat',
-          };
-          Socket.then((ws) => {
-            ws.send(obj);
-          });
         })
         .catch((error) => {
-          this.$message.error(error.msg);
-          setTimeout((res) => {
-            this.$router.replace({
-              path: '/kefu/mobile_feedback',
-            });
-          }, 2000);
+          if (error.data && error.data.code === 'guest_session_changed') return;
+          this.guestRequestError(error);
         });
     },
     // 上传之前
     beforeUpload(file) {
+      try {
+        this.prepareGuestUpload(file);
+      } catch (error) {
+        this.guestRequestError(error);
+        return false;
+      }
       const isImage = file.type === 'image/jpeg' || file.type === 'image/png';
       if (!isImage) {
         this.$message.error('上传图片只能是 JPG、PNG 格式!');
+        return false;
       }
       this.uploadData = {
         filename: file,
@@ -475,35 +419,41 @@ export default {
         uid: this.toUid,
         upperId: this.upperId,
         token: this.userToken,
-      }).then((res) => {
-        var sH = 0;
-        res.data.forEach((el) => {
-          if (el.msn_type == 1 || el.msn_type == 2) {
-            el.msn = this.replace_em(el.msn);
+      })
+        .then((res) => {
+          if (!res.data.length) {
+            this.loading = false;
+            this.isScroll = false;
+            return;
           }
-        });
-        let selector = '';
-        if (this.upperId == 0) {
-          selector = `chat_${res.data[res.data.length - 1].id}`;
-        } else {
-          selector = `chat_${this.chatList[0].id}`;
-        }
-        this.selector = selector;
-        this.chatList = [...res.data, ...this.chatList];
-        this.loading = false;
-        this.isScroll = res.data.length >= this.limit;
-        this.$refs['scrollBox'].refresh();
-        this.$nextTick(() => {
-          this.$emit('change', true);
-          let num = parseFloat(document.getElementById(selector).offsetTop) - 60;
-          this.$refs['scrollBox'].scrollTo(
-            {
-              y: num,
-            },
-            0,
-          );
-        });
-      });
+          res.data.forEach((el) => {
+            if (el.msn_type == 1 || el.msn_type == 2) {
+              el.msn = this.replace_em(el.msn);
+            }
+          });
+          let selector = '';
+          if (this.upperId == 0) {
+            selector = `chat_${res.data[res.data.length - 1].id}`;
+          } else {
+            selector = `chat_${this.chatList[0].id}`;
+          }
+          this.selector = selector;
+          this.chatList = [...res.data, ...this.chatList];
+          this.loading = false;
+          this.isScroll = res.data.length >= this.limit;
+          this.$refs['scrollBox'].refresh();
+          this.$nextTick(() => {
+            this.$emit('change', true);
+            let num = parseFloat(document.getElementById(selector).offsetTop) - 60;
+            this.$refs['scrollBox'].scrollTo(
+              {
+                y: num,
+              },
+              0,
+            );
+          });
+        })
+        .catch(this.guestRequestError);
     },
     // 发送订单
     sendOrder() {
@@ -526,32 +476,10 @@ export default {
       this.con = '';
     },
     // ws发送
-    sendMsg(msn, type) {
-      let obj = {
-        type: 'chat',
-        data: {
-          msn,
-          type,
-          is_tourist: this.userToken ? 0 : 1,
-          to_uid: this.toUid,
-          tourist_uid: this.tourist_uid,
-          form_type: this.$wechat.isWeixin() ? 1 : 3,
-          tourist_avatar: this.userToken ? '' : this.tourist_avatar,
-        },
-      };
-      Socket.then((ws) => {
-        ws.send(obj);
-      });
+    sendMsg() {
+      this.blockedGuestChat();
     },
-    // 图片上传
-    uploadImg() {
-      let self = this;
-      self.$util.uploadImageOne('upload/image', function (res) {
-        if (res.status == 200) {
-          self.sendMsg(res.data.url, 3);
-        }
-      });
-    },
+
     //  商品详情页
     goProduct(item) {
       let url = window.location.protocol + '//' + window.location.host + '/pages/goods_details/index?id=' + item.msn;

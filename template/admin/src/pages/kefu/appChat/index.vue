@@ -13,6 +13,9 @@
         ></div>
         <div class="iconfont icon-guanbi5" v-db-click @click.stop="close"></div>
       </div>
+      <el-alert :title="guestAccessMessage" type="warning" :closable="false" show-icon>
+        <el-button type="text" @click="change = true">留言反馈</el-button>
+      </el-alert>
       <div class="main">
         <div class="chat">
           <div class="record" @scroll="onScroll" ref="record">
@@ -98,7 +101,8 @@
                 <button title="图片" v-if="kufuToken">
                   <el-upload
                     :show-file-list="false"
-                    :action="uploadAction"
+                    action=""
+                    :http-request="guestUpload"
                     :before-upload="beforeUpload"
                     accept="image/*"
                     :on-format-error="handleFormatError"
@@ -150,12 +154,11 @@
 </template>
 
 <script>
+import guestAccess from '@/pages/kefu/appChat/guest-access';
 import 'emoji-awesome/dist/css/google.min.css';
 import emojiList from '@/utils/emoji';
-import { Socket } from '@/libs/socket';
-import Setting from '@/setting';
 import Cookies from 'js-cookie';
-import { chatListApi, serviceListApi, getAdvApi, serviceList, getOrderApi, productApi } from '@/api/kefu';
+import { chatListApi, serviceListApi, getAdvApi } from '@/api/kefu';
 import feedBack from './feedback';
 import { isPicUpload } from '@/utils';
 import { Session } from '@/utils/storage.js';
@@ -172,6 +175,7 @@ const chunk = function (arr, num) {
   return ret;
 };
 export default {
+  mixins: [guestAccess],
   name: 'ChatRoom',
   auth: false,
   components: {
@@ -238,7 +242,6 @@ export default {
       chatCont: '',
       service: null,
       serviceData: {},
-      uploadAction: '',
       notice: '',
       audio: null,
       muted: false,
@@ -278,8 +281,6 @@ export default {
     },
   },
   created() {
-    if (location.href.indexOf('kefu') != -1)
-      this.uploadAction = Setting.apiBaseURL.replace(/adminapi/, 'kefuapi') + '/tourist/upload';
     let token = Cookies.get('auth._token.local1');
     this.kufuToken = token ? token.split('Bearer ')[1] : '';
   },
@@ -290,49 +291,8 @@ export default {
     });
     if (this.$wechat._isMobile()) this.$router.replace('/kefu/mobile_user_chat');
     this.getNotice();
-    Socket.then((ws) => {
-      if (this.kufuToken) {
-        ws.send({
-          type: 'login',
-          data: this.kufuToken,
-        });
-      }
-      this.getService();
-      ws.$on(['reply', 'chat'], (data) => {
-        if (data.msn_type == 1) {
-          data.msn = this.replace_em(data.msn);
-        }
-        this.recordList.push(data);
-        setTimeout((res) => {
-          this.$nextTick(function () {
-            this.$refs.record.scrollTop = this.$refs.record.scrollHeight - this.$refs.record.clientHeight;
-          });
-        }, 300);
-      });
-      // 监听客服转接
-      ws.$on('to_transfer', (data) => {
-        this.toUid = data.toUid;
-        ws.send({
-          data: {
-            id: this.toUid,
-          },
-          type: 'to_chat',
-        });
-      });
-      ws.$on('socket_error', () => {
-        this.$message.error('连接失败');
-      });
-      ws.$on('err_tip', (data) => {
-        this.$message.error(data.msg);
-      });
-      ws.$on('success', (data) => {
-        this.is_tourist = 0;
-      });
-    });
+    this.getService();
     this.text = this.replace_em('[em-smiling_imp]');
-  },
-  beforeDestroy() {
-    this.socket.close();
   },
   methods: {
     onLook(id) {
@@ -344,21 +304,7 @@ export default {
     },
     // 统一发送处理
     sendMsg(msn, type) {
-      let obj = {
-        type: 'chat',
-        data: {
-          msn,
-          type,
-          is_tourist: this.is_tourist,
-          to_uid: this.toUid,
-          tourist_uid: this.tourist_uid,
-          tourist_avatar: this.tourist_avatar,
-          form_type: this.$wechat.isWeixin() ? 1 : 3,
-        },
-      };
-      Socket.then((ws) => {
-        ws.send(obj);
-      });
+      this.blockedGuestChat();
     },
     // 随机客服
     getService() {
@@ -369,23 +315,14 @@ export default {
           this.toUid = res.data.uid;
           this.tourist_uid = res.data.tourist_uid;
           this.tourist_avatar = res.data.tourist_avatar;
-          let obj = {
-            data: {
-              id: res.data.uid,
-              tourist_uid: this.tourist_uid,
-            },
-            type: 'to_chat',
-          };
-          Socket.then((ws) => {
-            ws.send(obj);
-          });
           if (this.kufuToken) {
             this.getRecordList();
           }
         })
         .catch((err) => {
-          this.$message.error(err.msg);
-          this.change = true;
+          if (err.data && err.data.code === 'guest_session_changed') return;
+          this.guestRequestError(err);
+          if (err.data && err.data.code === 'guest_request_failed') this.change = true;
         });
     },
     roomClick(event) {
@@ -466,7 +403,8 @@ export default {
           });
         })
         .catch((err) => {
-          this.$message.error(err.msg);
+          if (err.data && err.data.code === 'guest_session_changed') return;
+          this.guestRequestError(err);
           this.loading = false;
         });
     },
@@ -508,32 +446,10 @@ export default {
       });
     },
     sendGoods() {
-      if (this.chatOptions.goodsId) {
-        Socket.then((ws) => {
-          ws.send({
-            data: {
-              msn: this.chatOptions.goodsId,
-              type: 5,
-              to_uid: this.toUid,
-            },
-            type: 'to_chat',
-          });
-        });
-      }
+      this.blockedGuestChat();
     },
     sendOrder() {
-      if (this.chatOptions.orderId) {
-        Socket.then((ws) => {
-          ws.send({
-            data: {
-              msn: this.chatOptions.orderId,
-              type: 6,
-              to_uid: this.toUid,
-            },
-            type: 'to_chat',
-          });
-        });
-      }
+      this.blockedGuestChat();
     },
     chatEnd() {
       if (navigator.userAgent.indexOf('MSIE') > 0) {
@@ -554,11 +470,19 @@ export default {
     },
     // 广告
     getNotice() {
-      getAdvApi().then((res) => {
-        this.notice = res.data.content;
-      });
+      getAdvApi()
+        .then((res) => {
+          this.notice = res.data.content;
+        })
+        .catch(this.guestRequestError);
     },
     beforeUpload(file) {
+      try {
+        this.prepareGuestUpload(file);
+      } catch (error) {
+        this.guestRequestError(error);
+        return false;
+      }
       if (isPicUpload(file)) {
         this.uploadData = {
           filename: file,
@@ -571,6 +495,7 @@ export default {
         });
         return promise;
       }
+      return false;
     },
     handleFormatError(file) {
       this.$message.error('上传图片只能是 jpg、jpg、jpeg、gif 格式!');
@@ -579,7 +504,7 @@ export default {
       this.sendMsg(res.data.url, 3);
     },
     uploadError(error) {
-      this.$message.error(error);
+      this.guestRequestError(error);
     },
   },
 };

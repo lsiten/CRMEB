@@ -1,6 +1,7 @@
 <template>
   <div>
     <div class="feedback" :class="change === true ? 'on' : ''">
+      <el-alert :title="guestAccessMessage" type="warning" :closable="false" show-icon />
       <div class="feedback-header acea-row">
         <span class="sp1">商城客服已离线</span>
         <div>
@@ -42,8 +43,10 @@
 </template>
 
 <script>
+import guestAccess from '@/pages/kefu/appChat/guest-access';
 import { feedbackDataApi, feedbackFromApi } from '@/api/kefu';
 export default {
+  mixins: [guestAccess],
   name: 'feedback',
   props: {
     change: Boolean,
@@ -78,8 +81,9 @@ export default {
             .then((res) => {
               this.isShow = true;
             })
-            .cache((err) => {
-              this.$message.error(err.msg);
+            .catch((err) => {
+              if (err.data && err.data.code === 'guest_session_changed') return;
+              this.guestRequestError(err);
             });
         } else {
         }
@@ -94,8 +98,9 @@ export default {
         .then((res) => {
           this.notice = res.data.feedback;
         })
-        .cache((err) => {
-          this.$message.error(err.msg);
+        .catch((err) => {
+          if (err.data && err.data.code === 'guest_session_changed') return;
+          this.guestRequestError(err);
         });
     },
   },
