@@ -23,10 +23,29 @@ use think\facade\Db;
  */
 class CacheDao extends BaseDao
 {
-    public function saveOpenAdv(string $key, $result, int $expires)
+    public function initializeOpenAdv(string $key, $result, int $expires, string $legacyKey)
     {
         $tenantId = TenantContext::id();
-        return Db::transaction(function () use ($key, $result, $expires, $tenantId) {
+        return Db::transaction(function () use ($key, $result, $expires, $tenantId, $legacyKey) {
+            $table = Db::name('cache')->getTable();
+            // A completed save wins over a reader's stale cache miss.
+            Db::execute('INSERT INTO ' . $table
+                . ' (`key`, `tenant_id`, `result`, `expire_time`, `add_time`) VALUES (?, ?, ?, ?, ?)'
+                . ' ON DUPLICATE KEY UPDATE `key`=`key`',
+                [$key, $tenantId, json_encode($result), $expires, time()]);
+            $row = Db::name('cache')->where('key', $key)->lock(true)->find();
+            if (!$row || (int)$row['tenant_id'] !== $tenantId) {
+                throw new \RuntimeException('Cache key belongs to another tenant');
+            }
+            Db::name('cache')->where('key', $legacyKey)->where('tenant_id', $tenantId)->delete();
+            return json_decode($row['result'], true);
+        });
+    }
+
+    public function saveOpenAdv(string $key, $result, int $expires, string $legacyKey = 'open_adv')
+    {
+        $tenantId = TenantContext::id();
+        return Db::transaction(function () use ($key, $result, $expires, $tenantId, $legacyKey) {
             $table = Db::name('cache')->getTable();
             $written = Db::execute('INSERT INTO ' . $table
                 . ' (`key`, `tenant_id`, `result`, `expire_time`, `add_time`) VALUES (?, ?, ?, ?, ?)'
@@ -36,15 +55,15 @@ class CacheDao extends BaseDao
             if ((int)Db::name('cache')->where('key', $key)->value('tenant_id') !== $tenantId) {
                 throw new \RuntimeException('Cache key belongs to another tenant');
             }
-            Db::name('cache')->where('key', 'open_adv')->where('tenant_id', $tenantId)->delete();
+            Db::name('cache')->where('key', $legacyKey)->where('tenant_id', $tenantId)->delete();
             return $written;
         });
     }
 
-    public function deleteOpenAdv(string $key)
+    public function deleteOpenAdv(string $key, string $legacyKey = 'open_adv')
     {
         return Db::name('cache')->where('tenant_id', TenantContext::id())
-            ->whereIn('key', [$key, 'open_adv'])->delete();
+            ->whereIn('key', [$key, $legacyKey])->delete();
     }
 
     /**

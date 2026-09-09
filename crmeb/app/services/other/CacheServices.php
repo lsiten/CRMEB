@@ -41,7 +41,7 @@ class CacheServices extends BaseServices
     {
         $this->delectDeOverdueDbCache();
         $result = $this->dao->value(['key' => $this->storageKey($key)], 'result');
-        if ($result === null && $key === 'open_adv') {
+        if ($result === null && in_array($key, ['open_adv', 'kf_adv'], true)) {
             $result = $this->dao->value(['key' => $key], 'result');
         }
         if ($result) {
@@ -51,12 +51,10 @@ class CacheServices extends BaseServices
                 // 获取缓存数据
                 $value = $default();
                 if ($value) {
-                    $this->setDbCache($key, $value, $expire);
-                    return $value;
+                    return $this->initializeDbCache($key, $value, $expire);
                 }
             } else {
-                $this->setDbCache($key, $default, $expire);
-                return $default;
+                return $this->initializeDbCache($key, $default, $expire);
             }
             return null;
         }
@@ -73,8 +71,8 @@ class CacheServices extends BaseServices
     {
         $this->delectDeOverdueDbCache();
         $addTime = $expire ? time() + $expire : 0;
-        if ($key === 'open_adv') {
-            return $this->dao->saveOpenAdv($this->storageKey($key), $result, $addTime);
+        if (in_array($key, ['open_adv', 'kf_adv'], true)) {
+            return $this->dao->saveOpenAdv($this->storageKey($key), $result, $addTime, $key);
         }
         if ($this->dao->count(['key' => $key])) {
             return $this->dao->update($key, [
@@ -100,8 +98,8 @@ class CacheServices extends BaseServices
      */
     public function delectDbCache(string $key = '')
     {
-        if ($key === 'open_adv') {
-            return $this->dao->deleteOpenAdv($this->storageKey($key));
+        if (in_array($key, ['open_adv', 'kf_adv'], true)) {
+            return $this->dao->deleteOpenAdv($this->storageKey($key), $key);
         }
         if ($key)
             return $this->dao->delete($key, 'key');
@@ -118,7 +116,7 @@ class CacheServices extends BaseServices
      */
     public function checkDbCache(string $key = '', $result = ''): bool
     {
-        if ($key === 'open_adv') {
+        if (in_array($key, ['open_adv', 'kf_adv'], true)) {
             $value = $this->getDbCache($key, function () { return null; });
             return $value !== null && (!$result || $value === $result);
         }
@@ -136,6 +134,16 @@ class CacheServices extends BaseServices
 
     private function storageKey(string $key): string
     {
-        return $key === 'open_adv' ? TenantContext::key($key) : $key;
+        return in_array($key, ['open_adv', 'kf_adv'], true) ? TenantContext::key($key) : $key;
+    }
+
+    private function initializeDbCache(string $key, $value, int $expire)
+    {
+        if (in_array($key, ['open_adv', 'kf_adv'], true)) {
+            return $this->dao->initializeOpenAdv($this->storageKey($key), $value,
+                $expire ? time() + $expire : 0, $key);
+        }
+        $this->setDbCache($key, $value, $expire);
+        return $value;
     }
 }
