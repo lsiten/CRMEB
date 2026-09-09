@@ -12,6 +12,7 @@
  * 布局菜单配置
  * */
 import { menusApi } from '@/api/account';
+import { captureSession, isCurrentSession, sessionChangedError } from '@/libs/auth-session';
 function getMenusName() {
   let storage = window.localStorage;
   let menuList = JSON.parse(storage.getItem('menuList'));
@@ -50,17 +51,12 @@ export default {
     },
   },
   actions: {
-    getMenusNavList({ commit }) {
-      return new Promise((resolve, reject) => {
-        menusApi()
-          .then(async (res) => {
-            resolve(res);
-            commit('getmenusNav', res.data.menus);
-          })
-          .catch((res) => {
-            reject(res);
-          });
-      });
+    async getMenusNavList({ commit }) {
+      const session = captureSession();
+      const res = await menusApi();
+      if (!isCurrentSession(session)) throw sessionChangedError();
+      commit('getmenusNav', res.data.menus);
+      return res;
     },
   },
 };

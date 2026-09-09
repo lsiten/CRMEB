@@ -144,3 +144,49 @@ test('staff invalidation preserves admin memory and persisted permissions', asyn
     assert.equal(state.kefu.kefuInfo, null);
   }
 });
+
+for (const separateTask of [false, true]) {
+  for (const replacement of ['admin-b', 'admin-a', null]) {
+    test(`menu action rejects stale data before Vuex/persist (separate task=${separateTask}, replacement=${replacement})`, async () => {
+      const f = await fixture(); seed(f);
+      const login = f.request({ url: '/login' }).then(() => {
+        if (replacement === null) f.clearSession(f.captureSession());
+        else f.util.setCookies('token', replacement);
+        f.store.commit('menus/getmenusNav', [{ path: '/replacement' }]);
+      });
+      const menu = f.store.dispatch('menus/getMenusNavList');
+      const rejected = assert.rejects(menu, (error) => error.code === 'SESSION_CHANGED');
+      await tick();
+      f.pending[0].resolve({ status: 200, data: {} });
+      if (separateTask) await tick();
+      const persisted = separateTask ? f.local.getItem('vuex') : null;
+      f.pending[1].resolve({ status: 200, data: { menus: [{ path: '/stale' }] } });
+      await Promise.all([login, rejected]);
+      assert.equal(f.cookies.token, replacement === null ? undefined : replacement);
+      assert.equal(f.cookies.kefu_token, 'staff-a');
+      for (const state of [plain(f.store.state), JSON.parse(f.local.getItem('vuex'))]) {
+        assert.deepEqual(state.menus.menusName, [{ path: '/replacement' }]);
+        assert.deepEqual(state.kefu.kefuInfo, { id: 9, name: 'staff' });
+      }
+      if (separateTask) assert.equal(f.local.getItem('vuex'), persisted);
+      const reloaded = await fixture(f.local, f.session);
+      assert.deepEqual(plain(reloaded.store.state.menus.menusName), [{ path: '/replacement' }]);
+    });
+  }
+}
+for (const changeStaff of [false, true]) {
+  test(`menu action returns response and persists current admin menu (staff changed=${changeStaff})`, async () => {
+    const f = await fixture(); seed(f);
+    const menu = f.store.dispatch('menus/getMenusNavList');
+    await tick();
+    if (changeStaff) f.util.setCookies('kefu_token', 'staff-b');
+    const response = { status: 200, data: { menus: [{ path: '/current' }] } };
+    f.pending[0].resolve(response);
+    assert.deepEqual(plain(await menu), response);
+    for (const state of [plain(f.store.state), JSON.parse(f.local.getItem('vuex'))]) {
+      assert.deepEqual(state.menus.menusName, response.data.menus);
+    }
+    assert.equal(f.cookies.token, 'admin-a');
+    assert.equal(f.cookies.kefu_token, changeStaff ? 'staff-b' : 'staff-a');
+  });
+}
