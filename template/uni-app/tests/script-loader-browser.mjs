@@ -52,7 +52,10 @@ const server = createServer(async (req, res) => {
       ${await fixtureSource()}
       globalThis.runCase = async () => {
         const f = fixture, action = params.get('action'), phase = params.get('phase'), payload = params.get('payload');
-        if (action !== 'missing') f.injectTenantCredentials({ appid: 'fixture-a', screct_id: 'fixture-secret-a' });
+        if (action !== 'missing') {
+          f.injectTenantCredentials({ appid: 'fixture-a', screct_id: 'fixture-secret-a' });
+          f.state.app.token = 'fixture-user-a';
+        }
         await f.launch();
         await new Promise(resolve => setTimeout(resolve, 0));
         if (f.calls.length) {

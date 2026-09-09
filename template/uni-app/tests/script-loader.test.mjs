@@ -36,7 +36,10 @@ for (const payload of ['external-and-inline', 'inline-only', 'raw-inline']) {
         });
         vm.runInContext(source, context);
         const f = context.fixture;
-        if (action !== 'missing') f.injectTenantCredentials({ appid: 'fixture-a', screct_id: 'fixture-secret-a' });
+        if (action !== 'missing') {
+          f.injectTenantCredentials({ appid: 'fixture-a', screct_id: 'fixture-secret-a' });
+          f.state.app.token = 'fixture-user-a';
+        }
         await f.launch();
         await tick();
         await f.change(action);
