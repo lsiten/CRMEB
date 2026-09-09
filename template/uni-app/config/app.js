@@ -1,4 +1,6 @@
 module.exports = {
+	// 服务端已发布的公开入口；空字符串保留旧单租户模式，不存放 secret。
+	TENANT_ENTRY: '',
 	// 小程序 / APP请求配置
 	// #ifdef MP || APP-PLUS
 	// 请求域名 格式： https://您的域名

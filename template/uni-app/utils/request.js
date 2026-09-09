@@ -1,3 +1,4 @@
+import { canReplayTenantRead } from './tenant-session.mjs';
 // +----------------------------------------------------------------------
 // | CRMEB [ CRMEB赋能开发者，助力企业发展 ]
 // +----------------------------------------------------------------------
@@ -20,17 +21,17 @@ import {
 } from '../libs/login';
 import store from '../store';
 import i18n from './lang.js';
+import { ensureTenant, initializeTenantState, tenantSession, isTenantInvalid, TenantError } from './tenant';
 
 /**
  * 发送请求
  */
-function baseRequest(url, method, data, {
+async function baseRequest(url, method, data, {
 	noAuth = false,
-	noVerify = false
+	noVerify = false,
+	tenantRetry = false
 }) {
-	let Url = HTTP_REQUEST_URL,
-		header = HEADER;
-
+	initializeTenantState();
 	if (!noAuth) {
 		//登录过期自动登录
 		if (!store.state.app.token && !checkLogin()) {
@@ -40,19 +41,45 @@ function baseRequest(url, method, data, {
 			});
 		}
 	}
-	if (store.state.app.token) header[TOKENNAME] = 'Bearer ' + store.state.app.token;
+	const userToken = store.state.app.token;
+	const userRevision = store.state.app.sessionRevision;
+	const operation = { revision: tenantSession.revision() };
+	const assertOperation = () => {
+		tenantSession.assertCurrent(operation);
+		if (store.state.app.sessionRevision !== userRevision || store.state.app.token !== userToken) throw new TenantError('TENANT_CHANGED');
+	};
+	const tenant = await ensureTenant();
+	assertOperation();
+	let Url = HTTP_REQUEST_URL,
+		header = { ...HEADER };
+	if (tenant.token) header['X-Tenant-Token'] = tenant.token;
+	if (userToken) header[TOKENNAME] = 'Bearer ' + userToken;
 
 	return new Promise((reslove, reject) => {
 		if (uni.getStorageSync('locale')) {
 			header['Cb-lang'] = uni.getStorageSync('locale')
 		}
+		assertOperation();
 		uni.request({
 			url: Url + '/api/' + url,
 			method: method || 'GET',
 			header: header,
 			data: data || {},
 			timeout: TIMEOUT,
-			success: (res) => {
+			success: async (res) => {
+        try {
+          assertOperation();
+        } catch (error) { reject(error); return; }
+        if (isTenantInvalid(res.data)) {
+          if (tenantRetry) { reject(new TenantError('TENANT_UNAVAILABLE')); return; }
+          try {
+            await tenantSession.renew(tenant);
+            assertOperation();
+            if (!canReplayTenantRead(url, method)) throw new TenantError('TENANT_UNAVAILABLE');
+            reslove(await baseRequest(url, method, data, { noAuth, noVerify, tenantRetry: true }));
+          } catch (error) { reject(error); }
+          return;
+        }
 				if (noVerify)
 					reslove(res.data, res);
 				else if (res.data.status == 200)

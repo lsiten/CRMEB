@@ -19,6 +19,7 @@ import {
 import Cache from '../../utils/cache';
 
 const state = {
+	sessionRevision: 0,
 	token: Cache.get(LOGIN_STATUS) || false,
 	backgroundColor: "#fff",
 	userInfo: {},
@@ -34,6 +35,7 @@ const mutations = {
 		state.phoneStatus = val;
 	},
 	LOGIN(state, opt) {
+		state.sessionRevision++;
 		state.token = opt.token;
 		Cache.set(LOGIN_STATUS, opt.token, opt.time);
 	},
@@ -42,12 +44,14 @@ const mutations = {
 		Cache.set(UID, val);
 	},
 	UPDATE_LOGIN(state, token) {
+		state.sessionRevision++;
 		state.token = token;
 	},
 	ACTIVITYTAB(state, tab) {
 		state.activityTab = tab;
 	},
 	LOGOUT(state) {
+		state.sessionRevision++;
 		state.token = false;
 		state.uid = 0
 		Cache.clear(LOGIN_STATUS);
