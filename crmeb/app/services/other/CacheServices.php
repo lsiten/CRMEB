@@ -51,12 +51,10 @@ class CacheServices extends BaseServices
                 // 获取缓存数据
                 $value = $default();
                 if ($value) {
-                    $this->setDbCache($key, $value, $expire);
-                    return $value;
+                    return $this->initializeDbCache($key, $value, $expire);
                 }
             } else {
-                $this->setDbCache($key, $default, $expire);
-                return $default;
+                return $this->initializeDbCache($key, $default, $expire);
             }
             return null;
         }
@@ -137,5 +135,15 @@ class CacheServices extends BaseServices
     private function storageKey(string $key): string
     {
         return in_array($key, ['open_adv', 'kf_adv'], true) ? TenantContext::key($key) : $key;
+    }
+
+    private function initializeDbCache(string $key, $value, int $expire)
+    {
+        if (in_array($key, ['open_adv', 'kf_adv'], true)) {
+            return $this->dao->initializeOpenAdv($this->storageKey($key), $value,
+                $expire ? time() + $expire : 0, $key);
+        }
+        $this->setDbCache($key, $value, $expire);
+        return $value;
     }
 }

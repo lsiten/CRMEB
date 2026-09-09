@@ -28,6 +28,11 @@ if [ "${KF_CACHE_BASELINE:-0}" = 1 ]; then
         git -C "$test_root" show "45087ac89aba19a6eade17840babf39bf125b78b:crmeb/$file" > "$scratch/app/$file"
     done
 fi
+if [ "${KF_ATOMIC_BASELINE:-0}" = 1 ]; then
+    for file in app/services/other/CacheServices.php app/dao/other/CacheDao.php; do
+        git -C "$test_root" show "518df322568917002ee1af12b128460cfa9dc48e:crmeb/$file" > "$scratch/app/$file"
+    done
+fi
 "$mysql_bin" --no-defaults --initialize-insecure --datadir="$scratch/db" >"$scratch/mysql-init.log" 2>&1
 "$mysql_bin" --no-defaults --datadir="$scratch/db" --bind-address=127.0.0.1 --port="$TENANT_HEADER_MYSQL_PORT" \
     --socket="$scratch/mysql.sock" --pid-file="$scratch/mysql.pid" --mysqlx=OFF --skip-log-bin \
@@ -65,6 +70,12 @@ PORT = $TENANT_HEADER_REDIS_PORT
 REDIS_PASSWORD =
 EOF
 touch "$scratch/app/public/install.lock"
+if [ "${KF_CACHE_BASELINE:-0}" != 1 ]; then
+    "$php_bin" "$test_root/adv_cache_initialization_mysql.php"
+fi
+if [ "${KF_ATOMIC_ONLY:-0}" = 1 ]; then
+    exit 0
+fi
 cat > "$scratch/fpm.conf" <<EOF
 [global]
 daemonize = no

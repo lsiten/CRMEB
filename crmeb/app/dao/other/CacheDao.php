@@ -23,6 +23,25 @@ use think\facade\Db;
  */
 class CacheDao extends BaseDao
 {
+    public function initializeOpenAdv(string $key, $result, int $expires, string $legacyKey)
+    {
+        $tenantId = TenantContext::id();
+        return Db::transaction(function () use ($key, $result, $expires, $tenantId, $legacyKey) {
+            $table = Db::name('cache')->getTable();
+            // A completed save wins over a reader's stale cache miss.
+            Db::execute('INSERT INTO ' . $table
+                . ' (`key`, `tenant_id`, `result`, `expire_time`, `add_time`) VALUES (?, ?, ?, ?, ?)'
+                . ' ON DUPLICATE KEY UPDATE `key`=`key`',
+                [$key, $tenantId, json_encode($result), $expires, time()]);
+            $row = Db::name('cache')->where('key', $key)->lock(true)->find();
+            if (!$row || (int)$row['tenant_id'] !== $tenantId) {
+                throw new \RuntimeException('Cache key belongs to another tenant');
+            }
+            Db::name('cache')->where('key', $legacyKey)->where('tenant_id', $tenantId)->delete();
+            return json_decode($row['result'], true);
+        });
+    }
+
     public function saveOpenAdv(string $key, $result, int $expires, string $legacyKey = 'open_adv')
     {
         $tenantId = TenantContext::id();

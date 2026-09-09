@@ -17,3 +17,16 @@ KF_CACHE_BASELINE=1 KF_NGINX=/path/to/nginx KF_NJS_MODULE=/path/to/ngx_http_js_m
 默认端口 47961/47962/47963/47964（最后一个仅预留检查），可用既有 TENANT_HEADER_* 环境变量覆盖。
 脚本从 Git 读取固定 #52 网关，仅替换本地端口、路径和 FPM socket；结束自动停止本轮子进程并删除临时数据。
 71 项业务断言覆盖 kf_adv 与 open_adv 的两租户兼容、CRUD/刷新、并发与碰撞回滚。
+
+原子初始化增量：读取缺失后的默认值/闭包刷新仅尝试插入新键，冲突时不修改已有值或时间字段；事务锁定读取实际记录并校验归属，再清理本租户旧键。管理保存仍可覆盖。HTTP 与响应缓存策略不变。
+
+初始化回归可独立运行（无需 Nginx）：
+
+```sh
+KF_ATOMIC_ONLY=1 bash crmeb/tests/run_kf_adv_cache.sh
+KF_ATOMIC_ONLY=1 KF_ATOMIC_BASELINE=1 bash crmeb/tests/run_kf_adv_cache.sh
+```
+
+第二条在隔离副本恢复 #55 原 SHA `518df322568917002ee1af12b128460cfa9dc48e`，预期失败。
+初始化测试以真实 MySQL 和 DAO 读后调度固化冷缓存/旧键迁移交错，并覆盖闭包刷新、空默认值、归属冲突及另一租户旧键；这不是实际 HTTP 并发。
+完整命令默认先运行初始化测试，再执行既有 71 项广告断言。
