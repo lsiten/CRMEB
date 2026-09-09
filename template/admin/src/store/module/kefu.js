@@ -9,7 +9,8 @@
 // +----------------------------------------------------------------------
 
 import { AccountLogoutKefu } from '@/api/kefu';
-import { getCookies, removeCookies, setCookies } from '@/libs/util';
+import { getCookies } from '@/libs/util';
+import { captureSession, isCurrentSession, clearSession } from '@/libs/auth-session';
 import router from '@/router';
 import { Socket } from '@/libs/socket';
 export default {
@@ -26,33 +27,23 @@ export default {
     /**
      * @description 退出登录
      * */
-    logoutKefu({ commit, dispatch }, { confirm = false, vm } = {}) {
-      async function logout() {
-        AccountLogoutKefu()
-          .then(() => {
-            Socket.then((ws) => {
-              ws.send({
-                type: 'logout',
-                data: { uid: getCookies('kefu_uuid') },
-              });
-            });
-            // localStorage.clear();
-            removeCookies('kefu_token');
-            removeCookies('kefu_expires_time');
-            removeCookies('kefuInfo');
-            removeCookies('kefu_uuid');
-            // 删除localStorage
-            // 清空 vuex 用户信息
-            // 跳转路由
-            router.push({
-              path: '/kefu',
-            });
-          })
-          .catch((res) => {
-            console.log(res);
-          });
+    async logoutKefu({ commit }, { vm } = {}) {
+      const session = captureSession(true);
+      const uid = getCookies('kefu_uuid');
+      try {
+        await AccountLogoutKefu();
+        if (!clearSession(session)) return;
+        const cleared = captureSession(true);
+        commit('setInfo', null);
+        Socket.then((ws) => {
+          if (isCurrentSession(cleared)) return ws.send({ type: 'logout', data: { uid } });
+        }).catch(() => {});
+        await router.push({ path: '/kefu' });
+      } catch (error) {
+        if (error.code !== 'SESSION_CHANGED' && isCurrentSession(session) && vm) {
+          vm.$message.error(error.msg || '退出失败，请重试');
+        }
       }
-      logout();
     },
   },
 };

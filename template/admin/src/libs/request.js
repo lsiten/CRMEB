@@ -10,16 +10,22 @@
 
 import axios from 'axios';
 import { Message } from 'element-ui';
-import { getCookies, removeCookies } from '@/libs/util';
-import { clearTenantContext } from '@/utils/tenant';
+import { captureSession, isCurrentSession, clearSession, sessionChangedError } from '@/libs/auth-session';
 import Setting from '@/setting';
 import router from '@/router';
+import store from '@/store';
 const service = axios.create({
   baseURL: Setting.apiBaseURL,
   timeout: 100000, // 请求超时时间
 });
 
 axios.defaults.withCredentials = true; // 携带cookie
+
+function expireSession(session) {
+  if (!clearSession(session)) return;
+  if (session.key === 'kefu_token') store.commit('kefu/setInfo', null);
+  router.replace(session.key === 'kefu_token' ? { path: '/kefu' } : { name: 'login' }).catch(() => {});
+}
 
 // 请求拦截器
 service.interceptors.request.use(
@@ -33,8 +39,11 @@ service.interceptors.request.use(
     if (config.file) {
       config.headers['Content-Type'] = 'multipart/form-data';
     }
-    const token = getCookies('token');
-    if (token) config.headers['Authori-zation'] = 'Bearer ' + token;
+    config.authSession = captureSession(!!config.kefu);
+    Object.keys(config.headers).forEach((key) => {
+      if (key.toLowerCase() === 'authori-zation') delete config.headers[key];
+    });
+    if (config.authSession.token) config.headers['Authori-zation'] = 'Bearer ' + config.authSession.token;
     return config;
   },
   (error) => {
@@ -46,6 +55,8 @@ service.interceptors.request.use(
 // response interceptor
 service.interceptors.response.use(
   (response) => {
+    const session = response.config.authSession;
+    if (!isCurrentSession(session)) return Promise.reject(sessionChangedError());
     let obj = {};
     if (!!response.data) {
       if (typeof response.data == 'string') {
@@ -61,65 +72,21 @@ service.interceptors.response.use(
       obj.tenant_invalid === true ||
       ['TENANT_INVALID', 'TENANT_EXPIRED', 'TENANT_NOT_FOUND'].includes(obj.code) ||
       code === 419;
-    switch (code) {
-      case 200:
-        if (tenantInvalid) {
-          localStorage.clear();
-          clearTenantContext();
-          removeCookies('token');
-          removeCookies('expires_time');
-          removeCookies('uuid');
-          router.replace({ name: 'login' });
-          return Promise.reject({ msg: '租户已失效，请重新登录' });
-        }
-        return obj;
-      case 401:
-        localStorage.clear();
-        clearTenantContext();
-        removeCookies('token');
-        removeCookies('expires_time');
-        removeCookies('uuid');
-        router.replace({ name: 'login' }).catch(() => {});
-        return Promise.reject({ msg: '未登录' });
-      case 419:
-        localStorage.clear();
-        clearTenantContext();
-        removeCookies('token');
-        removeCookies('expires_time');
-        removeCookies('uuid');
-        router.replace({ name: 'login' });
-        return Promise.reject({ msg: '租户已失效，请重新登录' });
-      case 402:
-        removeCookies('kefuInfo');
-        removeCookies('kefu_token');
-        removeCookies('kefu_expires_time');
-        removeCookies('kefu_uuid');
-        router.replace({ path: '/kefu' }).catch(() => {});
-        return Promise.reject({ msg: '未登录' });
-      case 403:
-        router.replace({ name: 'system_opendir_login' }).catch(() => {});
-        return Promise.reject({ msg: '没有权限' });
-      default:
-        if (tenantInvalid) {
-          localStorage.clear();
-          clearTenantContext();
-          removeCookies('token');
-          removeCookies('expires_time');
-          removeCookies('uuid');
-          router.replace({ name: 'login' });
-          return Promise.reject({ msg: '租户已失效，请重新登录' });
-        }
-        return Promise.reject(obj || { msg: '未知错误' });
+    if (tenantInvalid || [401, 402, 419].includes(code)) {
+      expireSession(session);
+      return Promise.reject({ msg: tenantInvalid ? '租户已失效，请重新登录' : '未登录' });
     }
+    if (code === 200) return obj;
+    if (code === 403 && session.key === 'token') {
+      router.replace({ name: 'system_opendir_login' }).catch(() => {});
+    }
+    return Promise.reject(obj || { msg: '未知错误' });
   },
   (error) => {
-    if (error.response && error.response.status === 401) {
-      localStorage.clear();
-      clearTenantContext();
-      removeCookies('token');
-      removeCookies('expires_time');
-      removeCookies('uuid');
-      router.replace({ name: 'login' });
+    const session = error.config && error.config.authSession;
+    if (session && !isCurrentSession(session)) return Promise.reject(sessionChangedError());
+    if (session && error.response && error.response.status === 401) {
+      expireSession(session);
     }
     Message.error(error.msg);
     return Promise.reject(error);
