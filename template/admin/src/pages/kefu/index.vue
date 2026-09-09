@@ -21,6 +21,17 @@
               <el-form-item class="mb20" prop="password">
                 <el-input type="password" v-model="formInline.password" placeholder="请输入密码" size="large" />
               </el-form-item>
+              <el-form-item class="mb20" prop="tenant_code">
+                <el-input
+                  v-model="formInline.tenant_code"
+                  placeholder="租户编码（可选）"
+                  label="租户编码（可选）"
+                  aria-describedby="kefu-tenant-code-hint"
+                  maxlength="64"
+                  size="large"
+                />
+                <div id="kefu-tenant-code-hint" class="tenant-code-hint">同名账号请填写所属租户编码</div>
+              </el-form-item>
               <el-form-item>
                 <el-button type="primary" size="large" v-db-click @click="handleSubmit('formInline')" class="btn"
                   >登录
@@ -75,6 +86,7 @@ export default {
       formInline: {
         username: '',
         password: '',
+        tenant_code: '',
         code: '',
       },
       ruleInline: {
@@ -169,10 +181,12 @@ export default {
     },
     // 关闭模态框
     closeModel() {
+      const tenantCode = this.formInline.tenant_code.trim();
       AccountLogin({
         account: this.formInline.username,
         password: this.formInline.password,
         imgcode: this.formInline.code,
+        ...(tenantCode ? { tenant_code: tenantCode } : {}),
       })
         .then(async (res) => {
           let expires = this.getExpiresTime(res.data.exp_time);
@@ -417,7 +431,8 @@ export default {
   height: 100%;
 }
 .container {
-  height: 400px !important;
+  min-height: 480px;
+  height: auto !important;
   padding: 0 !important;
   /* overflow: hidden; */
   border-radius: 6px;
@@ -440,7 +455,7 @@ export default {
 .index_from {
   position: relative;
   padding: 40px 40px 32px 40px;
-  height: 400px;
+  min-height: 480px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -470,6 +485,12 @@ export default {
 .btn {
   width: 100%;
   background: #265bed;
+}
+.tenant-code-hint {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--prev-color-text-regular);
+  white-space: normal;
 }
 .captchaBox {
   width: 310px;
