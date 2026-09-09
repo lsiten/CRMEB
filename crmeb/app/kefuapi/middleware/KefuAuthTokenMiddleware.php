@@ -16,6 +16,7 @@ use app\Request;
 use app\services\kefu\LoginServices;
 use crmeb\interfaces\MiddlewareInterface;
 use think\facade\Config;
+use crmeb\services\TenantContext;
 
 /**
  * Class KefuAuthTokenMiddleware
@@ -35,18 +36,25 @@ class KefuAuthTokenMiddleware implements MiddlewareInterface
      */
     public function handle(Request $request, \Closure $next)
     {
-        $token = trim(ltrim($request->header(Config::get('cookie.token_name', 'Authori-zation')), 'Bearer'));
-        /** @var LoginServices $services */
-        $services = app()->make(LoginServices::class);
-        $kefuInfo = $services->parseToken($token);
-        $request->macro('kefuId', function () use (&$kefuInfo) {
-            return (int)$kefuInfo['id'];
-        });
+        $previousTenant = TenantContext::id();
+        $previousCrossTenant = TenantContext::isCrossTenant();
+        try {
+            $token = trim(ltrim($request->header(Config::get('cookie.token_name', 'Authori-zation')), 'Bearer'));
+            /** @var LoginServices $services */
+            $services = app()->make(LoginServices::class);
+            $kefuInfo = $services->parseToken($token);
+            TenantContext::set((int)$kefuInfo['tenant_id']);
+            $request->macro('kefuId', function () use (&$kefuInfo) {
+                return (int)$kefuInfo['id'];
+            });
 
-        $request->macro('kefuInfo', function () use (&$kefuInfo) {
-            return $kefuInfo;
-        });
+            $request->macro('kefuInfo', function () use (&$kefuInfo) {
+                return $kefuInfo;
+            });
 
-        return $next($request);
+            return $next($request);
+        } finally {
+            TenantContext::set($previousTenant, $previousCrossTenant);
+        }
     }
 }
