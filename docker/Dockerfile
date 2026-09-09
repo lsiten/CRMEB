@@ -5,7 +5,7 @@ RUN printf '%s\n' \
       'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/20260901T000000Z/ bullseye-security main' \
       > /etc/apt/sources.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends nginx supervisor curl \
+    && apt-get install -y --no-install-recommends nginx libnginx-mod-http-js supervisor curl \
        libfreetype6-dev libjpeg62-turbo-dev libpng-dev libzip-dev libonig-dev libxml2-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j2 gd mysqli pdo_mysql bcmath mbstring zip sockets pcntl opcache \
@@ -19,6 +19,7 @@ COPY crmeb/ ./
 RUN rm -rf public/admin
 COPY template/admin/dist/ public/admin/
 COPY docker/nginx.conf /etc/nginx/conf.d/crmeb.conf
+COPY docker/tenant-headers.js /etc/nginx/tenant-headers.js
 COPY docker/supervisord.conf /etc/supervisor/conf.d/crmeb.conf
 COPY docker/php.ini /usr/local/etc/php/conf.d/crmeb.ini
 COPY docker/entrypoint.sh docker/wait-installed.sh /usr/local/bin/

@@ -12,3 +12,5 @@ docker compose up -d --no-deps app
 ```
 
 本目录的旧 `docker-compose.yml` 是挂载本地源码的开发方案，不作为新环境部署入口。上游 CRMEB 镜像不含本仓库定制代码，请勿用作本项目发布镜像。
+
+租户凭据 Header 需要下划线透传及重复头检查，见 [网关交接与隔离验证](../dev-docs/tenant-header-gateway.md)。旧开发 Compose 的 nginx 服务需使用配套 Dockerfile 重新构建（`docker compose build nginx`），加载 njs 并挂载共享 `docker/tenant-headers.js`；不可只复制站点配置到不含模块的镜像。
