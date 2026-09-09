@@ -140,10 +140,15 @@ test('upload preserves filename and fields; queued selection cannot switch tenan
   const upload = f.api.uploadGuestFile({ file, data: { token: 'user-token', appid: 'untrusted' } });
   await tick();
   const form = f.calls[0].data;
-  assert.equal(form.get('filename').name, file.name);
+  assert.deepEqual([...form.keys()].sort(), ['file', 'token']);
+  assert.equal(form.get('file').name, file.name);
+  assert.equal(form.get('file').type, file.type);
+  assert.equal(await form.get('file').text(), 'image');
   assert.equal(form.get('token'), 'user-token');
   assert.equal(form.has('appid'), false);
   assert.equal(f.calls[0].headers.appid, fake('b').appid);
+  assert.equal(f.calls[0].headers.screct_id, fake('b').screct_id);
+  assert.equal(f.calls[0].headers['Authori-zation'], undefined);
   f.pending[0].resolve({ status: 200, data: { url: '/pixel.png' } });
   assert.equal((await upload).data.url, '/pixel.png');
 });

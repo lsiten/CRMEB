@@ -72,7 +72,7 @@ export function uploadGuestFile({ file, data = {} }) {
     }
     guestSnapshot();
     const form = new FormData();
-    form.append('filename', file, file.name);
+    form.append('file', file, file.name);
     if (data.token) form.append('token', data.token);
     return guestRequest({ url: 'tourist/upload', method: 'post', data: form });
   } catch (error) {
