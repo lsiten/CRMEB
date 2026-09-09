@@ -15,20 +15,16 @@ export async function uploadWithTenant(options) {
     const tenant = await ensureTenant();
     assertOperation();
     uni.uploadFile({ ...options,
-      header: { ...options.header, [TOKENNAME]: 'Bearer ' + userToken,
-        ...(tenant.token ? { 'X-Tenant-Token': tenant.token } : {}) },
+      header: { ...tenantSession.headers(tenant, options.header), ...(userToken ? { [TOKENNAME]: 'Bearer ' + userToken } : {}) },
       success: async response => {
         try {
-          assertOperation();
+          tenantSession.assertCurrent(tenant);
           let body;
           try { body = JSON.parse(response.data); } catch (error) {
             if (!(error instanceof SyntaxError)) throw error;
           }
-          if (isTenantInvalid(body)) {
-            await tenantSession.renew(tenant);
-            assertOperation();
-            throw new TenantError('TENANT_UNAVAILABLE');
-          }
+          if (isTenantInvalid(body)) throw tenantSession.responseError(tenant, body);
+          assertOperation();
           options.success && options.success(response);
         } catch (error) { options.fail && options.fail(error); }
       }

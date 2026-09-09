@@ -1,4 +1,3 @@
-import { canReplayTenantRead } from './tenant-session.mjs';
 // +----------------------------------------------------------------------
 // | CRMEB [ CRMEB赋能开发者，助力企业发展 ]
 // +----------------------------------------------------------------------
@@ -28,10 +27,10 @@ import { ensureTenant, initializeTenantState, tenantSession, isTenantInvalid, Te
  */
 async function baseRequest(url, method, data, {
 	noAuth = false,
-	noVerify = false,
-	tenantRetry = false
+	noVerify = false
 }) {
 	initializeTenantState();
+	tenantSession.snapshot();
 	if (!noAuth) {
 		//登录过期自动登录
 		if (!store.state.app.token && !checkLogin()) {
@@ -51,8 +50,7 @@ async function baseRequest(url, method, data, {
 	const tenant = await ensureTenant();
 	assertOperation();
 	let Url = HTTP_REQUEST_URL,
-		header = { ...HEADER };
-	if (tenant.token) header['X-Tenant-Token'] = tenant.token;
+		header = tenantSession.headers(tenant, HEADER);
 	if (userToken) header[TOKENNAME] = 'Bearer ' + userToken;
 
 	return new Promise((reslove, reject) => {
@@ -68,18 +66,10 @@ async function baseRequest(url, method, data, {
 			timeout: TIMEOUT,
 			success: async (res) => {
         try {
+          tenantSession.assertCurrent(tenant);
+          if (isTenantInvalid(res.data)) throw tenantSession.responseError(tenant, res.data);
           assertOperation();
         } catch (error) { reject(error); return; }
-        if (isTenantInvalid(res.data)) {
-          if (tenantRetry) { reject(new TenantError('TENANT_UNAVAILABLE')); return; }
-          try {
-            await tenantSession.renew(tenant);
-            assertOperation();
-            if (!canReplayTenantRead(url, method)) throw new TenantError('TENANT_UNAVAILABLE');
-            reslove(await baseRequest(url, method, data, { noAuth, noVerify, tenantRetry: true }));
-          } catch (error) { reject(error); }
-          return;
-        }
 				if (noVerify)
 					reslove(res.data, res);
 				else if (res.data.status == 200)

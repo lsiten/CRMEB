@@ -1,18 +1,16 @@
-export type TenantSnapshot = Readonly<{ revision: number; token: string; expiresAt: number }>;
-export class TenantError extends Error { readonly code: 'TENANT_CHANGED' | 'TENANT_UNAVAILABLE'; }
+export type TenantSnapshot = Readonly<{ revision: number }>;
+export type TenantCredentials = Readonly<{ appid: string; screct_id: string }>;
+export class TenantError extends Error { constructor(code: string); readonly code: string; }
 export function isTenantInvalid(body: unknown): boolean;
-export function createTenantSession(options: Readonly<{
-  entry?: string;
-  bootstrap: (entry: string) => Promise<unknown>;
-  clear?: () => void;
-  now?: () => number;
-}>): Readonly<{
+export function tenantResponseError(body: unknown): TenantError;
+export function createTenantSession(options?: Readonly<{ clear?: () => void }>): Readonly<{
   enabled: () => boolean;
+  snapshot: () => TenantSnapshot;
   ensure: () => Promise<TenantSnapshot>;
-  renew: (snapshot: TenantSnapshot) => Promise<TenantSnapshot>;
-  select: (entry: string) => void;
-  assertCurrent: (snapshot: Pick<TenantSnapshot, 'revision'>) => void;
+  inject: (credentials: unknown) => void;
+  clear: () => void;
+  responseError: (snapshot: TenantSnapshot, body: unknown) => TenantError;
+  headers: (snapshot: TenantSnapshot, extra?: Readonly<Record<string, unknown>>) => Record<string, string>;
+  assertCurrent: (snapshot: TenantSnapshot) => void;
   revision: () => number;
 }>;
-
-export function canReplayTenantRead(path: string, method?: string): boolean;

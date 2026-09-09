@@ -1,6 +1,5 @@
-import { HTTP_REQUEST_URL, TENANT_ENTRY } from '../config/app';
 import store from '../store';
-import { createTenantSession, isTenantInvalid, TenantError } from './tenant-session.mjs';
+import { createTenantSession, isTenantInvalid, tenantResponseError, TenantError } from './tenant-session.mjs';
 
 const listeners = new Set();
 export function subscribeTenant(listener) { listeners.add(listener); return () => listeners.delete(listener); }
@@ -19,34 +18,23 @@ function clearTenantState() {
   store.commit('indexData/setCartNum', 0);
 }
 let initialized = false;
-export const tenantSession = createTenantSession({
-  entry: TENANT_ENTRY,
-  clear: clearTenantState,
-  bootstrap: entry => new Promise((resolve, reject) => {
-    uni.request({ url: HTTP_REQUEST_URL + '/api/tenant/bootstrap', method: 'POST',
-      data: { entry }, header: { 'content-type': 'application/json' }, timeout: 10000,
-      success: response => response.statusCode === 200 ? resolve(response.data) : reject(new TenantError('TENANT_UNAVAILABLE')),
-      fail: reject });
-  })
-});
+export const tenantSession = createTenantSession({ clear: clearTenantState });
 export function initializeTenantState() {
-  if (!initialized) {
-    initialized = true;
-    if ((uni.getStorageSync('tenantEntry') || '') !== TENANT_ENTRY) {
-      clearTenantState();
-      uni.setStorageSync('tenantEntry', TENANT_ENTRY);
-    }
-  }
+  if (initialized) return;
+  initialized = true;
+  clearTenantState();
 }
+export function injectTenantCredentials(credentials) {
+  initializeTenantState();
+  tenantSession.inject(credentials);
+}
+export function clearTenantCredentials() { tenantSession.clear(); }
 export function ensureTenant() {
   initializeTenantState();
   return tenantSession.ensure();
 }
-export async function switchTenant(entry) {
-  initializeTenantState();
-  tenantSession.select(entry);
-  uni.setStorageSync('tenantEntry', entry);
-  uni.reLaunch({ url: '/pages/index/index' });
-  await ensureTenant();
+export async function switchTenant(credentials) {
+  injectTenantCredentials(credentials);
+  await uni.reLaunch({ url: '/pages/index/index' });
 }
-export { isTenantInvalid, TenantError };
+export { isTenantInvalid, tenantResponseError, TenantError };
