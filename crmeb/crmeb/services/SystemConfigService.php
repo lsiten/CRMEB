@@ -22,6 +22,16 @@ class SystemConfigService
 {
     const CACHE_SYSTEM = 'system_config';
 
+    public static function cacheTag(?int $tenantId = null): string
+    {
+        return 'tenant:' . ($tenantId ?? TenantContext::id()) . ':' . self::CACHE_SYSTEM . ':v2';
+    }
+
+    public static function clear(?int $tenantId = null): bool
+    {
+        return \think\facade\Cache::tag(self::cacheTag($tenantId))->clear();
+    }
+
     /**
      * 获取单个配置效率更高
      * @param string $key
@@ -37,7 +47,7 @@ class SystemConfigService
 
         try {
             if ($isCaChe) {
-                return CacheService::remember(self::CACHE_SYSTEM . '_' . $key, $callable);
+                return CacheService::remember(self::cacheTag() . ':one:' . $key, $callable, 0, self::cacheTag());
             }
             return $callable();
         } catch (\Throwable $e) {
@@ -59,7 +69,7 @@ class SystemConfigService
 
         try {
             if ($isCaChe){
-                return CacheService::remember(self::CACHE_SYSTEM . '_' . md5(implode(',', $keys)), $callable);
+                return CacheService::remember(self::cacheTag() . ':many:' . md5(serialize($keys)), $callable, 0, self::cacheTag());
             }
             return $callable();
         } catch (\Throwable $e) {

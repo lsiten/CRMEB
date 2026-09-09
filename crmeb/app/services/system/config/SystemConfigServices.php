@@ -16,7 +16,7 @@ use app\dao\system\config\SystemConfigDao;
 use app\services\agent\AgentManageServices;
 use app\services\BaseServices;
 use crmeb\exceptions\AdminException;
-use crmeb\services\CacheService;
+use crmeb\services\SystemConfigService;
 use crmeb\services\FileService;
 use crmeb\services\FormBuilder;
 use think\facade\Log;
@@ -1382,7 +1382,7 @@ class SystemConfigServices extends BaseServices
         foreach ($data as $key => $value) {
             $this->dao->update(['menu_name' => 'config_export_' . $key], ['value' => json_encode($value)]);
         }
-        CacheService::clear();
+        SystemConfigService::clear();
         return true;
     }
 
@@ -1399,7 +1399,7 @@ class SystemConfigServices extends BaseServices
             if ($banner) {
                 $banner = array_column($banner, 'pic');
                 $this->dao->update(['menu_name' => 'spread_banner'], ['value' => json_encode($banner)]);
-                CacheService::clear();
+                SystemConfigService::clear();
             }
         }
         return $banner;

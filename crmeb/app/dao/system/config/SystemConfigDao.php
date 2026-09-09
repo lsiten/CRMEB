@@ -13,6 +13,7 @@ namespace app\dao\system\config;
 
 use app\dao\BaseDao;
 use app\model\system\config\SystemConfig;
+use crmeb\services\SystemConfigService;
 
 /**
  * 系统配置
@@ -21,6 +22,34 @@ use app\model\system\config\SystemConfig;
  */
 class SystemConfigDao extends BaseDao
 {
+    public function update($id, array $data, ?string $key = null)
+    {
+        $result = parent::update($id, $data, $key);
+        SystemConfigService::clear();
+        return $result;
+    }
+
+    public function save(array $data)
+    {
+        $result = parent::save($data);
+        SystemConfigService::clear();
+        return $result;
+    }
+
+    public function delete($id, ?string $key = null)
+    {
+        $result = parent::delete($id, $key);
+        SystemConfigService::clear();
+        return $result;
+    }
+
+    public function batchUpdate(array $ids, array $data, ?string $key = null)
+    {
+        $result = parent::batchUpdate($ids, $data, $key);
+        SystemConfigService::clear();
+        return $result;
+    }
+
     /**
      * 设置模型
      * @return string

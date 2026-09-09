@@ -14,6 +14,8 @@ namespace app\dao\other;
 
 use app\dao\BaseDao;
 use app\model\other\Cache;
+use crmeb\services\TenantContext;
+use think\facade\Db;
 
 /**
  * Class CacheDao
@@ -21,6 +23,29 @@ use app\model\other\Cache;
  */
 class CacheDao extends BaseDao
 {
+    public function saveOpenAdv(string $key, $result, int $expires)
+    {
+        $tenantId = TenantContext::id();
+        return Db::transaction(function () use ($key, $result, $expires, $tenantId) {
+            $table = Db::name('cache')->getTable();
+            $written = Db::execute('INSERT INTO ' . $table
+                . ' (`key`, `tenant_id`, `result`, `expire_time`, `add_time`) VALUES (?, ?, ?, ?, ?)'
+                . ' ON DUPLICATE KEY UPDATE `result`=VALUES(`result`),'
+                . ' `expire_time`=VALUES(`expire_time`), `add_time`=VALUES(`add_time`)',
+                [$key, $tenantId, json_encode($result), $expires, time()]);
+            if ((int)Db::name('cache')->where('key', $key)->value('tenant_id') !== $tenantId) {
+                throw new \RuntimeException('Cache key belongs to another tenant');
+            }
+            Db::name('cache')->where('key', 'open_adv')->where('tenant_id', $tenantId)->delete();
+            return $written;
+        });
+    }
+
+    public function deleteOpenAdv(string $key)
+    {
+        return Db::name('cache')->where('tenant_id', TenantContext::id())
+            ->whereIn('key', [$key, 'open_adv'])->delete();
+    }
 
     /**
      * @return string

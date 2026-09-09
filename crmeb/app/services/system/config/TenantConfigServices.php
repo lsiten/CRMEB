@@ -14,11 +14,10 @@ class TenantConfigServices
     {
         if ($tenantId <= 0 || $tenantId === $sourceTenantId) return 0;
 
-        $table = Db::name('system_config');
-        $source = $table->where('tenant_id', $sourceTenantId)->select()->toArray();
+        $source = Db::name('system_config')->where('tenant_id', $sourceTenantId)->select()->toArray();
         if (!$source) return 0;
 
-        $existing = $table->where('tenant_id', $tenantId)
+        $existing = Db::name('system_config')->where('tenant_id', $tenantId)
             ->field('menu_name,config_tab_id')
             ->select()
             ->toArray();
@@ -33,10 +32,11 @@ class TenantConfigServices
             if (isset($existingKeys[$key])) continue;
             unset($row['id']);
             $row['tenant_id'] = $tenantId;
-            $table->insert($row);
+            Db::name('system_config')->insert($row);
             $existingKeys[$key] = true;
             $inserted++;
         }
+        \crmeb\services\SystemConfigService::clear($tenantId);
         return $inserted
             + $this->syncGroupData($tenantId, $sourceTenantId)
             + $this->syncTimers($tenantId, $sourceTenantId)
@@ -63,9 +63,8 @@ class TenantConfigServices
 
     private function syncGroupData(int $tenantId, int $sourceTenantId): int
     {
-        $table = Db::name('system_group_data');
-        $source = $table->where('tenant_id', $sourceTenantId)->select()->toArray();
-        $existing = $table->where('tenant_id', $tenantId)->field('gid,sort,status,value')->select()->toArray();
+        $source = Db::name('system_group_data')->where('tenant_id', $sourceTenantId)->select()->toArray();
+        $existing = Db::name('system_group_data')->where('tenant_id', $tenantId)->field('gid,sort,status,value')->select()->toArray();
         $keys = [];
         foreach ($existing as $row) $keys[$this->groupKey($row)] = true;
         $count = 0;
@@ -74,7 +73,7 @@ class TenantConfigServices
             if (isset($keys[$key])) continue;
             unset($row['id']);
             $row['tenant_id'] = $tenantId;
-            $table->insert($row);
+            Db::name('system_group_data')->insert($row);
             $keys[$key] = true;
             $count++;
         }
@@ -83,16 +82,15 @@ class TenantConfigServices
 
     private function syncTimers(int $tenantId, int $sourceTenantId): int
     {
-        $table = Db::name('system_timer');
-        $source = $table->where('tenant_id', $sourceTenantId)->select()->toArray();
-        $existing = $table->where('tenant_id', $tenantId)->column('mark');
+        $source = Db::name('system_timer')->where('tenant_id', $sourceTenantId)->select()->toArray();
+        $existing = Db::name('system_timer')->where('tenant_id', $tenantId)->column('mark');
         $marks = array_fill_keys($existing, true);
         $count = 0;
         foreach ($source as $row) {
             if (isset($marks[$row['mark']])) continue;
             unset($row['id']);
             $row['tenant_id'] = $tenantId;
-            $table->insert($row);
+            Db::name('system_timer')->insert($row);
             $marks[$row['mark']] = true;
             $count++;
         }
@@ -106,10 +104,9 @@ class TenantConfigServices
 
     private function syncSimple(string $tableName, array $keyFields, int $tenantId, int $sourceTenantId): int
     {
-        $table = Db::name($tableName);
-        $source = $table->where('tenant_id', $sourceTenantId)->select()->toArray();
+        $source = Db::name($tableName)->where('tenant_id', $sourceTenantId)->select()->toArray();
         if (!$source) return 0;
-        $existing = $table->where('tenant_id', $tenantId)->select()->toArray();
+        $existing = Db::name($tableName)->where('tenant_id', $tenantId)->select()->toArray();
         $keys = [];
         foreach ($existing as $row) $keys[$this->fieldsKey($row, $keyFields)] = true;
         $count = 0;
@@ -118,7 +115,7 @@ class TenantConfigServices
             if (isset($keys[$key])) continue;
             unset($row['id']);
             $row['tenant_id'] = $tenantId;
-            $table->insert($row);
+            Db::name($tableName)->insert($row);
             $keys[$key] = true;
             $count++;
         }
