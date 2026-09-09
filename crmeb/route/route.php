@@ -4,7 +4,7 @@ use think\facade\Route;
 
 Route::get('surl/:id', function(\app\Request $request){
     return app()->make(\app\api\controller\v1\PublicController::class)->getSchemeUrl($request->param('id'));
-});
+})->middleware([\app\http\middleware\AllowOriginMiddleware::class, \app\api\middleware\TenantTokenMiddleware::class]);
 
 Route::miss(function () {
     $appRequest = request()->pathinfo();
@@ -36,7 +36,11 @@ Route::miss(function () {
                     if (request()->get('type')) {
                         return view(app()->getRootPath() . 'public' . DS . 'index.html');
                     } else {
-                        return view(app()->getRootPath() . 'public' . DS . 'mobile.html', ['siteName' => sys_config('site_name'), 'siteUrl' => sys_config('site_url') . '/pages/index/index']);
+                        return (new \app\http\middleware\AllowOriginMiddleware())->handle(request(), function ($request) {
+                            return (new \app\api\middleware\TenantTokenMiddleware())->handle($request, function () {
+                                return view(app()->getRootPath() . 'public' . DS . 'mobile.html', ['siteName' => sys_config('site_name'), 'siteUrl' => sys_config('site_url') . '/pages/index/index']);
+                            });
+                        });
                     }
                 }
             } else {

@@ -46,12 +46,17 @@ try {
     denied(fn () => $service->resolve($expired . '.' . hash_hmac('sha256', $expired, $row['secret_hash'])), 401, 'expired signed token rejected');
 
     $middleware = new \app\api\middleware\TenantTokenMiddleware();
-    $req = testRequest([], ['x-tenant-token' => $tokenB['tenant_token']]);
+    $req = testRequest([], ['appid' => $second['client_id'], 'screct_id' => $second['app_secret']]);
     $req->withGet(['tenant_id' => 1]);
-    $response = $middleware->handle($req, function () {
-        check(TenantContext::id() === 2 && TenantContext::clientId() === 2, 'middleware binds B despite tenant_id=A parameter');
+    $response = $middleware->handle($req, function () { throw new RuntimeException('Conflicting tenant reached business'); });
+    check($response->getData()['status'] === 403, 'explicit tenant conflict rejected');
+    $reached = false;
+    $middleware->handle(testRequest([], ['appid' => $second['client_id'], 'screct_id' => $second['app_secret']]), function () use (&$reached) {
+        $reached = true;
+        check(TenantContext::id() === 2 && TenantContext::clientId() === 2, 'middleware binds B from headers');
         return \think\Response::create('ok');
     });
+    check($reached, 'valid headers reach business');
     check(TenantContext::id() === 1 && TenantContext::clientId() === null, 'context cleared after request');
     $response = $middleware->handle(testRequest([], ['x-tenant-token' => 'invalid']), function () { throw new RuntimeException('Invalid token reached business'); });
     check($response->getData()['status'] === 401, 'invalid explicit token cannot fall back');
@@ -63,10 +68,8 @@ try {
     }
     $response = $pipeline(testRequest([], ['x-tenant-token' => 'invalid', 'origin' => 'https://tenant-client.example']));
     check($response->getHeader('Access-Control-Allow-Origin') === 'https://tenant-client.example', 'invalid tenant token retains CORS error response');
-    $middleware->handle(testRequest(), function () {
-        check(TenantContext::id() === 1, 'legacy anonymous default tenant');
-        return \think\Response::create('ok');
-    });
+    $response = $middleware->handle(testRequest(), function () { throw new RuntimeException('Anonymous request reached business'); });
+    check($response->getData()['data']['code'] === 'tenant_auth_required', 'legacy anonymous default removed');
 
     testRequest($a);
     $controller = new \app\adminapi\controller\v1\setting\Tenant(new \think\facade\App());

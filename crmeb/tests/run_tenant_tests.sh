@@ -33,7 +33,8 @@ for attempt in {1..100}; do
 done
 if [ "$ready" -ne 1 ]; then cat "$scratch/mysql.log"; exit 1; fi
 if [ "${1:-}" = '--serve' ]; then
-    TENANT_TEST_INTERACTIVE=1 "$php_bin" "$test_root/tenant_public_bootstrap_test.php"
+    echo 'Anonymous bootstrap serving is retired; use run_tenant_header_http.sh for isolated HTTP verification.' >&2
+    exit 2
 elif [ "$#" -gt 0 ]; then
     "$php_bin" "$test_root/$1"
 else

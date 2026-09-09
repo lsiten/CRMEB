@@ -45,7 +45,8 @@ class AuthTokenMiddleware implements MiddlewareInterface
             $service = app()->make(UserAuthServices::class);
             $authInfo = $service->parseToken($token);
         } catch (AuthException $e) {
-            if ($force || $e->getCode() === 403)
+            if ($e->getCode() === 403) return TenantTokenMiddleware::error(403, 'tenant_mismatch', '用户与租户不匹配');
+            if ($force)
                 return app('json')->make($e->getCode(), $e->getMessage());
         }
 
