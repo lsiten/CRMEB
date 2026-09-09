@@ -27,3 +27,15 @@ export function tenantDeleteApi(id) {
 export function tenantStatusApi(id, status) {
   return request({ url: `/setting/tenant/status/${id}/${status}`, method: 'put' });
 }
+
+export function tenantCredentialsApi(id) {
+  return request({ url: `/tenant/credentials/${id}`, method: 'get' });
+}
+
+export function tenantCredentialsGenerateApi(id) {
+  return request({ url: `/tenant/credentials/${id}`, method: 'post' });
+}
+
+export function tenantCredentialsResetApi(id) {
+  return request({ url: `/tenant/credentials/${id}/reset`, method: 'post' });
+}
