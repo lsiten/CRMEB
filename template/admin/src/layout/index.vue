@@ -11,7 +11,9 @@
 <script>
 import { Local } from '@/utils/storage.js';
 import { mapMutations } from 'vuex';
-import { getNewTagList } from '@/libs/util';
+import { getNewTagList, setTitle } from '@/libs/util';
+import { getLogo } from '@/api/common';
+import { captureSession, isCurrentSession } from '@/libs/auth-session';
 
 export default {
   name: 'layout',
@@ -49,12 +51,31 @@ export default {
     },
   },
   created() {
+    this.refreshAdminTitle();
     this.headMenuNoShow = this.$route.meta.fullScreen;
     this.onLayoutResize();
     window.addEventListener('resize', this.onLayoutResize);
   },
   methods: {
     ...mapMutations(['setBreadCrumb', 'setTagNavList', 'addTag', 'setLocal', 'setHomeRoute', 'closeTag']),
+
+    refreshAdminTitle() {
+      const session = captureSession();
+      localStorage.removeItem('ADMIN_TITLE');
+      this.$store.commit('setAdminTitle', '');
+      setTitle(this.$route, this.$root);
+      return getLogo()
+        .then((res) => {
+          if (this._isDestroyed || !isCurrentSession(session)) return;
+          const title = typeof res.data.site_name === 'string' ? res.data.site_name : '';
+          localStorage.setItem('ADMIN_TITLE', title);
+          this.$store.commit('setAdminTitle', title);
+          setTitle(this.$route, this.$root);
+        })
+        .catch(() => {
+          // Keep the neutral title when configuration cannot be loaded.
+        });
+    },
 
     // 窗口大小改变时(适配移动端)
     onLayoutResize() {
