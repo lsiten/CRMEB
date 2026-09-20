@@ -72,6 +72,8 @@ docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revisi
 
 ## 验证范围
 
+租户 `appid` / `screct_id` Header 的下划线透传、重复头检查、njs 依赖和隔离接收器测试见 [租户 Header 网关交接](tenant-header-gateway.md)。冻结 Bullseye 源缺少 njs 二进制包，正式/旧开发镜像均从固定摘要源码编译模块，并核对 Debian Nginx 源码版本、架构及实际加载。两个原生架构的 CI 均运行正式镜像二进制的透传回归，并构建旧开发 Nginx 检查模块加载；这些步骤通过后才进入已有 Tag 发布步骤。正式网关不自行添加 CORS；真实租户认证和拒绝响应由配套服务端负责，镜像冒烟不代替组合联调。
+
 GitHub 检查两种架构镜像的 PHP 扩展、Composer 自动加载、Nginx/PHP-FPM 配置、HTTP 健康端点、后台静态页面和安装页面。构建上下文排除本机 `.env`、`.constant`、安装锁、上传和运行数据，保留安装 SQL。本检查不等同于已安装业务系统的交易验收。
 
 ## 运行时依赖快照

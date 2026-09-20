@@ -1,0 +1,9 @@
+**
+!docker/
+!docker/test-tenant-headers.mjs
+!docker/nginx.conf
+!docker/tenant-headers.js
+!help/
+!help/docker/
+!help/docker/nginx/
+!help/docker/nginx/vhost.conf
