@@ -9,6 +9,7 @@
 // +----------------------------------------------------------------------
 
 import request from '@/libs/request';
+import guestRequest from '@/libs/kefu-guest-request';
 
 /*
  * 登录
@@ -477,11 +478,10 @@ export function kefuConfig() {
  * @constructor
  */
 export function serviceListApi(params) {
-  return request({
+  return guestRequest({
     url: `tourist/user`,
     method: 'get',
     params,
-    kefu: true,
   });
 }
 
@@ -490,10 +490,9 @@ export function serviceListApi(params) {
  * @constructor
  */
 export function getAdvApi() {
-  return request({
+  return guestRequest({
     url: `tourist/adv`,
     method: 'get',
-    kefu: true,
   });
 }
 
@@ -502,11 +501,10 @@ export function getAdvApi() {
  * @constructor
  */
 export function chatListApi(params) {
-  return request({
+  return guestRequest({
     url: `tourist/chat`,
     method: 'get',
     params,
-    kefu: true,
   });
 }
 
@@ -515,10 +513,9 @@ export function chatListApi(params) {
  * @constructor
  */
 export function feedbackDataApi() {
-  return request({
+  return guestRequest({
     url: `tourist/feedback`,
     method: 'get',
-    kefu: true,
   });
 }
 
@@ -527,11 +524,10 @@ export function feedbackDataApi() {
  * @constructor
  */
 export function feedbackFromApi(data) {
-  return request({
+  return guestRequest({
     url: `tourist/feedback`,
     method: 'post',
     data,
-    kefu: true,
   });
 }
 
@@ -540,11 +536,10 @@ export function feedbackFromApi(data) {
  * @constructor
  */
 export function getOrderApi(order_id, params) {
-  return request({
+  return guestRequest({
     url: `tourist/order/${order_id}`,
     method: 'get',
     params,
-    kefu: true,
   });
 }
 
@@ -553,10 +548,9 @@ export function getOrderApi(order_id, params) {
  * @constructor
  */
 export function productApi(id) {
-  return request({
+  return guestRequest({
     url: `tourist/product/${id}`,
     method: 'get',
-    kefu: true,
   });
 }
 

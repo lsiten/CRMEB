@@ -1,5 +1,6 @@
 <template>
   <div class="feedback-wrapper">
+    <el-alert :title="guestAccessMessage" type="warning" :closable="false" show-icon />
     <div class="head">
       <div class="left-wrapper">
         <div class="title">商城客服已离线</div>
@@ -24,8 +25,10 @@
 </template>
 
 <script>
+import guestAccess from '@/pages/kefu/appChat/guest-access';
 import { feedbackDataApi, feedbackFromApi } from '@/api/kefu.js';
 export default {
+  mixins: [guestAccess],
   name: 'feedback',
   data() {
     return {
@@ -41,9 +44,11 @@ export default {
   },
   methods: {
     getInfo() {
-      feedbackDataApi().then((res) => {
-        this.feedback = res.data.feedback;
-      });
+      feedbackDataApi()
+        .then((res) => {
+          this.feedback = res.data.feedback;
+        })
+        .catch(this.guestRequestError);
     },
     subMit() {
       if (!this.name) {
@@ -66,7 +71,9 @@ export default {
           this.$router.go(-1);
         })
         .catch((error) => {
-          this.$message.error(error.msg);
+          if (error.data && error.data.code === 'guest_session_changed') return;
+          this.isDisabled = false;
+          this.guestRequestError(error);
         });
     },
   },

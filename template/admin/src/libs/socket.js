@@ -121,5 +121,15 @@ function createSocket(key) {
   });
 }
 
-export const adminSocket = createSocket(1);
-export const Socket = createSocket(2);
+function deferredSocket(key) {
+  let connection;
+  return {
+    then(resolve, reject) {
+      if (!connection) connection = createSocket(key);
+      return connection.then(resolve, reject);
+    },
+  };
+}
+
+export const adminSocket = deferredSocket(1);
+export const Socket = deferredSocket(2);
