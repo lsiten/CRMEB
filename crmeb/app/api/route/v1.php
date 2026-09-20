@@ -20,11 +20,11 @@ Route::post('tenant/bootstrap', 'v1.TenantController/bootstrap')
     ->middleware(\app\http\middleware\AllowOriginMiddleware::class);
 
 Route::group(function () {
-    Route::any('wechat/serve', 'v1.wechat.WechatController/serve')->option(['real_name' => '公众号服务']);//公众号服务
-    Route::any('wechat/miniServe', 'v1.wechat.WechatController/miniServe')->option(['real_name' => '小程序服务']);//公众号服务
-    Route::any('pay/notify/:type', 'v1.PayController/notify')->option(['real_name' => '支付回调']);//支付回调
-    Route::any('transfer/notify/:type', 'v1.PayController/transferNotify')->option(['real_name' => '商户转账回调']);//商户转账回调
-    Route::any('order_call_back', 'v1.order.StoreOrderController/callBack')->option(['real_name' => '商家寄件回调']);//商家寄件回调
+    Route::any('wechat/serve', 'v1.wechat.WechatController/serve')->middleware(\app\api\middleware\TenantCallbackMiddleware::class, true)->option(['real_name' => '公众号服务']);//公众号服务
+    Route::any('wechat/miniServe', 'v1.wechat.WechatController/miniServe')->middleware(\app\api\middleware\TenantCallbackMiddleware::class, true)->option(['real_name' => '小程序服务']);//公众号服务
+    Route::any('pay/notify/:type', 'v1.PayController/notify')->middleware(\app\api\middleware\TenantCallbackMiddleware::class, true)->option(['real_name' => '支付回调']);//支付回调
+    Route::any('transfer/notify/:type', 'v1.PayController/transferNotify')->middleware(\app\api\middleware\TenantCallbackMiddleware::class, true)->option(['real_name' => '商户转账回调']);//商户转账回调
+    Route::any('order_call_back', 'v1.order.StoreOrderController/callBack')->middleware(\app\api\middleware\TenantCallbackMiddleware::class, true)->option(['real_name' => '商家寄件回调']);//商家寄件回调
     Route::get('get_script', 'v1.PublicController/getScript')->option(['real_name' => '移动端自定义JS']);//移动端自定义JS
     Route::get('custom_pc_js', 'v1.PublicController/customPcJs')->option(['real_name' => 'PC端自定义JS']);//PC端自定义JS
     Route::get('version', 'v1.PublicController/getVersion')->option(['real_name' => '获取代码版本号']);
@@ -488,7 +488,7 @@ Route::group(function () {
         Route::get('coupons', 'v1.store.StoreCouponsController/lst')->name('couponsList')->option(['real_name' => '可领取优惠券列表']); //可领取优惠券列表
 
         //短信购买异步通知
-        Route::post('sms/pay/notify', 'v1.PublicController/sms_pay_notify')->name('smsPayNotify')->option(['real_name' => '短信购买异步通知']); //短信购买异步通知
+        Route::post('sms/pay/notify', 'v1.PublicController/sms_pay_notify')->name('smsPayNotify')->middleware(\app\api\middleware\TenantCallbackMiddleware::class, true)->option(['real_name' => '短信购买异步通知']); //短信购买异步通知
 
         //获取关注微信公众号海报
         Route::get('wechat/follow', 'v1.wechat.WechatController/follow')->name('Follow')->option(['real_name' => '获取关注微信公众号海报']);

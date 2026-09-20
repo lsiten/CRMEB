@@ -52,13 +52,13 @@ class HttpEndListener
             $uid,                                                                                 //用户ID
             request()->ip(),                                                                      //客户ip
             ceil(msectime() - (request()->time(true) * 1000)),                                    //耗时（毫秒）
-            request()->rule()->getMethod(),                                                       //请求类型
+            request()->method(),                                                       //请求类型
             str_replace("/", "", request()->rootUrl()),                                           //应用
             request()->baseUrl(),                                                                 //路由
-            json_encode(request()->param(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),     //请求参数
-            json_encode($response->getData(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),   //响应数据
+            json_encode(\crmeb\utils\SensitiveData::redact(request()->param()), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),     //请求参数
+            json_encode(\crmeb\utils\SensitiveData::redact($response->getData()), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),   //响应数据
 
         ];
-        Log::write(implode("|", $log), $type);
+        Log::write(implode("|", \crmeb\utils\SensitiveData::redact($log)), $type);
     }
 }

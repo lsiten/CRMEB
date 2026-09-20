@@ -100,7 +100,8 @@ Route::group(function () {
         Route::get('product/:id', 'Common/getProductInfo')->name('getProductInfo')->option(['real_name' => '获取商品信息']);//获取商品信息
         Route::get('chat', 'Common/getChatList')->name('getChatList')->option(['real_name' => '获取聊天记录']);//获取聊天记录
         Route::post('upload', 'Common/upload')->name('upload')->option(['real_name' => '图片上传']);//图片上传
-    })->option(['mark' => 'tourist', 'mark_name' => '游客客服']);
+    })->middleware(\app\api\middleware\TenantTokenMiddleware::class)
+        ->option(['mark' => 'tourist', 'mark_name' => '游客客服']);
 
 })->middleware(AllowOriginMiddleware::class);
 
