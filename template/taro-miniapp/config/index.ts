@@ -11,7 +11,6 @@ const config: UserConfigExport = {
   compiler: 'webpack5',
   copy: { patterns: process.env['TARO_ENV'] === 'h5' ? [{ from: 'src/vendor/wechat-sdk.js', to: 'dist/static/wechat-sdk.js' }] : [], options: {} },
   env: {
-    TARO_TENANT_ENTRY: JSON.stringify(process.env['TARO_TENANT_ENTRY'] ?? ''),
     TARO_VISIT_DELETE_ENABLED: JSON.stringify(process.env['TARO_VISIT_DELETE_ENABLED'] ?? 'false'),
     TARO_API_BASE_URL: JSON.stringify(process.env['TARO_API_BASE_URL'] ?? 'http://127.0.0.1:8080/api'),
     TARO_TELEMETRY_URL: JSON.stringify(process.env['TARO_TELEMETRY_URL'] ?? ''),

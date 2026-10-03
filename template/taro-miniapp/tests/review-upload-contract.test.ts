@@ -10,7 +10,7 @@ function uploadResponse(status: number, data: unknown) { platform.uploadFile.moc
 it('uploads under the backend multipart field and returns only the acknowledged server URL', async () => {
   uploadResponse(200, { url: 'https://example.test/proof.png' });
   await expect(uploadImage('/tmp/proof.png')).resolves.toBe('https://example.test/proof.png');
-  expect(platform.uploadFile).toHaveBeenCalledWith(expect.objectContaining({ url: expect.stringContaining('/api/upload/image'), filePath: '/tmp/proof.png', name: 'pics', formData: { filename: 'pics' }, header: { 'Authori-zation': 'Bearer isolated-session' } }));
+  expect(platform.uploadFile).toHaveBeenCalledWith(expect.objectContaining({ url: expect.stringContaining('/api/upload/image'), filePath: '/tmp/proof.png', name: 'pics', formData: { filename: 'pics' }, header: { 'Authori-zation': 'Bearer isolated-session', appid: 'isolated-fixture', screct_id: 'isolated-fake-secret' } }));
 });
 it('does not upload after the image picker is cancelled', async () => {
   platform.chooseImage.mockRejectedValue({ errMsg: 'chooseImage:fail cancel' });

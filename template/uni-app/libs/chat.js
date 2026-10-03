@@ -1,3 +1,4 @@
+import { TenantError } from '../utils/tenant';
 // +----------------------------------------------------------------------
 // | CRMEB [ CRMEB赋能开发者，助力企业发展 ]
 // +----------------------------------------------------------------------
@@ -13,12 +14,7 @@ import {
 	VUE_APP_WS_URL
 } from "@/utils/index.js";
 const Socket = function() {
-	let url = VUE_APP_WS_URL
-	this.ws = new WebSocket(wss(url));
-	this.ws.onopen = this.onOpen.bind(this);
-	this.ws.onerror = this.onError.bind(this);
-	this.ws.onmessage = this.onMessage.bind(this);
-	this.ws.onclose = this.onClose.bind(this);
+  throw new TenantError('TENANT_TRANSPORT_BLOCKED');
 };
 
 function wss(wsSocketUrl) {

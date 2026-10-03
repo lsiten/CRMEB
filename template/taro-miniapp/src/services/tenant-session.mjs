@@ -1,64 +1,53 @@
 export class TenantError extends Error {
   constructor(code) {
-    super(code === 'TENANT_CHANGED' ? '商城已切换，请重新操作' : '商城暂不可用，请稍后重试');
+    super(code === 'TENANT_CHANGED' ? '商城或账号已切换，请重新操作' : '商城认证不可用，请联系接入方');
     this.name = 'TenantError';
     this.code = code;
   }
 }
-
+const tenantCodes = new Set(['tenant_auth_required', 'tenant_credentials_invalid', 'tenant_auth_unavailable',
+  'tenant_mismatch', 'tenant_bootstrap_unavailable', 'tenant_token_invalid']);
 export function isTenantInvalid(body) {
-  return body !== null && typeof body === 'object' && body.status === 401
-    && body.data?.code === 'tenant_token_invalid';
+  return body !== null && typeof body === 'object' && tenantCodes.has(body.data?.code);
 }
-
-// Each application owns a separate instance; tokens stay in memory.
-export function createTenantSession({ entry = '', bootstrap, clear = () => {}, now = Date.now }) {
+export function tenantResponseError(body) {
+  return new TenantError(isTenantInvalid(body) ? body.data.code : 'tenant_auth_unavailable');
+}
+export function createTenantSession({ clear: clearState = () => {} } = {}) {
   let revision = 0;
-  let current;
-  let pending;
+  let credentials;
   function assertCurrent(snapshot) {
     if (snapshot.revision !== revision) throw new TenantError('TENANT_CHANGED');
   }
-  function select(next) {
-    if (typeof next !== 'string' || !next.trim()) throw new TenantError('TENANT_UNAVAILABLE');
-    if (entry === next) return;
+  function clear() {
     revision++;
-    entry = next;
-    current = undefined;
-    pending = undefined;
-    clear();
+    credentials = undefined;
+    clearState();
   }
-  function ensure() {
-    if (!entry) return Promise.resolve({ revision, token: '', expiresAt: Infinity });
-    if (current && current.expiresAt > now() + 30000) return Promise.resolve(current);
-    if (pending) return pending;
-    const snapshot = { revision };
-    const requestedEntry = entry;
-    const operation = (async () => {
-      const body = await bootstrap(requestedEntry);
-      assertCurrent(snapshot);
-      const data = body?.data;
-      if (body?.status !== 200 || typeof data?.tenant_token !== 'string' || !data.tenant_token
-        || !Number.isSafeInteger(data?.tenant?.id) || data.tenant.id <= 0
-        || typeof data.tenant.name !== 'string' || typeof data.tenant.code !== 'string'
-        || !Number.isFinite(data.expires_in) || data.expires_in <= 0) {
-        throw new TenantError('TENANT_UNAVAILABLE');
-      }
-      current = { revision, token: data.tenant_token, expiresAt: now() + data.expires_in * 1000 };
-      return current;
-    })();
-    pending = operation;
-    return operation.finally(() => { if (pending === operation) pending = undefined; });
-  }
-  function renew(snapshot) {
+  function responseError(snapshot, body) {
     assertCurrent(snapshot);
-    if (current?.token === snapshot.token) current = undefined;
-    return ensure();
+    const error = tenantResponseError(body);
+    if (error.code === 'tenant_credentials_invalid') clear();
+    return error;
   }
-  return { ensure, renew, select, assertCurrent, enabled: () => Boolean(entry), revision: () => revision };
-}
-
-// Legacy API also uses GET for mutations; method alone does not imply safety.
-export function canReplayTenantRead(path, method = 'GET') {
-  return method.toUpperCase() === 'GET' && ['products', 'user', 'version'].includes(path.replace(/^\//, '').split('?')[0]);
+  function inject(value) {
+    clear();
+    if (!value || typeof value !== 'object' || !['appid', 'screct_id'].every(key =>
+      typeof value[key] === 'string' && /^[A-Za-z0-9_-]{1,256}$/.test(value[key]))) {
+      throw new TenantError('tenant_credentials_invalid');
+    }
+    credentials = { appid: value.appid, screct_id: value.screct_id };
+  }
+  function snapshot() {
+    if (!credentials) throw new TenantError('tenant_auth_required');
+    return { revision };
+  }
+  function headers(snapshot, extra = {}) {
+    assertCurrent(snapshot);
+    if (!credentials) throw new TenantError('tenant_auth_required');
+    const safe = Object.fromEntries(Object.entries(extra).filter(([key, value]) => typeof value === 'string' &&
+      !['appid', 'screct_id', 'screct-id', 'x-tenant-token', 'authorization', 'authori-zation'].includes(key.toLowerCase())));
+    return { ...safe, ...credentials };
+  }
+  return { responseError, snapshot, ensure: async () => snapshot(), inject, clear, headers, assertCurrent, enabled: () => true, revision: () => revision };
 }

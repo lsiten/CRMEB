@@ -1,3 +1,4 @@
+import { TenantError } from './tenant';
 import Taro from '@tarojs/taro';
 import { ApiError, getToken, request } from './api';
 import { parseStoredReferral } from './platform';
@@ -27,7 +28,7 @@ export function syncPendingReferral(): Promise<SyncResult> {
       if (getToken() === token && JSON.stringify(current) === signature) Taro.removeStorageSync(storageKey);
       return 'processed';
     } catch (error) {
-      if (error instanceof ApiError) return 'retry';
+      if (error instanceof ApiError || error instanceof TenantError) return 'retry';
       throw error;
     }
   };

@@ -1,4 +1,4 @@
-import { tenantSession } from '../utils/tenant';
+import { tenantSession, TenantError } from '../utils/tenant';
 // +----------------------------------------------------------------------
 // | CRMEB [ CRMEB赋能开发者，助力企业发展 ]
 // +----------------------------------------------------------------------
@@ -79,21 +79,8 @@ Socket.prototype = {
 	close: function() {
 		uni.closeSocket();
 	},
-	onStart: function(token, form_type) {
-		const revision = tenantSession.revision();
-		let wssUrl = `${VUE_APP_WS_URL}`
-		this.ws = uni.connectSocket({
-			url: wssUrl + '?type=user&token=' + token + '&form_type=' + form_type,
-			header: {
-				'content-type': 'application/json'
-			},
-			method: 'GET',
-			success: (res) => {}
-		});
-		this.ws.onOpen(this.onSocketOpen.bind(this))
-		this.ws.onError(this.onError.bind(this));
-		this.ws.onMessage(res => { if (revision === tenantSession.revision() && token === $store.state.app.token) this.onMessage(res); })
-		this.ws.onClose(this.onClose.bind(this));
+	onStart: function() {
+    throw new TenantError('TENANT_TRANSPORT_BLOCKED');
 	}
 };
 
